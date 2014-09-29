@@ -21,11 +21,6 @@
   (void))
 ;; xxx more
 
-(define (sprite-hw spr)
-  #f)
-(define (sprite-hh spr)
-  #f)
-
 (struct compiled-sprite-db (s->w*h*bs))
 (define (compile-sprite-db sd)
   (match-define (sprite-db s->l) sd)
@@ -33,6 +28,11 @@
     (for/hasheq ([(s l) (in-hash s->l)])
       (values s (l))))
   (compiled-sprite-db s->w*h*bs))
+
+(define (sprite-hw csd spr)
+  #f)
+(define (sprite-hh csd spr)
+  #f)
 
 (define (save-csd csd p)
   #f)
@@ -54,7 +54,7 @@
     (f t)]))
 
 (define (pixel-ref bs w h bx by i)
-  (bytes-ref bs (+ (* w by) (* 4 bx) i)))
+  (bytes-ref bs (+ (* 4 w by) (* 4 bx) i)))
 
 (define (make-draw csd width height)
   (match-define (compiled-sprite-db s->w*h*bs) csd)
@@ -82,10 +82,11 @@
           (define-syntax-rule (define-nc nr i r)
             (begin (define cr (pixel-ref bs w h bx by i))
                    (define nr (->b (* cr r)))))
+          (define-nc na 0 a)
           (define-nc nr 1 r)
           (define-nc ng 2 g)
           (define-nc nb 3 b)
-          (define-nc na 0 a)
+          ;; xxx pal translation goes here
           (send c set nr ng nb 1.0) ;; xxx using anything but 1.0 messes up colors
           (send dc set-pen c 1 'solid)
           (send dc draw-point bx by)))
