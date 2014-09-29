@@ -2,13 +2,13 @@
 (require racket/match
          racket/contract/base)
 
-(struct sprite-db (name->bitmap))
+(struct sprite-db (spr->load))
 (define (make-sprite-db)
   (sprite-db (make-hasheq)))
 
 (define (sprite-db-add!/file sd name p)
-  (match-define (sprite-db n->bm) sd)
-  (hash-set! n->bm name
+  (match-define (sprite-db s->l) sd)
+  (hash-set! s->l name
              (λ ()
                (local-require racket/gui/base
                               racket/class)
@@ -17,7 +17,7 @@
                (define h (send bm get-height))
                (define bs (make-bytes (* w h 4)))
                (send bm get-argb-pixels 0 0 w h bs)
-               (values w h bs)))
+               (vector w h bs)))
   (void))
 ;; xxx more
 
@@ -26,9 +26,13 @@
 (define (sprite-hh spr)
   #f)
 
-(struct compiled-sprite-db (sd))
+(struct compiled-sprite-db (s->w*h*bs))
 (define (compile-sprite-db sd)
-  (compiled-sprite-db sd))
+  (match-define (sprite-db s->l) sd)
+  (define s->w*h*bs
+    (for/hasheq ([(s l) (in-hash s->l)])
+      (values s (l))))
+  (compiled-sprite-db s->w*h*bs))
 
 (define (save-csd csd p)
   #f)
@@ -53,8 +57,7 @@
   (bytes-ref bs (+ (* w by) (* 4 bx) i)))
 
 (define (make-draw csd width height)
-  (match-define (compiled-sprite-db sd) csd)
-  (match-define (sprite-db n->bm) sd)
+  (match-define (compiled-sprite-db s->w*h*bs) csd)
   (lambda (sprite-tree)
     (local-require racket/class
                    racket/math
@@ -73,8 +76,7 @@
         (send dc set-origin x y)
         (send dc set-scale mx my)
         (send dc set-rotation (* theta (/ 180.0 pi)))
-        (define ->w*h*bs (hash-ref n->bm spr))
-        (define-values (w h bs) (->w*h*bs))
+        (match-define (vector w h bs) (hash-ref s->w*h*bs spr))
         (for* ([bx (in-range w)]
                [by (in-range h)])
           (define-syntax-rule (define-nc nr i r)
