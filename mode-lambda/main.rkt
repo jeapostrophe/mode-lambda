@@ -62,6 +62,7 @@
 
 (define (make-draw csd width height)
   (match-define (compiled-sprite-db s->w*h*bs) csd)
+  (define root-bs (make-bytes (* 4 width height)))
   (lambda (sprite-tree)
     (local-require racket/math
                    racket/flonum
@@ -136,8 +137,6 @@
             (* (?flvector-ref A (3*3mat-offset i k))
                (?flvector-ref v k)))))
        u))
-
-    (define root-bs (make-bytes (* 4 width height)))
 
     ;; This whole function has lots of opportunities to be
     ;; optimized. Most of the math, when you unroll and inline all the
@@ -260,6 +259,10 @@
                      LL start-tx start-ty
                      RU (+ start-tx spr-w) (+ start-ty spr-h)
                      RL (+ start-tx spr-w) start-tx))
+    
+    ;; Clear the screen
+    (bytes-fill! root-bs 0)
+    
     (tree-for draw-sprite sprite-tree)
 
     ;; XXX Add a white background to easily tell the difference
