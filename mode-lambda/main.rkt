@@ -159,15 +159,33 @@
     ;; would be (W*H)*(2*S) because in the worst case every triangle
     ;; is on every line. I think in practice S_i is much smaller than
     ;; W_k*H_k, so scanline should be faster
+    
+    ;; XXX in OpenGL bs-* would be a global
+    (define (fragment-color! bs bs-w bs-h a r g b tx.0 ty.0 fill!)
+      (define tx (inexact->exact (floor tx.0)))
+      (define ty (inexact->exact (floor ty.0)))
+      (define-syntax-rule (define-nc cr nr i r)
+        (begin (define cr (pixel-ref bs bs-w bs-h tx ty i))
+               (define nr (inexact->exact (round (* cr r))))))
+      (define-nc ca na 0 a)
+      (define-nc cr nr 1 r)
+      (define-nc cg ng 2 g)
+      (define-nc cb nb 3 b)
+      ;; xxx pal translation goes here
+
+      ;; This "unless" corresponds to discarding non-opaque pixels
+      (unless (zero? na)
+        (fill! na nr ng nb)))
+    
     (define (draw-sprite s)
       (match-define (sprite-data dx dy r g b a spr pal mx my theta) s)
       (define M
         (3*3mat-mult*
          (2d-rotate (* theta (/ 180.0 pi)))
          (2d-translate dx dy)))
-      (match-define (vector w h bs) (hash-ref s->w*h*bs spr))
-      (define hw (* (/ w 2) mx))
-      (define hh (* (/ h 2) my))
+      (match-define (vector spr-w spr-h bs) (hash-ref s->w*h*bs spr))
+      (define hw (* (/ spr-w 2) mx))
+      (define hh (* (/ spr-h 2) my))
       (define LU
         (3*3matX3vec-mult M (2d-point (* -1.0 hw) (* +1.0 hh))))
       (define RU
@@ -227,32 +245,14 @@
               (pixel-set! root-bs width height x y 1 nr)
               (pixel-set! root-bs width height x y 2 ng)
               (pixel-set! root-bs width height x y 3 nb))
-            (fragment-color! tx ty fill!))))
-      
-      ;; In OpenGL, this function would return the color, because
-      ;; fragment shaders can't really write to color buffer.
-      (define (fragment-color! tx.0 ty.0 fill!)
-        (define tx (inexact->exact (floor tx.0)))
-        (define ty (inexact->exact (floor ty.0)))
-        (define-syntax-rule (define-nc cr nr i r)
-          (begin (define cr (pixel-ref bs w h tx ty i))
-                 (define nr (inexact->exact (round (* cr r))))))
-        (define-nc ca na 0 a)
-        (define-nc cr nr 1 r)
-        (define-nc cg ng 2 g)
-        (define-nc cb nb 3 b)
-        ;; xxx pal translation goes here
+            (fragment-color! bs spr-w spr-h a r g b tx ty fill!))))
 
-        ;; This "unless" corresponds to discarding non-opaque pixels
-        (unless (zero? na)
-          (fill! na nr ng nb)))
-
-      (draw-triangle LU 0 h
-                     RU w h
+      (draw-triangle LU 0 spr-h
+                     RU spr-w spr-h
                      LL 0 0)
       (draw-triangle LL 0 0
-                     RU w h
-                     RL w 0))
+                     RU spr-w spr-h
+                     RL spr-w 0))
     (tree-for draw-sprite sprite-tree)
 
     ;; XXX Add a white background to easily tell the difference
