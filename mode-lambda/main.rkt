@@ -145,7 +145,7 @@
     ;; of memory by sharing matrices/vertexes inside and outside this
     ;; loop. I won't do this, because this is a "reference" software
     ;; renderer.
-    
+
     ;; xxx We are doing per-poly drawing, but we could use the
     ;; "scanline algorithm": basically, sort the triangles by
     ;; Y-position/X-pos, then do a single iteration over the screen (like
@@ -158,9 +158,9 @@
     ;; would be (W*H)*(2*S) because in the worst case every triangle
     ;; is on every line. I think in practice S_i is much smaller than
     ;; W_k*H_k, so scanline should be faster
-    
+
     ;; XXX in OpenGL bs-* would be a global
-    (define (fragment-shader bs bs-w bs-h a r g b tx.0 ty.0 fill!)
+    (define (fragment-shader fill! bs bs-w bs-h a r g b tx.0 ty.0)
       (define tx (inexact->exact (floor tx.0)))
       (define ty (inexact->exact (floor ty.0)))
       (define-syntax-rule (define-nc cr nr i r)
@@ -175,14 +175,22 @@
       ;; This "unless" corresponds to discarding non-opaque pixels
       (unless (zero? na)
         (fill! na nr ng nb)))
-    
+
     ;; bx and ty are like "varying" vertex attributes that are
     ;; interpolated across the triangle. bs* are globals, and argb is
     ;; non-varying
-    (define (draw-triangle bs bs-w bs-h a r g b
-                           v1 tx1 ty1
-                           v2 tx2 ty2
-                           v3 tx3 ty3)
+    (struct triangle
+      (bs bs-w bs-h a r g b
+          v1 tx1 ty1
+          v2 tx2 ty2
+          v3 tx3 ty3))
+    (define (draw-triangle t)
+      (match-define
+       (triangle bs bs-w bs-h a r g b
+                 v1 tx1 ty1
+                 v2 tx2 ty2
+                 v3 tx3 ty3)
+       t)
       (define x1 (?flvector-ref v1 0))
       (define y1 (?flvector-ref v1 1))
       (define x2 (?flvector-ref v2 0))
@@ -228,9 +236,9 @@
             (pixel-set! root-bs width height x y 1 nr)
             (pixel-set! root-bs width height x y 2 ng)
             (pixel-set! root-bs width height x y 3 nb))
-          (fragment-shader bs bs-w bs-h a r g b tx ty fill!))))
-    
-    (define (draw-sprite s)
+          (fragment-shader fill! bs bs-w bs-h a r g b tx ty))))
+
+    (define (geometry-shader output! s)
       (match-define (sprite-data dx dy r g b a spr pal mx my theta) s)
       (define M
         (3*3mat-mult*
@@ -239,7 +247,7 @@
       (match-define (vector spr-w spr-h bs) (hash-ref s->w*h*bs spr))
       (define start-tx 0)
       (define start-ty 0)
-      
+
       (define hw (* (/ spr-w 2) mx))
       (define hh (* (/ spr-h 2) my))
       (define LU
@@ -251,22 +259,29 @@
       (define RL
         (3*3matX3vec-mult M (2d-point (* +1.0 hw) (* -1.0 hh))))
 
-      (draw-triangle bs spr-w spr-h a r g b
-                     LU start-tx (+ start-ty spr-h)
-                     RU (+ start-tx spr-w) (+ start-ty spr-h)
-                     LL start-tx start-ty)
-      (draw-triangle bs spr-w spr-h a r g b
-                     LL start-tx start-ty
-                     RU (+ start-tx spr-w) (+ start-ty spr-h)
-                     RL (+ start-tx spr-w) start-tx))
-    
+      (output!
+       (triangle bs spr-w spr-h a r g b
+                 LU start-tx (+ start-ty spr-h)
+                 RU (+ start-tx spr-w) (+ start-ty spr-h)
+                 LL start-tx start-ty))
+      (output!
+       (triangle bs spr-w spr-h a r g b
+                 LL start-tx start-ty
+                 RU (+ start-tx spr-w) (+ start-ty spr-h)
+                 RL (+ start-tx spr-w) start-tx)))
+
     ;; Clear the screen
     (bytes-fill! root-bs 0)
-    
-    (tree-for draw-sprite sprite-tree)
+
+    (define triangles null)
+    (define (output! t)
+      (set! triangles (cons t triangles)))
+    (tree-for (λ (s) (geometry-shader output! s)) sprite-tree)
+
+    (for-each draw-triangle triangles)
 
     ;; XXX Add a white background to easily tell the difference
-    ;; between border and background in Preview    
+    ;; between border and background in Preview
     (for* ([x (in-range width)]
            [y (in-range height)]
            #:when (= 0 (pixel-ref root-bs width height x y 0)))
