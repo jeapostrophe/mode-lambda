@@ -161,7 +161,7 @@
     ;; W_k*H_k, so scanline should be faster
     
     ;; XXX in OpenGL bs-* would be a global
-    (define (fragment-color! bs bs-w bs-h a r g b tx.0 ty.0 fill!)
+    (define (fragment-shader bs bs-w bs-h a r g b tx.0 ty.0 fill!)
       (define tx (inexact->exact (floor tx.0)))
       (define ty (inexact->exact (floor ty.0)))
       (define-syntax-rule (define-nc cr nr i r)
@@ -229,7 +229,7 @@
             (pixel-set! root-bs width height x y 1 nr)
             (pixel-set! root-bs width height x y 2 ng)
             (pixel-set! root-bs width height x y 3 nb))
-          (fragment-color! bs bs-w bs-h a r g b tx ty fill!))))
+          (fragment-shader bs bs-w bs-h a r g b tx ty fill!))))
     
     (define (draw-sprite s)
       (match-define (sprite-data dx dy r g b a spr pal mx my theta) s)
@@ -238,6 +238,9 @@
          (2d-rotate (* theta (/ 180.0 pi)))
          (2d-translate dx dy)))
       (match-define (vector spr-w spr-h bs) (hash-ref s->w*h*bs spr))
+      (define start-tx 0)
+      (define start-ty 0)
+      
       (define hw (* (/ spr-w 2) mx))
       (define hh (* (/ spr-h 2) my))
       (define LU
@@ -247,16 +250,16 @@
       (define LL
         (3*3matX3vec-mult M (2d-point (* -1.0 hw) (* -1.0 hh))))
       (define RL
-        (3*3matX3vec-mult M (2d-point (* +1.0 hw) (* -1.0 hh))))      
+        (3*3matX3vec-mult M (2d-point (* +1.0 hw) (* -1.0 hh))))
 
       (draw-triangle bs spr-w spr-h a r g b
-                     LU 0 spr-h
-                     RU spr-w spr-h
-                     LL 0 0)
+                     LU start-tx (+ start-ty spr-h)
+                     RU (+ start-tx spr-w) (+ start-ty spr-h)
+                     LL start-tx start-ty)
       (draw-triangle bs spr-w spr-h a r g b
-                     LL 0 0
-                     RU spr-w spr-h
-                     RL spr-w 0))
+                     LL start-tx start-ty
+                     RU (+ start-tx spr-w) (+ start-ty spr-h)
+                     RL (+ start-tx spr-w) start-tx))
     (tree-for draw-sprite sprite-tree)
 
     ;; XXX Add a white background to easily tell the difference
