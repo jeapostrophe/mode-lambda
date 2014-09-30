@@ -15,14 +15,14 @@
   (define csd (compile-sprite-db sd))
   (define draw (make-draw csd W H))
   (define s
-    (for/list ([i (in-range (* 2 H))])
+    (for/list ([i (in-range (* 2 W))])
       (define n (list-ref ns (random (length ns))))
       (sprite (* W (random)) (* H (random))
               (random) (random) (random) (+ 0.5 (* 0.5 (random)))
               n #f
               (* (random) 2) (* (random) 2)
-              (* (random) 2 pi))))
-  (draw s))
+              0.0 #;(* (random) 2 pi))))
+  (time (draw s)))
 
 (module+ main
   (require racket/cmdline)
