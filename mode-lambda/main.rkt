@@ -54,6 +54,12 @@
    [else
     (f t)]))
 
+;; xxx add layers... snes had 4 (or maybe 8 because each layer had 2
+;; planes), saturn could do 5 scrolling + 2 rotating, 32 could be done
+;; in a single opengl shader, so 8? (opengl will make a texture array,
+;; and use a shader with two triangles to combine them in a particular
+;; order)
+
 (define (make-draw csd width height)
   (match-define (compiled-sprite-db s->w*h*bs) csd)
   (lambda (sprite-tree)
@@ -140,6 +146,19 @@
     ;; of memory by sharing matrices/vertexes inside and outside this
     ;; loop. I won't do this, because this is a "reference" software
     ;; renderer.
+    
+    ;; xxx We are doing per-poly drawing, but we could use the
+    ;; "scanline algorithm": basically, sort the triangles by
+    ;; Y-position/X-pos, then do a single iteration over the screen (like
+    ;; the iteration of x/y in draw-triangle) and then go through the
+    ;; sorted lists of triangles and check out which triangle a point
+    ;; is part of and then use its fragment function to compute the
+    ;; color. This will be much more like how OpenGL works. Right now
+    ;; we are (2*S)*(W*H) because in the worst case each triangle
+    ;; could potentially cover the screen. The scanline algorithm
+    ;; would be (W*H)*(2*S) because in the worst case every triangle
+    ;; is on every line. I think in practice S_i is much smaller than
+    ;; W_k*H_k, so scanline should be faster
     (define (draw-sprite s)
       (match-define (sprite-data dx dy r g b a spr pal mx my theta) s)
       (define M
@@ -203,11 +222,16 @@
                      (<= 0 λ3 1))
             (define tx (+ (* λ1 tx1) (* λ2 tx2) (* λ3 tx3)))
             (define ty (+ (* λ1 ty1) (* λ2 ty2) (* λ3 ty3)))
-            (fragment-color! x y tx ty))))
+            (define (fill! na nr ng nb)
+              (pixel-set! root-bs width height x y 0 na)
+              (pixel-set! root-bs width height x y 1 nr)
+              (pixel-set! root-bs width height x y 2 ng)
+              (pixel-set! root-bs width height x y 3 nb))
+            (fragment-color! tx ty fill!))))
       
       ;; In OpenGL, this function would return the color, because
       ;; fragment shaders can't really write to color buffer.
-      (define (fragment-color! dest-x dest-y tx.0 ty.0)
+      (define (fragment-color! tx.0 ty.0 fill!)
         (define tx (inexact->exact (floor tx.0)))
         (define ty (inexact->exact (floor ty.0)))
         (define-syntax-rule (define-nc cr nr i r)
@@ -221,10 +245,7 @@
 
         ;; This "unless" corresponds to discarding non-opaque pixels
         (unless (zero? na)
-          (pixel-set! root-bs width height dest-x dest-y 0 na)
-          (pixel-set! root-bs width height dest-x dest-y 1 nr)
-          (pixel-set! root-bs width height dest-x dest-y 2 ng)
-          (pixel-set! root-bs width height dest-x dest-y 3 nb)))
+          (fill! na nr ng nb)))
 
       (draw-triangle LU 0 h
                      RU w h
