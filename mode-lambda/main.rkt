@@ -177,6 +177,60 @@
       (unless (zero? na)
         (fill! na nr ng nb)))
     
+    ;; bx and ty are like "varying" vertex attributes that are
+    ;; interpolated across the triangle. bs* are globals, and argb is
+    ;; non-varying
+    (define (draw-triangle bs bs-w bs-h a r g b
+                           v1 tx1 ty1
+                           v2 tx2 ty2
+                           v3 tx3 ty3)
+      (define x1 (?flvector-ref v1 0))
+      (define y1 (?flvector-ref v1 1))
+      (define x2 (?flvector-ref v2 0))
+      (define y2 (?flvector-ref v2 1))
+      (define x3 (?flvector-ref v3 0))
+      (define y3 (?flvector-ref v3 1))
+      ;; This is very expensive, because we look at the bounding box
+      ;; and then test to see if points are in the triangle.
+      (for* ([x (in-range (inexact->exact (floor (min x1 x2 x3)))
+                          (inexact->exact (ceiling (max x1 x2 x3))))]
+             [y (in-range (inexact->exact (floor (min y1 y2 y3)))
+                          (inexact->exact (ceiling (max y1 y2 y3))))]
+             ;; We ignore points off the screen
+             #:when (and (<= 0 x) (< x width))
+             #:when (and (<= 0 y) (< y height))
+             ;; This is like a "depth" test where we make sure that
+             ;; we aren't going to over-write a pixel we've already
+             ;; written.
+             #:when (= 0 (pixel-ref root-bs width height x y 0)))
+        ;; Compute the Barycentric coordinates
+        (define detT
+          (+ (* (- y2 y3) (- x1 x3))
+             (* (- x3 x2) (- y1 y3))))
+        (define λ1
+          (/ (+ (* (- y2 y3) (- x x3))
+                (* (- x3 x2) (- y y3)))
+             detT))
+        (define λ2
+          (/ (+ (* (- y3 y1) (- x x3))
+                (* (- x1 x3) (- y y3)))
+             detT))
+        (define λ3
+          (- 1 λ1 λ2))
+        ;; This condition is when the point is actually in the
+        ;; triangle.
+        (when (and (<= 0 λ1 1)
+                   (<= 0 λ2 1)
+                   (<= 0 λ3 1))
+          (define tx (+ (* λ1 tx1) (* λ2 tx2) (* λ3 tx3)))
+          (define ty (+ (* λ1 ty1) (* λ2 ty2) (* λ3 ty3)))
+          (define (fill! na nr ng nb)
+            (pixel-set! root-bs width height x y 0 na)
+            (pixel-set! root-bs width height x y 1 nr)
+            (pixel-set! root-bs width height x y 2 ng)
+            (pixel-set! root-bs width height x y 3 nb))
+          (fragment-color! bs bs-w bs-h a r g b tx ty fill!))))
+    
     (define (draw-sprite s)
       (match-define (sprite-data dx dy r g b a spr pal mx my theta) s)
       (define M
@@ -193,64 +247,14 @@
       (define LL
         (3*3matX3vec-mult M (2d-point (* -1.0 hw) (* -1.0 hh))))
       (define RL
-        (3*3matX3vec-mult M (2d-point (* +1.0 hw) (* -1.0 hh))))
+        (3*3matX3vec-mult M (2d-point (* +1.0 hw) (* -1.0 hh))))      
 
-      ;; bx and ty are like "varying" vertex attributes that are
-      ;; interpolated across the triangle.
-      (define (draw-triangle v1 tx1 ty1
-                             v2 tx2 ty2
-                             v3 tx3 ty3)
-        (define x1 (?flvector-ref v1 0))
-        (define y1 (?flvector-ref v1 1))
-        (define x2 (?flvector-ref v2 0))
-        (define y2 (?flvector-ref v2 1))
-        (define x3 (?flvector-ref v3 0))
-        (define y3 (?flvector-ref v3 1))
-        ;; This is very expensive, because we look at the bounding box
-        ;; and then test to see if points are in the triangle.
-        (for* ([x (in-range (inexact->exact (floor (min x1 x2 x3)))
-                            (inexact->exact (ceiling (max x1 x2 x3))))]
-               [y (in-range (inexact->exact (floor (min y1 y2 y3)))
-                            (inexact->exact (ceiling (max y1 y2 y3))))]
-               ;; We ignore points off the screen
-               #:when (and (<= 0 x) (< x width))
-               #:when (and (<= 0 y) (< y height))
-               ;; This is like a "depth" test where we make sure that
-               ;; we aren't going to over-write a pixel we've already
-               ;; written.
-               #:when (= 0 (pixel-ref root-bs width height x y 0)))
-          ;; Compute the Barycentric coordinates
-          (define detT
-            (+ (* (- y2 y3) (- x1 x3))
-               (* (- x3 x2) (- y1 y3))))
-          (define λ1
-            (/ (+ (* (- y2 y3) (- x x3))
-                  (* (- x3 x2) (- y y3)))
-               detT))
-          (define λ2
-            (/ (+ (* (- y3 y1) (- x x3))
-                  (* (- x1 x3) (- y y3)))
-               detT))
-          (define λ3
-            (- 1 λ1 λ2))
-          ;; This condition is when the point is actually in the
-          ;; triangle.
-          (when (and (<= 0 λ1 1)
-                     (<= 0 λ2 1)
-                     (<= 0 λ3 1))
-            (define tx (+ (* λ1 tx1) (* λ2 tx2) (* λ3 tx3)))
-            (define ty (+ (* λ1 ty1) (* λ2 ty2) (* λ3 ty3)))
-            (define (fill! na nr ng nb)
-              (pixel-set! root-bs width height x y 0 na)
-              (pixel-set! root-bs width height x y 1 nr)
-              (pixel-set! root-bs width height x y 2 ng)
-              (pixel-set! root-bs width height x y 3 nb))
-            (fragment-color! bs spr-w spr-h a r g b tx ty fill!))))
-
-      (draw-triangle LU 0 spr-h
+      (draw-triangle bs spr-w spr-h a r g b
+                     LU 0 spr-h
                      RU spr-w spr-h
                      LL 0 0)
-      (draw-triangle LL 0 0
+      (draw-triangle bs spr-w spr-h a r g b
+                     LL 0 0
                      RU spr-w spr-h
                      RL spr-w 0))
     (tree-for draw-sprite sprite-tree)
