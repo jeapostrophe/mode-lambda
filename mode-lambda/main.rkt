@@ -184,6 +184,19 @@
           v1 tx1 ty1
           v2 tx2 ty2
           v3 tx3 ty3))
+    (define (triangle-F-O F O t)
+      (match-define
+       (triangle bs bs-w bs-h a r g b
+                 v1 tx1 ty1
+                 v2 tx2 ty2
+                 v3 tx3 ty3)
+       t)
+      (F (?flvector-ref v1 O)
+         (?flvector-ref v2 O)
+         (?flvector-ref v3 O)))
+    (define (triangle-F-y F t) (triangle-F-O F 1 t))
+    (define (triangle-min-y t) (triangle-F-y min t))
+    (define (triangle-max-y t) (triangle-F-y max t))
     (define (point-in-triangle? t x y)
       (match-define
        (triangle bs bs-w bs-h a r g b
@@ -253,9 +266,14 @@
                  RU (+ start-tx spr-w) (+ start-ty spr-h)
                  RL (+ start-tx spr-w) start-tx)))
 
-    (define triangles null)
+    (define y->triangles (make-vector height null))
     (define (output! t)
-      (set! triangles (cons t triangles)))
+      (for ([y (in-range (max 0
+                              (inexact->exact (floor (triangle-min-y t))))
+                         (min height
+                              (inexact->exact (ceiling (triangle-max-y t)))))])
+        (vector-set! y->triangles y 
+                     (cons t (vector-ref y->triangles y)))))
     (tree-for (λ (s) (geometry-shader output! s)) sprite-tree)
 
     ;; Clear the screen
@@ -265,7 +283,7 @@
       (for* ([y (in-range 0 height)]
              [x (in-range 0 width)])
         (let/ec drew
-          (for ([t (in-list triangles)])
+          (for ([t (in-list (vector-ref y->triangles y))])
             (match (point-in-triangle? t x y)
               [(vector λ1 λ2 λ3)
                (match-define
