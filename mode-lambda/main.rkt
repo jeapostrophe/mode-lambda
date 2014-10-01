@@ -253,45 +253,6 @@
                  RU (+ start-tx spr-w) (+ start-ty spr-h)
                  RL (+ start-tx spr-w) start-tx)))
 
-    (define (draw-triangle t)
-      (match-define
-       (triangle bs bs-w bs-h a r g b
-                 v1 tx1 ty1
-                 v2 tx2 ty2
-                 v3 tx3 ty3)
-       t)
-      (define x1 (?flvector-ref v1 0))
-      (define y1 (?flvector-ref v1 1))
-      (define x2 (?flvector-ref v2 0))
-      (define y2 (?flvector-ref v2 1))
-      (define x3 (?flvector-ref v3 0))
-      (define y3 (?flvector-ref v3 1))
-      ;; This is very expensive, because we look at the bounding box
-      ;; and then test to see if points are in the triangle.
-      (for* ([x (in-range (inexact->exact (floor (min x1 x2 x3)))
-                          (inexact->exact (ceiling (max x1 x2 x3))))]
-             [y (in-range (inexact->exact (floor (min y1 y2 y3)))
-                          (inexact->exact (ceiling (max y1 y2 y3))))]
-             ;; We ignore points off the screen
-             #:when (and (<= 0 x) (< x width))
-             #:when (and (<= 0 y) (< y height))
-             ;; This is like a "depth" test where we make sure that
-             ;; we aren't going to over-write a pixel we've already
-             ;; written.
-             #:when (= 0 (pixel-ref root-bs width height x y 0)))
-        (match (point-in-triangle? t x y)
-          [(vector λ1 λ2 λ3)
-           (define tx (+ (* λ1 tx1) (* λ2 tx2) (* λ3 tx3)))
-           (define ty (+ (* λ1 ty1) (* λ2 ty2) (* λ3 ty3)))
-           (define (fill! na nr ng nb)
-             (pixel-set! root-bs width height x y 0 na)
-             (pixel-set! root-bs width height x y 1 nr)
-             (pixel-set! root-bs width height x y 2 ng)
-             (pixel-set! root-bs width height x y 3 nb))
-           (fragment-shader fill! bs bs-w bs-h a r g b tx ty)]
-          [#f
-           (void)])))
-
     (define triangles null)
     (define (output! t)
       (set! triangles (cons t triangles)))
@@ -301,7 +262,31 @@
     (bytes-fill! root-bs 0)
 
     (define (fill-screen!)
-      (for-each draw-triangle triangles))
+      (for* ([y (in-range 0 height)]
+             [x (in-range 0 width)])
+        (let/ec drew
+          (for ([t (in-list triangles)])
+            (match (point-in-triangle? t x y)
+              [(vector λ1 λ2 λ3)
+               (match-define
+                (triangle bs bs-w bs-h a r g b
+                          v1 tx1 ty1
+                          v2 tx2 ty2
+                          v3 tx3 ty3)
+                t)
+               (define tx (+ (* λ1 tx1) (* λ2 tx2) (* λ3 tx3)))
+               (define ty (+ (* λ1 ty1) (* λ2 ty2) (* λ3 ty3)))
+               (define (fill! na nr ng nb)
+                 (pixel-set! root-bs width height x y 0 na)
+                 (pixel-set! root-bs width height x y 1 nr)
+                 (pixel-set! root-bs width height x y 2 ng)
+                 (pixel-set! root-bs width height x y 3 nb)
+                 ;; This is like a "depth" test. If the fragment drew
+                 ;; anything, then skip the rest of the triangles
+                 (drew))
+               (fragment-shader fill! bs bs-w bs-h a r g b tx ty)]
+              [#f
+               (void)])))))
 
     (fill-screen!)
 
