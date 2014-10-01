@@ -21,7 +21,7 @@
               (random) (random) (random) (+ 0.5 (* 0.5 (random)))
               n #f
               (* (random) 2) (* (random) 2)
-              0.0 #;(* (random) 2 pi))))
+              (* (random) 2 pi))))
   (time (draw s)))
 
 (module+ main

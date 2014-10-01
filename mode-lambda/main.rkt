@@ -58,7 +58,8 @@
 ;; planes), saturn could do 5 scrolling + 2 rotating, 32 could be done
 ;; in a single opengl shader, so 8? (opengl will make a texture array,
 ;; and use a shader with two triangles to combine them in a particular
-;; order)
+;; order) [i could actually draw all layers at the same time by making
+;; the layer part of the sprite!]
 
 (define (make-draw csd width height)
   (match-define (compiled-sprite-db s->w*h*bs) csd)
@@ -205,33 +206,36 @@
       (define y2 (?flvector-ref v2 1))
       (define x3 (?flvector-ref v3 0))
       (define y3 (?flvector-ref v3 1))
-      ;; Compute the Barycentric coordinates
-      (define detT
-        (+ (* (- y2 y3) (- x1 x3))
-           (* (- x3 x2) (- y1 y3))))
-      (define λ1
-        (/ (+ (* (- y2 y3) (- x x3))
-              (* (- x3 x2) (- y y3)))
-           detT))
-      (define λ2
-        (/ (+ (* (- y3 y1) (- x x3))
-              (* (- x1 x3) (- y y3)))
-           detT))
-      (define λ3
-        (- 1 λ1 λ2))
-      ;; This condition is when the point is actually in the
-      ;; triangle.
-      (when (and (<= 0 λ1 1)
-                 (<= 0 λ2 1)
-                 (<= 0 λ3 1))
-        (f λ1 λ2 λ3)))
+      (define min-x (min x1 x2 x3))
+      (define max-x (max x1 x2 x3))
+      (when (<= min-x x max-x)
+        ;; Compute the Barycentric coordinates
+        (define detT
+          (+ (* (- y2 y3) (- x1 x3))
+             (* (- x3 x2) (- y1 y3))))
+        (define λ1
+          (/ (+ (* (- y2 y3) (- x x3))
+                (* (- x3 x2) (- y y3)))
+             detT))
+        (define λ2
+          (/ (+ (* (- y3 y1) (- x x3))
+                (* (- x1 x3) (- y y3)))
+             detT))
+        (define λ3
+          (- 1 λ1 λ2))
+        ;; This condition is when the point is actually in the
+        ;; triangle.
+        (when (and (<= 0 λ1 1)
+                   (<= 0 λ2 1)
+                   (<= 0 λ3 1))
+          (f λ1 λ2 λ3))))
 
     (define (geometry-shader output! s)
       (match-define (sprite-data dx dy r g b a spr pal mx my theta) s)
       (define M
         (3*3mat-mult*
-         (2d-rotate (* theta (/ 180.0 pi)))
-         (2d-translate dx dy)))
+         (2d-translate dx dy)
+         (2d-rotate theta)))
       (match-define (vector spr-w spr-h bs) (hash-ref s->w*h*bs spr))
       (define start-tx 0)
       (define start-ty 0)
