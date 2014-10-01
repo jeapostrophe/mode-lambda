@@ -184,6 +184,43 @@
           v1 tx1 ty1
           v2 tx2 ty2
           v3 tx3 ty3))
+    (define (point-in-triangle? t x y)
+      (match-define
+       (triangle bs bs-w bs-h a r g b
+                 v1 tx1 ty1
+                 v2 tx2 ty2
+                 v3 tx3 ty3)
+       t)
+      (define x1 (?flvector-ref v1 0))
+      (define y1 (?flvector-ref v1 1))
+      (define x2 (?flvector-ref v2 0))
+      (define y2 (?flvector-ref v2 1))
+      (define x3 (?flvector-ref v3 0))
+      (define y3 (?flvector-ref v3 1))
+      ;; Compute the Barycentric coordinates
+      (define detT
+        (+ (* (- y2 y3) (- x1 x3))
+           (* (- x3 x2) (- y1 y3))))
+      (define λ1
+        (/ (+ (* (- y2 y3) (- x x3))
+              (* (- x3 x2) (- y y3)))
+           detT))
+      (define λ2
+        (/ (+ (* (- y3 y1) (- x x3))
+              (* (- x1 x3) (- y y3)))
+           detT))
+      (define λ3
+        (- 1 λ1 λ2))
+      ;; This condition is when the point is actually in the
+      ;; triangle.
+      (cond
+       [(and (<= 0 λ1 1)
+             (<= 0 λ2 1)
+             (<= 0 λ3 1))
+        (vector λ1 λ2 λ3)]
+       [else
+        #f]))
+    
     (define (draw-triangle t)
       (match-define
        (triangle bs bs-w bs-h a r g b
@@ -210,33 +247,18 @@
              ;; we aren't going to over-write a pixel we've already
              ;; written.
              #:when (= 0 (pixel-ref root-bs width height x y 0)))
-        ;; Compute the Barycentric coordinates
-        (define detT
-          (+ (* (- y2 y3) (- x1 x3))
-             (* (- x3 x2) (- y1 y3))))
-        (define λ1
-          (/ (+ (* (- y2 y3) (- x x3))
-                (* (- x3 x2) (- y y3)))
-             detT))
-        (define λ2
-          (/ (+ (* (- y3 y1) (- x x3))
-                (* (- x1 x3) (- y y3)))
-             detT))
-        (define λ3
-          (- 1 λ1 λ2))
-        ;; This condition is when the point is actually in the
-        ;; triangle.
-        (when (and (<= 0 λ1 1)
-                   (<= 0 λ2 1)
-                   (<= 0 λ3 1))
-          (define tx (+ (* λ1 tx1) (* λ2 tx2) (* λ3 tx3)))
-          (define ty (+ (* λ1 ty1) (* λ2 ty2) (* λ3 ty3)))
-          (define (fill! na nr ng nb)
-            (pixel-set! root-bs width height x y 0 na)
-            (pixel-set! root-bs width height x y 1 nr)
-            (pixel-set! root-bs width height x y 2 ng)
-            (pixel-set! root-bs width height x y 3 nb))
-          (fragment-shader fill! bs bs-w bs-h a r g b tx ty))))
+        (match (point-in-triangle? t x y)
+          [(vector λ1 λ2 λ3)
+           (define tx (+ (* λ1 tx1) (* λ2 tx2) (* λ3 tx3)))
+           (define ty (+ (* λ1 ty1) (* λ2 ty2) (* λ3 ty3)))
+           (define (fill! na nr ng nb)
+             (pixel-set! root-bs width height x y 0 na)
+             (pixel-set! root-bs width height x y 1 nr)
+             (pixel-set! root-bs width height x y 2 ng)
+             (pixel-set! root-bs width height x y 3 nb))
+           (fragment-shader fill! bs bs-w bs-h a r g b tx ty)]
+          [#f
+           (void)])))
 
     (define (geometry-shader output! s)
       (match-define (sprite-data dx dy r g b a spr pal mx my theta) s)
