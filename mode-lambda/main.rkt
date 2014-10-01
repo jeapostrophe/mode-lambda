@@ -220,7 +220,39 @@
         (vector λ1 λ2 λ3)]
        [else
         #f]))
-    
+
+    (define (geometry-shader output! s)
+      (match-define (sprite-data dx dy r g b a spr pal mx my theta) s)
+      (define M
+        (3*3mat-mult*
+         (2d-rotate (* theta (/ 180.0 pi)))
+         (2d-translate dx dy)))
+      (match-define (vector spr-w spr-h bs) (hash-ref s->w*h*bs spr))
+      (define start-tx 0)
+      (define start-ty 0)
+
+      (define hw (* (/ spr-w 2) mx))
+      (define hh (* (/ spr-h 2) my))
+      (define LU
+        (3*3matX3vec-mult M (2d-point (* -1.0 hw) (* +1.0 hh))))
+      (define RU
+        (3*3matX3vec-mult M (2d-point (* +1.0 hw) (* +1.0 hh))))
+      (define LL
+        (3*3matX3vec-mult M (2d-point (* -1.0 hw) (* -1.0 hh))))
+      (define RL
+        (3*3matX3vec-mult M (2d-point (* +1.0 hw) (* -1.0 hh))))
+
+      (output!
+       (triangle bs spr-w spr-h a r g b
+                 LU start-tx (+ start-ty spr-h)
+                 RU (+ start-tx spr-w) (+ start-ty spr-h)
+                 LL start-tx start-ty))
+      (output!
+       (triangle bs spr-w spr-h a r g b
+                 LL start-tx start-ty
+                 RU (+ start-tx spr-w) (+ start-ty spr-h)
+                 RL (+ start-tx spr-w) start-tx)))
+
     (define (draw-triangle t)
       (match-define
        (triangle bs bs-w bs-h a r g b
@@ -260,47 +292,18 @@
           [#f
            (void)])))
 
-    (define (geometry-shader output! s)
-      (match-define (sprite-data dx dy r g b a spr pal mx my theta) s)
-      (define M
-        (3*3mat-mult*
-         (2d-rotate (* theta (/ 180.0 pi)))
-         (2d-translate dx dy)))
-      (match-define (vector spr-w spr-h bs) (hash-ref s->w*h*bs spr))
-      (define start-tx 0)
-      (define start-ty 0)
-
-      (define hw (* (/ spr-w 2) mx))
-      (define hh (* (/ spr-h 2) my))
-      (define LU
-        (3*3matX3vec-mult M (2d-point (* -1.0 hw) (* +1.0 hh))))
-      (define RU
-        (3*3matX3vec-mult M (2d-point (* +1.0 hw) (* +1.0 hh))))
-      (define LL
-        (3*3matX3vec-mult M (2d-point (* -1.0 hw) (* -1.0 hh))))
-      (define RL
-        (3*3matX3vec-mult M (2d-point (* +1.0 hw) (* -1.0 hh))))
-
-      (output!
-       (triangle bs spr-w spr-h a r g b
-                 LU start-tx (+ start-ty spr-h)
-                 RU (+ start-tx spr-w) (+ start-ty spr-h)
-                 LL start-tx start-ty))
-      (output!
-       (triangle bs spr-w spr-h a r g b
-                 LL start-tx start-ty
-                 RU (+ start-tx spr-w) (+ start-ty spr-h)
-                 RL (+ start-tx spr-w) start-tx)))
-
-    ;; Clear the screen
-    (bytes-fill! root-bs 0)
-
     (define triangles null)
     (define (output! t)
       (set! triangles (cons t triangles)))
     (tree-for (λ (s) (geometry-shader output! s)) sprite-tree)
 
-    (for-each draw-triangle triangles)
+    ;; Clear the screen
+    (bytes-fill! root-bs 0)
+
+    (define (fill-screen!)
+      (for-each draw-triangle triangles))
+
+    (fill-screen!)
 
     ;; XXX Add a white background to easily tell the difference
     ;; between border and background in Preview
