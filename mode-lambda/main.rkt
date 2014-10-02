@@ -277,6 +277,9 @@
     (bytes-fill! root-bs 0)
     ;; Fill the screen
     (for ([y (in-range 0 height)])
+      ;; XXX I should abstract this into a simple iteration and
+      ;; querying of a spatial hash and then look at other spatial
+      ;; hash representations like quadtrees.
       (define yts-h (vector-ref y->triangles y))
       (define ytsk (heap-count yts-h))
       (unless (zero? ytsk)
