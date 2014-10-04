@@ -285,9 +285,9 @@
            [yb (in-range 0 (2d-hash-y-blocks tri-hash))])
       (define tris (2d-hash-block-ref tri-hash xb yb))
       (for* ([x (in-range (2d-hash-x-block-min tri-hash xb)
-                          (2d-hash-x-block-max tri-hash xb))]
+                          (min width (2d-hash-x-block-max tri-hash xb)))]
              [y (in-range (2d-hash-y-block-min tri-hash yb)
-                          (2d-hash-y-block-max tri-hash yb))])
+                          (min height (2d-hash-y-block-max tri-hash yb)))])
         (let/ec drew
           (for ([t (in-list tris)])
             (when-point-in-triangle
