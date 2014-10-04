@@ -19,7 +19,8 @@
     (vector name w h bs))
   (set-box! ls-b (cons load (unbox ls-b)))
   (void))
-;; xxx more
+;; xxx palettes
+;; xxx read from pict, htdp/image, etc
 
 ;; xxx unsafe/inline
 (define (pixel-ref bs w h bx by i)
@@ -150,10 +151,6 @@
      (3*3mat 0.0 0.0 0.0
              0.0 0.0 0.0
              0.0 0.0 0.0))
-   (define (3*3mat-identity)
-     (3*3mat 1.0 0.0 0.0
-             0.0 1.0 0.0
-             0.0 0.0 1.0))
    (define (2d-translate! dx dy M)
      (?flvector-set!* M
                       1.0 0.0 dx
@@ -178,12 +175,13 @@
                 (?flvector-ref B (3*3mat-offset k j)))))))
    (define (3vec i0 i1 i2)
      (flvector i0 i1 i2))
-   (define (2d-point x y)
-     (3vec x y 1.0))
    (define (3vec-zero)
      (3vec 0.0 0.0 0.0))
+   ;; Notice that in these two functions we ignore doing the math for
+   ;; the last cell of the vector, because we are specializing for 2d
+   ;; points
    (define (3*3matX3vec-mult! A v u)
-     (for* ([i (in-range 3)])
+     (for* ([i (in-range 2)])
        (?flvector-set!
         u i
         (for/sum ([k (in-range 3)])
@@ -191,8 +189,6 @@
                 (?flvector-ref v k))))))
    (define (3vec-mult*add λA A λB B C)
      (define u (flvector 0.0 0.0))
-     ;; Notice that we ignore idx 2 because we know we just want the
-     ;; 2d point
      (for* ([i (in-range 2)])
        (?flvector-set!
         u i
@@ -203,10 +199,10 @@
 
   ;; xxx create a single flvector for all the triangle vertices: v1.x
   ;; v1.y v2.x v2.y v3.x v3.y
-  
+
   ;; xxx create a single flvector for all triangle-wide
-  ;; attributes: a r g b mx Mx my My
-  
+  ;; attributes: a r g b
+
   ;; xxx create single flvector for all triangle-vertex attributes: tx1
   ;; ty1 tx2 ty2 tx3 ty3
 
@@ -215,21 +211,6 @@
        v1 tx1 ty1
        v2 tx2 ty2
        v3 tx3 ty3))
-  (define (triangle-F-O F O t)
-    (match-define
-     (triangle a r g b
-               v1 tx1 ty1
-               v2 tx2 ty2
-               v3 tx3 ty3)
-     t)
-    (F (F (?flvector-ref v1 O)
-          (?flvector-ref v2 O))
-       (?flvector-ref v3 O)))
-  ;; xxx cache these
-  (define (triangle-min-y t) (triangle-F-O ?flmin 1 t))
-  (define (triangle-min-x t) (triangle-F-O ?flmin 0 t))
-  (define (triangle-max-y t) (triangle-F-O ?flmax 1 t))
-  (define (triangle-max-x t) (triangle-F-O ?flmax 0 t))
   (define (when-point-in-triangle t x y drew x.0 y.0 draw-triangle!)
     (match-define
      (triangle a r g b
@@ -283,7 +264,7 @@
       (3*3mat-mult! T R M)
       ;; XXX move this into the sprite-data constructor
       (define spr-idx (hash-ref spr->idx spr))
-      (match-define (vector spr-w spr-h start-tx start-ty)
+      (match-define (vector spr-w spr-h tx-left tx-bot)
                     (vector-ref idx->w*h*tx*ty spr-idx))
 
       (define hw (?fl* (?fl/ (?fx->fl spr-w) 2.0) mx))
@@ -299,18 +280,36 @@
 
       (define spr-last-x (?fx- spr-w 1))
       (define spr-last-y (?fx- spr-h 1))
+      
+      (define tx-top (?fx+ tx-bot spr-last-y))
+      (define tx-right (?fx+ tx-left spr-last-x))
 
       (output!
        (triangle a r g b
-                 LT start-tx (?fx+ start-ty spr-last-y)
-                 RB (?fx+ start-tx spr-last-x) start-ty
-                 LB start-tx start-ty))
+                 LT tx-left tx-top
+                 RB tx-right tx-bot
+                 LB tx-left tx-bot))
       (output!
        (triangle a r g b
-                 LT start-tx (?fx+ start-ty spr-last-y)
-                 RT (?fx+ start-tx spr-last-x) (?fx+ start-ty spr-last-y)
-                 RB (?fx+ start-tx spr-last-x) start-ty)))
+                 LT tx-left tx-top
+                 RT tx-right tx-top
+                 RB tx-right tx-bot)))
 
+    (begin-encourage-inline
+     (define (triangle-F-O F O t)
+       (match-define
+        (triangle a r g b
+                  v1 tx1 ty1
+                  v2 tx2 ty2
+                  v3 tx3 ty3)
+        t)
+       (F (F (?flvector-ref v1 O)
+             (?flvector-ref v2 O))
+          (?flvector-ref v3 O)))
+     (define (triangle-min-y t) (triangle-F-O ?flmin 1 t))
+     (define (triangle-min-x t) (triangle-F-O ?flmin 0 t))
+     (define (triangle-max-y t) (triangle-F-O ?flmax 1 t))
+     (define (triangle-max-x t) (triangle-F-O ?flmax 0 t)))
     (define (output! t)
       (2d-hash-add! tri-hash
                     (?fxmax 0
