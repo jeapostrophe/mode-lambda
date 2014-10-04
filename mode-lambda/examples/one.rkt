@@ -23,7 +23,7 @@
               (* (random) 2) (* (random) 2)
               (* (random) 2 pi))))
   (time
-   (for ([i (in-range 1)])
+   (for ([i (in-range 4)])
      (draw s))))
 
 (module+ main

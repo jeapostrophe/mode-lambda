@@ -281,31 +281,35 @@
     ;; Clear the screen
     (bytes-fill! root-bs 0)
     ;; Fill the screen
-    (for* ([x (in-range 0 width)]
-           [y (in-range 0 height)])
-      (define tris (2d-hash-ref tri-hash x y))
-      (let/ec drew
-        (for ([t (in-list tris)])
-          (when-point-in-triangle
-           t x y
-           (λ (λ1 λ2 λ3)
-             (match-define
-              (triangle bs bs-w bs-h a r g b
-                        v1 tx1 ty1
-                        v2 tx2 ty2
-                        v3 tx3 ty3)
-              t)
-             (define tx (+ (* λ1 tx1) (* λ2 tx2) (* λ3 tx3)))
-             (define ty (+ (* λ1 ty1) (* λ2 ty2) (* λ3 ty3)))
-             (define (fill! na nr ng nb)
-               (pixel-set! root-bs width height x y 0 na)
-               (pixel-set! root-bs width height x y 1 nr)
-               (pixel-set! root-bs width height x y 2 ng)
-               (pixel-set! root-bs width height x y 3 nb)
-               ;; This is like a "depth" test. If the fragment drew
-               ;; anything, then skip the rest of the triangles
-               (drew))
-             (fragment-shader fill! bs bs-w bs-h a r g b tx ty))))))
+    (for* ([xb (in-range 0 (2d-hash-x-blocks tri-hash))]
+           [yb (in-range 0 (2d-hash-y-blocks tri-hash))])
+      (define tris (2d-hash-block-ref tri-hash xb yb))
+      (for* ([x (in-range (2d-hash-x-block-min tri-hash xb)
+                          (2d-hash-x-block-max tri-hash xb))]
+             [y (in-range (2d-hash-y-block-min tri-hash yb)
+                          (2d-hash-y-block-max tri-hash yb))])
+        (let/ec drew
+          (for ([t (in-list tris)])
+            (when-point-in-triangle
+             t x y
+             (λ (λ1 λ2 λ3)
+               (match-define
+                (triangle bs bs-w bs-h a r g b
+                          v1 tx1 ty1
+                          v2 tx2 ty2
+                          v3 tx3 ty3)
+                t)
+               (define tx (+ (* λ1 tx1) (* λ2 tx2) (* λ3 tx3)))
+               (define ty (+ (* λ1 ty1) (* λ2 ty2) (* λ3 ty3)))
+               (define (fill! na nr ng nb)
+                 (pixel-set! root-bs width height x y 0 na)
+                 (pixel-set! root-bs width height x y 1 nr)
+                 (pixel-set! root-bs width height x y 2 ng)
+                 (pixel-set! root-bs width height x y 3 nb)
+                 ;; This is like a "depth" test. If the fragment drew
+                 ;; anything, then skip the rest of the triangles
+                 (drew))
+               (fragment-shader fill! bs bs-w bs-h a r g b tx ty)))))))
 
     (2d-hash-clear! tri-hash)
 
