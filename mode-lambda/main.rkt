@@ -78,6 +78,7 @@
 (define (load-csd p)
   #f)
 
+;; xxx turn this into a c-structure
 (struct sprite-data (dx dy r g b a spr pal mx my theta))
 (define (sprite dx dy r g b a spr pal mx my theta)
   (sprite-data dx dy r g b a spr pal mx my theta))
@@ -190,6 +191,8 @@
                 (?flvector-ref v k))))))
    (define (3vec-mult*add λA A λB B C)
      (define u (flvector 0.0 0.0))
+     ;; Notice that we ignore idx 2 because we know we just want the
+     ;; 2d point
      (for* ([i (in-range 2)])
        (?flvector-set!
         u i
@@ -198,13 +201,15 @@
               (?flvector-ref C i))))
      u))
 
+  ;; xxx create a single flvector for all the triangle vertices: v1.x
+  ;; v1.y v2.x v2.y v3.x v3.y
+  
+  ;; xxx create a single flvector for all triangle-wide
+  ;; attributes: a r g b mx Mx my My
+  
+  ;; xxx create single flvector for all triangle-vertex attributes: tx1
+  ;; ty1 tx2 ty2 tx3 ty3
 
-  ;; XXX separate into verticex-data & attributes
-  ;; XXX use cstructs for attributes
-
-  ;; bx and ty are like "varying" vertex attributes that are
-  ;; interpolated across the triangle. bs* are globals, and argb is
-  ;; non-varying
   (struct triangle
     (a r g b
        v1 tx1 ty1
@@ -220,6 +225,7 @@
     (F (F (?flvector-ref v1 O)
           (?flvector-ref v2 O))
        (?flvector-ref v3 O)))
+  ;; xxx cache these
   (define (triangle-min-y t) (triangle-F-O ?flmin 1 t))
   (define (triangle-min-x t) (triangle-F-O ?flmin 0 t))
   (define (triangle-max-y t) (triangle-F-O ?flmax 1 t))
@@ -238,6 +244,7 @@
     (define x3 (?flvector-ref v3 0))
     (define y3 (?flvector-ref v3 1))
     ;; Compute the Barycentric coordinates
+    ;; xxx cache this
     (define detT
       (?fl+ (?fl* (?fl- y2 y3) (?fl- x1 x3))
             (?fl* (?fl- x3 x2) (?fl- y1 y3))))
@@ -245,42 +252,36 @@
       (?fl/ (?fl+ (?fl* (?fl- y2 y3) (?fl- x.0 x3))
                   (?fl* (?fl- x3 x2) (?fl- y.0 y3)))
             detT))
-    (define λ2
-      (?fl/ (?fl+ (?fl* (?fl- y3 y1) (?fl- x.0 x3))
-                  (?fl* (?fl- x1 x3) (?fl- y.0 y3)))
-            detT))
-    (define λ3
-      (?fl- (?fl- 1.0 λ1) λ2))
-    ;; This condition is when the point is actually in the
-    ;; triangle.
-    (when (and (and (?fl<= 0.0 λ1) (?fl<= λ1 1.0))
-               (and (?fl<= 0.0 λ2) (?fl<= λ2 1.0))
-               (and (?fl<= 0.0 λ2) (?fl<= λ2 1.0)))
-      (draw-triangle! t x y drew λ1 λ2 λ3)))
+    (when (and (?fl<= 0.0 λ1) (?fl<= λ1 1.0))
+      (define λ2
+        (?fl/ (?fl+ (?fl* (?fl- y3 y1) (?fl- x.0 x3))
+                    (?fl* (?fl- x1 x3) (?fl- y.0 y3)))
+              detT))
+      (when (and (?fl<= 0.0 λ2) (?fl<= λ2 1.0))
+        (define λ3
+          (?fl- (?fl- 1.0 λ1) λ2))
+        ;; This condition is when the point is actually in the
+        ;; triangle.
+        (when (and (?fl<= 0.0 λ2) (?fl<= λ2 1.0))
+          (draw-triangle! t x y drew λ1 λ2 λ3)))))
 
   (match-define (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty) csd)
   (define root-bs (make-bytes (* 4 width height)))
   (define tri-hash (make-2d-hash width height))
-  (lambda (sprite-tree)
-    ;; This whole function has lots of opportunities to be
-    ;; optimized. Most of the math, when you unroll and inline all the
-    ;; functions, has TONS of common-sub-expressions with no-state
-    ;; between them. Similarly, we could make do with a smaller amount
-    ;; of memory by sharing matrices/vertexes inside and outside this
-    ;; loop. I won't do this, because this is a "reference" software
-    ;; renderer.
 
-    (define T (3*3mat-zero))
-    (define R (3*3mat-zero))
-    (define M (3*3mat-zero))
-    (define X (3vec-zero))
-    (define Y (3vec-zero))
-    (define Z (3vec-zero))
+  (define T (3*3mat-zero))
+  (define R (3*3mat-zero))
+  (define M (3*3mat-zero))
+  (define X (3vec-zero))
+  (define Y (3vec-zero))
+  (define Z (3vec-zero))
+  (lambda (sprite-tree)
     (define (geometry-shader s)
       (match-define (sprite-data dx dy r g b a spr pal mx my theta) s)
       (2d-translate! dx dy T)
       (2d-rotate! theta R)
       (3*3mat-mult! T R M)
+      ;; XXX move this into the sprite-data constructor
       (define spr-idx (hash-ref spr->idx spr))
       (match-define (vector spr-w spr-h start-tx start-ty)
                     (vector-ref idx->w*h*tx*ty spr-idx))
@@ -323,7 +324,7 @@
                     t))
     (tree-for geometry-shader sprite-tree)
 
-    (define (fragment-shader drew x y 
+    (define (fragment-shader drew x y
                              a r g b
                              tx.0 ty.0)
       (define tx (?fl->fx (?flfloor tx.0)))
@@ -365,7 +366,7 @@
       (define ty (?fl+ (?fl+ (?fl* λ1 (?fx->fl ty1))
                              (?fl* λ2 (?fx->fl ty2)))
                        (?fl* λ3 (?fx->fl ty3))))
-      (fragment-shader drew x y 
+      (fragment-shader drew x y
                        a r g b
                        tx ty))
     (for* ([xb (in-range 0 (2d-hash-x-blocks tri-hash))]
