@@ -80,6 +80,7 @@
      (define ?flcos cos)
      (define ?flsin sin)
      (define ?fl* *)
+     (define ?fl+ +)
      (define ?fl- -)
      (define (pixel-ref bs w h bx by i)
        (?bytes-ref bs (+ (* 4 w by) (* 4 bx) i)))
@@ -137,8 +138,17 @@
          (?flvector-set!
           u i
           (for/sum ([k (in-range 3)])
-            (* (?flvector-ref A (3*3mat-offset i k))
-               (?flvector-ref v k)))))
+            (?fl* (?flvector-ref A (3*3mat-offset i k))
+                  (?flvector-ref v k)))))
+       u)
+     (define (3vec-mult*add λA A λB B C)
+       (define u (3vec-zero))
+       (for* ([i (in-range 3)])
+         (?flvector-set!
+          u i
+          (?fl+ (?fl* λA (?flvector-ref A i))
+                (?fl* λB (?flvector-ref B i))
+                (?flvector-ref C i))))
        u))
 
     ;; This whole function has lots of opportunities to be
@@ -245,14 +255,14 @@
 
       (define hw (* (/ spr-w 2) mx))
       (define hh (* (/ spr-h 2) my))
-      (define LU
-        (3*3matX3vec-mult M (2d-point (* -1.0 hw) (* +1.0 hh))))
-      (define RU
-        (3*3matX3vec-mult M (2d-point (* +1.0 hw) (* +1.0 hh))))
-      (define LL
-        (3*3matX3vec-mult M (2d-point (* -1.0 hw) (* -1.0 hh))))
-      (define RL
-        (3*3matX3vec-mult M (2d-point (* +1.0 hw) (* -1.0 hh))))
+      (define X (3*3matX3vec-mult M (3vec hw 0.0 0.0)))
+      (define Y (3*3matX3vec-mult M (3vec 0.0 hh 0.0)))
+      (define Z (3*3matX3vec-mult M (3vec 0.0 0.0 1.0)))
+
+      (define LU (3vec-mult*add -1.0 X +1.0 Y Z))
+      (define RU (3vec-mult*add +1.0 X +1.0 Y Z))
+      (define LL (3vec-mult*add -1.0 X -1.0 Y Z))
+      (define RL (3vec-mult*add +1.0 X -1.0 Y Z))
 
       (output!
        (triangle bs spr-w spr-h a r g b
