@@ -314,33 +314,6 @@
 
     (2d-hash-clear! tri-hash)
 
-    ;; XXX Add a white background to easily tell the difference
-    ;; between border and background in Preview
-    (for* ([x (in-range width)]
-           [y (in-range height)]
-           #:when (= 0 (pixel-ref root-bs width height x y 0)))
-      (pixel-set! root-bs width height x y 0 255)
-      (pixel-set! root-bs width height x y 1 255)
-      (pixel-set! root-bs width height x y 2 255)
-      (pixel-set! root-bs width height x y 3 255))
-
-    (for* ([xb (in-range 0 (2d-hash-x-blocks tri-hash))]
-           [x (in-range (2d-hash-x-block-min tri-hash xb)
-                        (min width (add1 (2d-hash-x-block-min tri-hash xb))))]
-           [y (in-range 0 height)])
-      (pixel-set! root-bs width height x y 0 255)
-      (pixel-set! root-bs width height x y 1 255)
-      (pixel-set! root-bs width height x y 2 0)
-      (pixel-set! root-bs width height x y 3 0))
-    (for* ([yb (in-range 0 (2d-hash-y-blocks tri-hash))]
-           [x (in-range 0 width)]
-           [y (in-range (2d-hash-y-block-min tri-hash yb)
-                        (min height (add1 (2d-hash-y-block-min tri-hash yb))))])
-      (pixel-set! root-bs width height x y 0 255)
-      (pixel-set! root-bs width height x y 1 255)
-      (pixel-set! root-bs width height x y 2 0)
-      (pixel-set! root-bs width height x y 3 0))
-
     (let ()
       (local-require racket/draw
                      racket/class)
