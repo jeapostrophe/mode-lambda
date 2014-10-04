@@ -2,33 +2,60 @@
 (require racket/match
          racket/contract/base)
 
-(struct sprite-db (spr->load))
+(struct sprite-db (loaders-box))
 (define (make-sprite-db)
-  (sprite-db (make-hasheq)))
+  (sprite-db (box null)))
 
 (define (sprite-db-add!/file sd name p)
-  (match-define (sprite-db s->l) sd)
-  (hash-set! s->l name
-             (λ ()
-               (local-require racket/gui/base
-                              racket/class)
-               (define bm (read-bitmap p))
-               (define w (send bm get-width))
-               (define h (send bm get-height))
-               (define bs (make-bytes (* w h 4)))
-               (send bm get-argb-pixels 0 0 w h bs)
-               (vector w h bs)))
+  (local-require racket/gui/base
+                 racket/class)
+  (match-define (sprite-db ls-b) sd)
+  (define (load)
+    (define bm (read-bitmap p))
+    (define w (send bm get-width))
+    (define h (send bm get-height))
+    (define bs (make-bytes (* w h 4)))
+    (send bm get-argb-pixels 0 0 w h bs)
+    (vector name w h bs))
+  (set-box! ls-b (cons load (unbox ls-b)))
   (void))
 ;; xxx more
 
-(struct compiled-sprite-db (s->w*h*bs))
+;; xxx unsafe/inline
+(define (pixel-ref bs w h bx by i)
+  (bytes-ref bs (+ (* 4 w by) (* 4 bx) i)))
+(define (pixel-set! bs w h bx by i v)
+  (bytes-set! bs (+ (* 4 w by) (* 4 bx) i) v))
+
+(struct compiled-sprite-db (atlas-size atlas-bs spr->idx idx->w*h*tx*ty))
 (define (compile-sprite-db sd)
-  (match-define (sprite-db s->l) sd)
-  ;; xxx change to compute static-dbs
-  (define s->w*h*bs
-    (for/hasheq ([(s l) (in-hash s->l)])
-      (values s (l))))
-  (compiled-sprite-db s->w*h*bs))
+  (local-require "korf-bin.rkt")
+  (match-define (sprite-db ls-b) sd)
+  (define ss (map (λ (l) (l)) (unbox ls-b)))
+
+  (define-values (atlas-size places)
+    (pack (λ (s) (vector-ref s 1))
+          (λ (s) (vector-ref s 2))
+          ss))
+  (define how-many-places (length places))
+  (define atlas-bs (make-bytes (* atlas-size atlas-size 4)))
+  (define spr->idx (make-hasheq))
+  (define idx->w*h*tx*ty (make-vector how-many-places #f))
+
+  (for ([pl (in-list places)]
+        [pi (in-naturals)])
+    (match-define (placement tx ty (vector spr w h bs)) pl)
+    (for* ([bx (in-range w)]
+           [by (in-range h)]
+           [off (in-range 4)])
+      ;; xxx use bytes-copy! or make bytes-block-copy!
+      (pixel-set! atlas-bs atlas-size atlas-size
+                  (+ tx bx) (+ ty by) off
+                  (pixel-ref bs w h bx by off)))
+    (hash-set! spr->idx spr pi)
+    (vector-set! idx->w*h*tx*ty pi (vector w h tx ty)))
+
+  (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty))
 
 (define (sprite-hw csd spr)
   #f)
@@ -36,7 +63,18 @@
   #f)
 
 (define (save-csd! csd p)
-  #f)
+  (local-require racket/file)
+  (make-directory* p)
+  (match-define (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty) csd)
+  (let ()
+    (local-require racket/draw
+                   racket/class)
+    (define root-bm
+      (make-bitmap atlas-size atlas-size))
+    (send root-bm set-argb-pixels 0 0 atlas-size atlas-size atlas-bs)
+    (send root-bm save-file (build-path p "atlas.png") 'png 100 #:unscaled? #t))
+  ;; xxx save the other things too
+  (void))
 (define (load-csd p)
   #f)
 
@@ -63,8 +101,8 @@
 
 (define (make-draw csd width height)
   (local-require data/2d-hash)
-  (match-define (compiled-sprite-db s->w*h*bs) csd)
-  (define root-bs (make-bytes (* height width 4)))
+  (match-define (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty) csd)
+  (define root-bs (make-bytes (* 4 width height)))
   (define tri-hash (make-2d-hash width height))
   (lambda (sprite-tree)
     (local-require racket/math
@@ -159,13 +197,11 @@
     ;; loop. I won't do this, because this is a "reference" software
     ;; renderer.
 
-    ;; XXX move bs* to globals / static-db
-
-    (define (fragment-shader fill! bs bs-w bs-h a r g b tx.0 ty.0)
+    (define (fragment-shader fill! a r g b tx.0 ty.0)
       (define tx (inexact->exact (floor tx.0)))
       (define ty (inexact->exact (floor ty.0)))
       (define-syntax-rule (define-nc cr nr i r)
-        (begin (define cr (pixel-ref bs bs-w bs-h tx ty i))
+        (begin (define cr (pixel-ref atlas-bs atlas-size atlas-size tx ty i))
                (define nr (inexact->exact (round (* cr r))))))
       (define-nc ca na 0 a)
       (define-nc cr nr 1 r)
@@ -184,13 +220,13 @@
     ;; interpolated across the triangle. bs* are globals, and argb is
     ;; non-varying
     (struct triangle
-      (bs bs-w bs-h a r g b
-          v1 tx1 ty1
-          v2 tx2 ty2
-          v3 tx3 ty3))
+      (a r g b
+         v1 tx1 ty1
+         v2 tx2 ty2
+         v3 tx3 ty3))
     (define (triangle-F-O F O t)
       (match-define
-       (triangle bs bs-w bs-h a r g b
+       (triangle a r g b
                  v1 tx1 ty1
                  v2 tx2 ty2
                  v3 tx3 ty3)
@@ -202,13 +238,10 @@
     (define (triangle-min-y t) (triangle-F-y min t))
     (define (triangle-min-x t) (triangle-F-O min 0 t))
     (define (triangle-max-y t) (triangle-F-y max t))
-    (define (triangle-max-x t) (triangle-F-O max 0 t))
-    (define (triangle-min-x<= t1 t2)
-      (<= (triangle-min-x t1)
-          (triangle-min-x t2)))
+    (define (triangle-max-x t) (triangle-F-O max 0 t))    
     (define (when-point-in-triangle t x y f)
       (match-define
-       (triangle bs bs-w bs-h a r g b
+       (triangle a r g b
                  v1 tx1 ty1
                  v2 tx2 ty2
                  v3 tx3 ty3)
@@ -246,12 +279,12 @@
     (define (geometry-shader output! s)
       (match-define (sprite-data dx dy r g b a spr pal mx my theta) s)
       (define M
-        (3*3mat-mult*
+        (3*3mat-mult
          (2d-translate dx dy)
          (2d-rotate theta)))
-      (match-define (vector spr-w spr-h bs) (hash-ref s->w*h*bs spr))
-      (define start-tx 0)
-      (define start-ty 0)
+      (define spr-idx (hash-ref spr->idx spr))
+      (match-define (vector spr-w spr-h start-tx start-ty)
+                    (vector-ref idx->w*h*tx*ty spr-idx))
 
       (define hw (* (/ spr-w 2) mx))
       (define hh (* (/ spr-h 2) my))
@@ -264,18 +297,19 @@
       (define LL (3vec-mult*add -1.0 X -1.0 Y Z))
       (define RL (3vec-mult*add +1.0 X -1.0 Y Z))
 
-      (define spr-th (sub1 spr-h))
-      (define spr-tw (sub1 spr-w))
+      (define spr-last-x (sub1 spr-w))
+      (define spr-last-y (sub1 spr-h))
+      
       (output!
-       (triangle bs spr-w spr-h a r g b
-                 LU start-tx (+ start-ty spr-th)
-                 RU (+ start-tx spr-tw) (+ start-ty spr-th)
+       (triangle a r g b
+                 LU start-tx (+ start-ty spr-last-y)
+                 RU (+ start-tx spr-last-x) (+ start-ty spr-last-y)
                  LL start-tx start-ty))
       (output!
-       (triangle bs spr-w spr-h a r g b
+       (triangle a r g b
                  LL start-tx start-ty
-                 RU (+ start-tx spr-tw) (+ start-ty spr-th)
-                 RL (+ start-tx spr-tw) start-tx)))
+                 RU (+ start-tx spr-last-x) (+ start-ty spr-last-y)
+                 RL (+ start-tx spr-last-x) start-tx)))
 
     (define (output! t)
       (2d-hash-add! tri-hash
@@ -307,7 +341,7 @@
                t x y
                (λ (λ1 λ2 λ3)
                  (match-define
-                  (triangle bs bs-w bs-h a r g b
+                  (triangle a r g b
                             v1 tx1 ty1
                             v2 tx2 ty2
                             v3 tx3 ty3)
@@ -322,7 +356,7 @@
                    ;; This is like a "depth" test. If the fragment drew
                    ;; anything, then skip the rest of the triangles
                    (drew))
-                 (fragment-shader fill! bs bs-w bs-h a r g b tx ty))))))))
+                 (fragment-shader fill! a r g b tx ty))))))))
 
     (2d-hash-clear! tri-hash)
 
@@ -345,11 +379,13 @@
   [compile-sprite-db
    (-> sprite-db?
        compiled-sprite-db?)]
-  [save-csd! any/c]
+  [save-csd!
+   (-> compiled-sprite-db? path-string?
+       void?)]
   [sprite
    (-> flonum? flonum?
        flonum? flonum? flonum? flonum?
-       symbol? ;; XXX replace with compiled form
+       symbol? ;; XXX replace with compiled form (idx)
        #f ;; XXX replace with #f or compiled form
        flonum? flonum?
        flonum?

@@ -13,15 +13,21 @@
       (sprite-db-add!/file sd n (build-path sprs f))
       n))
   (define csd (compile-sprite-db sd))
+  (save-csd! csd "csd")
   (define draw (make-draw csd W H))
   (define s
-    (for/list ([i (in-range (* 2 W))])
+    (for*/list ([x (in-range W)]
+                [y (in-range W)])
       (define n (list-ref ns (random (length ns))))
       (sprite (* W (random)) (* H (random))
               (random) (random) (random) (+ 0.5 (* 0.5 (random)))
               n #f
               (* (random) 2) (* (random) 2)
-              (* (random) 2 pi))))
+              (* (random) 2 pi))
+      (sprite (exact->inexact (* 16 x)) (exact->inexact (* 16 y))
+              0.0 0.0 0.0 1.0
+              n #f
+              1.0 1.0 0.0)))
   (time
    (for ([i (in-range 4)])
      (draw s))))
