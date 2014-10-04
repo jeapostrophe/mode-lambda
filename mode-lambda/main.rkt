@@ -107,19 +107,38 @@
                  data/2d-hash)
 
   (begin-encourage-inline
-   (define ?flvector-ref flvector-ref)
-   (define ?flvector-set! flvector-set!)
-   (define ?bytes-ref bytes-ref)
-   (define ?bytes-set! bytes-set!)
-   (define ?flcos cos)
-   (define ?flsin sin)
-   (define ?fl* *)
-   (define ?fl+ +)
-   (define ?fl- -)
+   (define ?flvector-ref unsafe-flvector-ref)
+   (define ?flvector-set! unsafe-flvector-set!)
+   (define (?flvector-set!* vec . vs)
+     (for ([i (in-naturals)]
+           [v (in-list vs)])
+       (?flvector-set! vec i v)))
+   (define ?bytes-ref unsafe-bytes-ref)
+   (define ?bytes-set! unsafe-bytes-set!)
+   (define ?flcos unsafe-flcos)
+   (define ?flsin unsafe-flsin)
+   (define ?fl* unsafe-fl*)
+   (define ?fl/ unsafe-fl/)
+   (define ?fl+ unsafe-fl+)
+   (define ?fl- unsafe-fl-)
+   (define ?fx->fl unsafe-fx->fl)
+   (define ?fl<= unsafe-fl<=)
+   (define ?fx= unsafe-fx=)
+   (define ?fl->fx unsafe-fl->fx)
+   (define ?flround unsafe-flround)
+   (define ?flfloor unsafe-flfloor)
+   (define ?flceiling unsafe-flceiling)
+   (define ?fx+ unsafe-fx+)
+   (define ?fx- unsafe-fx-)
+   (define ?fx* unsafe-fx*)
+   (define ?flmin unsafe-flmin)
+   (define ?flmax unsafe-flmax)
+   (define ?fxmin unsafe-fxmin)
+   (define ?fxmax unsafe-fxmax)
    (define (pixel-ref bs w h bx by i)
-     (?bytes-ref bs (+ (* 4 w by) (* 4 bx) i)))
+     (?bytes-ref bs (?fx+ (?fx* (?fx* 4 w) by) (?fx+ (?fx* 4 bx) i))))
    (define (pixel-set! bs w h bx by i v)
-     (?bytes-set! bs (+ (* 4 w by) (* 4 bx) i) v))
+     (?bytes-set! bs (?fx+ (?fx* (?fx* 4 w) by) (?fx+ (?fx* 4 bx) i)) v))
    (define (3*3mat i00 i01 i02
                    i10 i11 i12
                    i20 i21 i22)
@@ -134,54 +153,48 @@
      (3*3mat 1.0 0.0 0.0
              0.0 1.0 0.0
              0.0 0.0 1.0))
-   (define (2d-translate dx dy)
-     (3*3mat 1.0 0.0 dx
-             0.0 1.0 dy
-             0.0 0.0 1.0))
-   (define (2d-rotate theta)
+   (define (2d-translate! dx dy M)
+     (?flvector-set!* M
+                      1.0 0.0 dx
+                      0.0 1.0 dy
+                      0.0 0.0 1.0))
+   (define (2d-rotate! theta M)
      (define cost (?flcos theta))
      (define sint (?flsin theta))
-     (3*3mat cost sint 0.0
-             (?fl* -1 sint) cost 0.0
-             0.0 0.0 1.0))
+     (?flvector-set!* M
+                      cost sint 0.0
+                      (?fl* -1.0 sint) cost 0.0
+                      0.0 0.0 1.0))
    (define (3*3mat-offset i j)
-     (+ (* 3 i) j))
-   (define (3*3mat-mult A B)
-     (define C (3*3mat-zero))
+     (?fx+ (?fx* 3 i) j))
+   (define (3*3mat-mult! A B C)
      (for* ([i (in-range 3)]
             [j (in-range 3)])
        (?flvector-set!
         C (3*3mat-offset i j)
         (for/sum ([k (in-range 3)])
-          (* (?flvector-ref A (3*3mat-offset i k))
-             (?flvector-ref B (3*3mat-offset k j))))))
-     C)
-   (define-syntax 3*3mat-mult*
-     (syntax-rules ()
-       [(_) (3*3mat-identity)]
-       [(_ a . more) (3*3mat-mult a (3*3mat-mult* . more))]))
+          (?fl* (?flvector-ref A (3*3mat-offset i k))
+                (?flvector-ref B (3*3mat-offset k j)))))))
    (define (3vec i0 i1 i2)
      (flvector i0 i1 i2))
    (define (2d-point x y)
      (3vec x y 1.0))
    (define (3vec-zero)
      (3vec 0.0 0.0 0.0))
-   (define (3*3matX3vec-mult A v)
-     (define u (3vec-zero))
+   (define (3*3matX3vec-mult! A v u)
      (for* ([i (in-range 3)])
        (?flvector-set!
         u i
         (for/sum ([k (in-range 3)])
           (?fl* (?flvector-ref A (3*3mat-offset i k))
-                (?flvector-ref v k)))))
-     u)
+                (?flvector-ref v k))))))
    (define (3vec-mult*add λA A λB B C)
-     (define u (3vec-zero))
-     (for* ([i (in-range 3)])
+     (define u (flvector 0.0 0.0))
+     (for* ([i (in-range 2)])
        (?flvector-set!
         u i
-        (?fl+ (?fl* λA (?flvector-ref A i))
-              (?fl* λB (?flvector-ref B i))
+        (?fl+ (?fl+ (?fl* λA (?flvector-ref A i))
+                    (?fl* λB (?flvector-ref B i)))
               (?flvector-ref C i))))
      u))
 
@@ -204,14 +217,14 @@
                v2 tx2 ty2
                v3 tx3 ty3)
      t)
-    (F (?flvector-ref v1 O)
-       (?flvector-ref v2 O)
+    (F (F (?flvector-ref v1 O)
+          (?flvector-ref v2 O))
        (?flvector-ref v3 O)))
-  (define (triangle-min-y t) (triangle-F-O min 1 t))
-  (define (triangle-min-x t) (triangle-F-O min 0 t))
-  (define (triangle-max-y t) (triangle-F-O max 1 t))
-  (define (triangle-max-x t) (triangle-F-O max 0 t))
-  (define (when-point-in-triangle t x y f)
+  (define (triangle-min-y t) (triangle-F-O ?flmin 1 t))
+  (define (triangle-min-x t) (triangle-F-O ?flmin 0 t))
+  (define (triangle-max-y t) (triangle-F-O ?flmax 1 t))
+  (define (triangle-max-x t) (triangle-F-O ?flmax 0 t))
+  (define (when-point-in-triangle t x y drew x.0 y.0 draw-triangle!)
     (match-define
      (triangle a r g b
                v1 tx1 ty1
@@ -226,24 +239,24 @@
     (define y3 (?flvector-ref v3 1))
     ;; Compute the Barycentric coordinates
     (define detT
-      (+ (* (- y2 y3) (- x1 x3))
-         (* (- x3 x2) (- y1 y3))))
+      (?fl+ (?fl* (?fl- y2 y3) (?fl- x1 x3))
+            (?fl* (?fl- x3 x2) (?fl- y1 y3))))
     (define λ1
-      (/ (+ (* (- y2 y3) (- x x3))
-            (* (- x3 x2) (- y y3)))
-         detT))
+      (?fl/ (?fl+ (?fl* (?fl- y2 y3) (?fl- x.0 x3))
+                  (?fl* (?fl- x3 x2) (?fl- y.0 y3)))
+            detT))
     (define λ2
-      (/ (+ (* (- y3 y1) (- x x3))
-            (* (- x1 x3) (- y y3)))
-         detT))
+      (?fl/ (?fl+ (?fl* (?fl- y3 y1) (?fl- x.0 x3))
+                  (?fl* (?fl- x1 x3) (?fl- y.0 y3)))
+            detT))
     (define λ3
-      (- 1 λ1 λ2))
+      (?fl- (?fl- 1.0 λ1) λ2))
     ;; This condition is when the point is actually in the
     ;; triangle.
-    (when (and (<= 0 λ1 1)
-               (<= 0 λ2 1)
-               (<= 0 λ3 1))
-      (f λ1 λ2 λ3)))
+    (when (and (and (?fl<= 0.0 λ1) (?fl<= λ1 1.0))
+               (and (?fl<= 0.0 λ2) (?fl<= λ2 1.0))
+               (and (?fl<= 0.0 λ2) (?fl<= λ2 1.0)))
+      (draw-triangle! t x y drew λ1 λ2 λ3)))
 
   (match-define (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty) csd)
   (define root-bs (make-bytes (* 4 width height)))
@@ -257,12 +270,67 @@
     ;; loop. I won't do this, because this is a "reference" software
     ;; renderer.
 
-    (define (fragment-shader fill! a r g b tx.0 ty.0)
-      (define tx (inexact->exact (floor tx.0)))
-      (define ty (inexact->exact (floor ty.0)))
+    (define T (3*3mat-zero))
+    (define R (3*3mat-zero))
+    (define M (3*3mat-zero))
+    (define X (3vec-zero))
+    (define Y (3vec-zero))
+    (define Z (3vec-zero))
+    (define (geometry-shader s)
+      (match-define (sprite-data dx dy r g b a spr pal mx my theta) s)
+      (2d-translate! dx dy T)
+      (2d-rotate! theta R)
+      (3*3mat-mult! T R M)
+      (define spr-idx (hash-ref spr->idx spr))
+      (match-define (vector spr-w spr-h start-tx start-ty)
+                    (vector-ref idx->w*h*tx*ty spr-idx))
+
+      (define hw (?fl* (?fl/ (?fx->fl spr-w) 2.0) mx))
+      (define hh (?fl* (?fl/ (?fx->fl spr-h) 2.0) my))
+      (3*3matX3vec-mult! M (3vec hw 0.0 0.0) X)
+      (3*3matX3vec-mult! M (3vec 0.0 hh 0.0) Y)
+      (3*3matX3vec-mult! M (3vec 0.0 0.0 1.0) Z)
+
+      (define LT (3vec-mult*add -1.0 X +1.0 Y Z))
+      (define RT (3vec-mult*add +1.0 X +1.0 Y Z))
+      (define LB (3vec-mult*add -1.0 X -1.0 Y Z))
+      (define RB (3vec-mult*add +1.0 X -1.0 Y Z))
+
+      (define spr-last-x (?fx- spr-w 1))
+      (define spr-last-y (?fx- spr-h 1))
+
+      (output!
+       (triangle a r g b
+                 LT start-tx (?fx+ start-ty spr-last-y)
+                 RB (?fx+ start-tx spr-last-x) start-ty
+                 LB start-tx start-ty))
+      (output!
+       (triangle a r g b
+                 LT start-tx (?fx+ start-ty spr-last-y)
+                 RT (?fx+ start-tx spr-last-x) (?fx+ start-ty spr-last-y)
+                 RB (?fx+ start-tx spr-last-x) start-ty)))
+
+    (define (output! t)
+      (2d-hash-add! tri-hash
+                    (?fxmax 0
+                            (?fl->fx (?flfloor (triangle-min-x t))))
+                    (?fxmin (?fx- width 1)
+                            (?fl->fx (?flceiling (triangle-max-x t))))
+                    (?fxmax 0
+                            (?fl->fx (?flfloor (triangle-min-y t))))
+                    (?fxmin (?fx- height 1)
+                            (?fl->fx (?flceiling (triangle-max-y t))))
+                    t))
+    (tree-for geometry-shader sprite-tree)
+
+    (define (fragment-shader drew x y 
+                             a r g b
+                             tx.0 ty.0)
+      (define tx (?fl->fx (?flfloor tx.0)))
+      (define ty (?fl->fx (?flfloor ty.0)))
       (define-syntax-rule (define-nc cr nr i r)
         (begin (define cr (pixel-ref atlas-bs atlas-size atlas-size tx ty i))
-               (define nr (inexact->exact (round (* cr r))))))
+               (define nr (?fl->fx (?flround (?fl* (?fx->fl cr) r))))))
       (define-nc ca na 0 a)
       (define-nc cr nr 1 r)
       (define-nc cg ng 2 g)
@@ -270,60 +338,36 @@
       ;; xxx pal translation goes here
 
       ;; This "unless" corresponds to discarding non-opaque pixels
-      (unless (zero? na)
-        (fill! na nr ng nb)))
-
-    (define (geometry-shader output! s)
-      (match-define (sprite-data dx dy r g b a spr pal mx my theta) s)
-      (define M
-        (3*3mat-mult
-         (2d-translate dx dy)
-         (2d-rotate theta)))
-      (define spr-idx (hash-ref spr->idx spr))
-      (match-define (vector spr-w spr-h start-tx start-ty)
-                    (vector-ref idx->w*h*tx*ty spr-idx))
-
-      (define hw (* (/ spr-w 2) mx))
-      (define hh (* (/ spr-h 2) my))
-      (define X (3*3matX3vec-mult M (3vec hw 0.0 0.0)))
-      (define Y (3*3matX3vec-mult M (3vec 0.0 hh 0.0)))
-      (define Z (3*3matX3vec-mult M (3vec 0.0 0.0 1.0)))
-
-      (define LT (3vec-mult*add -1.0 X +1.0 Y Z))
-      (define RT (3vec-mult*add +1.0 X +1.0 Y Z))
-      (define LB (3vec-mult*add -1.0 X -1.0 Y Z))
-      (define RB (3vec-mult*add +1.0 X -1.0 Y Z))
-
-      (define spr-last-x (sub1 spr-w))
-      (define spr-last-y (sub1 spr-h))
-
-      (output!
-       (triangle a r g b
-                 LT start-tx (+ start-ty spr-last-y)
-                 RB (+ start-tx spr-last-x) start-ty
-                 LB start-tx start-ty))
-      (output!
-       (triangle a r g b
-                 LT start-tx (+ start-ty spr-last-y)
-                 RT (+ start-tx spr-last-x) (+ start-ty spr-last-y)
-                 RB (+ start-tx spr-last-x) start-ty)))
-
-    (define (output! t)
-      (2d-hash-add! tri-hash
-                    (max 0
-                         (inexact->exact (floor (triangle-min-x t))))
-                    (min (sub1 width)
-                         (inexact->exact (ceiling (triangle-max-x t))))
-                    (max 0
-                         (inexact->exact (floor (triangle-min-y t))))
-                    (min (sub1 height)
-                         (inexact->exact (ceiling (triangle-max-y t))))
-                    t))
-    (tree-for (λ (s) (geometry-shader output! s)) sprite-tree)
+      (unless (?fx= 0 na)
+        (fill! drew x y na nr ng nb)))
 
     ;; Clear the screen
     (bytes-fill! root-bs 0)
     ;; Fill the screen
+    (define (fill! drew x y na nr ng nb)
+      (pixel-set! root-bs width height x y 0 na)
+      (pixel-set! root-bs width height x y 1 nr)
+      (pixel-set! root-bs width height x y 2 ng)
+      (pixel-set! root-bs width height x y 3 nb)
+      ;; This is like a "depth" test. If the fragment drew
+      ;; anything, then skip the rest of the triangles
+      (drew))
+    (define (draw-triangle! t x y drew λ1 λ2 λ3)
+      (match-define
+       (triangle a r g b
+                 v1 tx1 ty1
+                 v2 tx2 ty2
+                 v3 tx3 ty3)
+       t)
+      (define tx (?fl+ (?fl+ (?fl* λ1 (?fx->fl tx1))
+                             (?fl* λ2 (?fx->fl tx2)))
+                       (?fl* λ3 (?fx->fl tx3))))
+      (define ty (?fl+ (?fl+ (?fl* λ1 (?fx->fl ty1))
+                             (?fl* λ2 (?fx->fl ty2)))
+                       (?fl* λ3 (?fx->fl ty3))))
+      (fragment-shader drew x y 
+                       a r g b
+                       tx ty))
     (for* ([xb (in-range 0 (2d-hash-x-blocks tri-hash))]
            [yb (in-range 0 (2d-hash-y-blocks tri-hash))])
       (define tris (2d-hash-block-ref tri-hash xb yb))
@@ -332,28 +376,13 @@
                             (min width (2d-hash-x-block-max tri-hash xb)))]
                [y (in-range (2d-hash-y-block-min tri-hash yb)
                             (min height (2d-hash-y-block-max tri-hash yb)))])
+          (define x.0 (?fx->fl x))
+          (define y.0 (?fx->fl y))
           (let/ec drew
             (for ([t (in-list tris)])
               (when-point-in-triangle
-               t x y
-               (λ (λ1 λ2 λ3)
-                 (match-define
-                  (triangle a r g b
-                            v1 tx1 ty1
-                            v2 tx2 ty2
-                            v3 tx3 ty3)
-                  t)
-                 (define tx (+ (* λ1 tx1) (* λ2 tx2) (* λ3 tx3)))
-                 (define ty (+ (* λ1 ty1) (* λ2 ty2) (* λ3 ty3)))
-                 (define (fill! na nr ng nb)
-                   (pixel-set! root-bs width height x y 0 na)
-                   (pixel-set! root-bs width height x y 1 nr)
-                   (pixel-set! root-bs width height x y 2 ng)
-                   (pixel-set! root-bs width height x y 3 nb)
-                   ;; This is like a "depth" test. If the fragment drew
-                   ;; anything, then skip the rest of the triangles
-                   (drew))
-                 (fragment-shader fill! a r g b tx ty))))))))
+               t x y drew x.0 y.0
+               draw-triangle!))))))
 
     (2d-hash-clear! tri-hash)
 
