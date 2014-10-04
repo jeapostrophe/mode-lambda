@@ -35,7 +35,7 @@
 (define (sprite-hh csd spr)
   #f)
 
-(define (save-csd csd p)
+(define (save-csd! csd p)
   #f)
 (define (load-csd p)
   #f)
@@ -64,7 +64,7 @@
 (define (make-draw csd width height)
   (local-require data/2d-hash)
   (match-define (compiled-sprite-db s->w*h*bs) csd)
-  (define root-bs (make-bytes (* 4 width height)))
+  (define root-bs (make-bytes (* height width 4)))
   (define tri-hash (make-2d-hash width height))
   (lambda (sprite-tree)
     (local-require racket/math
@@ -264,16 +264,18 @@
       (define LL (3vec-mult*add -1.0 X -1.0 Y Z))
       (define RL (3vec-mult*add +1.0 X -1.0 Y Z))
 
+      (define spr-th (sub1 spr-h))
+      (define spr-tw (sub1 spr-w))
       (output!
        (triangle bs spr-w spr-h a r g b
-                 LU start-tx (+ start-ty spr-h)
-                 RU (+ start-tx spr-w) (+ start-ty spr-h)
+                 LU start-tx (+ start-ty spr-th)
+                 RU (+ start-tx spr-tw) (+ start-ty spr-th)
                  LL start-tx start-ty))
       (output!
        (triangle bs spr-w spr-h a r g b
                  LL start-tx start-ty
-                 RU (+ start-tx spr-w) (+ start-ty spr-h)
-                 RL (+ start-tx spr-w) start-tx)))
+                 RU (+ start-tx spr-tw) (+ start-ty spr-th)
+                 RL (+ start-tx spr-tw) start-tx)))
 
     (define (output! t)
       (2d-hash-add! tri-hash
@@ -343,6 +345,7 @@
   [compile-sprite-db
    (-> sprite-db?
        compiled-sprite-db?)]
+  [save-csd! any/c]
   [sprite
    (-> flonum? flonum?
        flonum? flonum? flonum? flonum?
