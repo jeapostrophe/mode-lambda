@@ -19,15 +19,16 @@
     (for*/list ([x (in-range W)]
                 [y (in-range W)])
       (define n (list-ref ns (random (length ns))))
-      (sprite (* W (random)) (* H (random))
-              (random) (random) (random) (+ 0.5 (* 0.5 (random)))
-              n #f
-              (* (random) 2) (* (random) 2)
-              (* (random) 2 pi))
-      (sprite (exact->inexact (* 16 x)) (exact->inexact (* 16 y))
-              0.0 0.0 0.0 1.0
-              n #f
-              1.0 1.0 0.0)))
+      (if #t
+          (sprite (* W (random)) (* H (random))
+                  (random) (random) (random) (+ 0.5 (* 0.5 (random)))
+                  n #f
+                  (* (random) 2) (* (random) 2)
+                  (* (random) 2 pi))
+          (sprite (exact->inexact (* 16 x)) (exact->inexact (* 16 y))
+                  0.0 0.0 0.0 1.0
+                  n #f
+                  1.0 1.0 0.0))))
   (time
    (for ([i (in-range 4)])
      (draw s))))
