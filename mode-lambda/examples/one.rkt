@@ -22,7 +22,9 @@
               n #f
               (* (random) 2) (* (random) 2)
               (* (random) 2 pi))))
-  (time (draw s)))
+  (time
+   (for ([i (in-range 1)])
+     (draw s))))
 
 (module+ main
   (require racket/cmdline)

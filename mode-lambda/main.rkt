@@ -62,8 +62,10 @@
 ;; the layer part of the sprite!]
 
 (define (make-draw csd width height)
+  (local-require data/2d-hash)
   (match-define (compiled-sprite-db s->w*h*bs) csd)
   (define root-bs (make-bytes (* 4 width height)))
+  (define tri-hash (make-2d-hash width height))
   (lambda (sprite-tree)
     (local-require racket/math
                    racket/flonum
@@ -190,6 +192,7 @@
     (define (triangle-min-y t) (triangle-F-y min t))
     (define (triangle-min-x t) (triangle-F-O min 0 t))
     (define (triangle-max-y t) (triangle-F-y max t))
+    (define (triangle-max-x t) (triangle-F-O max 0 t))
     (define (triangle-min-x<= t1 t2)
       (<= (triangle-min-x t1)
           (triangle-min-x t2)))
@@ -262,52 +265,49 @@
                  RU (+ start-tx spr-w) (+ start-ty spr-h)
                  RL (+ start-tx spr-w) start-tx)))
 
-    (local-require data/heap)
-    (define y->triangles (build-vector height (λ (i) (make-heap triangle-min-x<=))))
     (define (output! t)
-      (for ([y (in-range (max 0
-                              (inexact->exact (floor (triangle-min-y t))))
-                         (min height
-                              (inexact->exact (ceiling (triangle-max-y t)))))])
-        (define yts (vector-ref y->triangles y))
-        (heap-add! yts t)))
+      (2d-hash-add! tri-hash
+                    (max 0
+                         (inexact->exact (floor (triangle-min-x t))))
+                    (min (sub1 width)
+                         (inexact->exact (ceiling (triangle-max-x t))))
+                    (max 0
+                         (inexact->exact (floor (triangle-min-y t))))
+                    (min (sub1 height)
+                         (inexact->exact (ceiling (triangle-max-y t))))
+                    t))
     (tree-for (λ (s) (geometry-shader output! s)) sprite-tree)
 
     ;; Clear the screen
     (bytes-fill! root-bs 0)
     ;; Fill the screen
-    (for ([y (in-range 0 height)])
-      ;; XXX I should abstract this into a simple iteration and
-      ;; querying of a spatial hash and then look at other spatial
-      ;; hash representations like quadtrees.
-      (define yts-h (vector-ref y->triangles y))
-      (define ytsk (heap-count yts-h))
-      (unless (zero? ytsk)
-        (define yts (heap->vector yts-h))
-        (vector-set! y->triangles y #f)
-        (for ([x (in-range 0 width)])
-          (let/ec drew
-            (for ([t (in-vector yts)])
-              (when-point-in-triangle
-               t x y
-               (λ (λ1 λ2 λ3)
-                 (match-define
-                  (triangle bs bs-w bs-h a r g b
-                            v1 tx1 ty1
-                            v2 tx2 ty2
-                            v3 tx3 ty3)
-                  t)
-                 (define tx (+ (* λ1 tx1) (* λ2 tx2) (* λ3 tx3)))
-                 (define ty (+ (* λ1 ty1) (* λ2 ty2) (* λ3 ty3)))
-                 (define (fill! na nr ng nb)
-                   (pixel-set! root-bs width height x y 0 na)
-                   (pixel-set! root-bs width height x y 1 nr)
-                   (pixel-set! root-bs width height x y 2 ng)
-                   (pixel-set! root-bs width height x y 3 nb)
-                   ;; This is like a "depth" test. If the fragment drew
-                   ;; anything, then skip the rest of the triangles
-                   (drew))
-                 (fragment-shader fill! bs bs-w bs-h a r g b tx ty))))))))
+    (for* ([x (in-range 0 width)]
+           [y (in-range 0 height)])
+      (define tris (2d-hash-ref tri-hash x y))
+      (let/ec drew
+        (for ([t (in-list tris)])
+          (when-point-in-triangle
+           t x y
+           (λ (λ1 λ2 λ3)
+             (match-define
+              (triangle bs bs-w bs-h a r g b
+                        v1 tx1 ty1
+                        v2 tx2 ty2
+                        v3 tx3 ty3)
+              t)
+             (define tx (+ (* λ1 tx1) (* λ2 tx2) (* λ3 tx3)))
+             (define ty (+ (* λ1 ty1) (* λ2 ty2) (* λ3 ty3)))
+             (define (fill! na nr ng nb)
+               (pixel-set! root-bs width height x y 0 na)
+               (pixel-set! root-bs width height x y 1 nr)
+               (pixel-set! root-bs width height x y 2 ng)
+               (pixel-set! root-bs width height x y 3 nb)
+               ;; This is like a "depth" test. If the fragment drew
+               ;; anything, then skip the rest of the triangles
+               (drew))
+             (fragment-shader fill! bs bs-w bs-h a r g b tx ty))))))
+
+    (2d-hash-clear! tri-hash)
 
     ;; XXX Add a white background to easily tell the difference
     ;; between border and background in Preview
