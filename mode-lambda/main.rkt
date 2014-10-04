@@ -299,14 +299,14 @@
 
       (output!
        (triangle a r g b
-                 LT start-tx start-ty
-                 RB (+ start-tx spr-last-x) (+ start-ty spr-last-y)
-                 LB start-tx (+ start-ty spr-last-y)))
+                 LT start-tx (+ start-ty spr-last-y)
+                 RB (+ start-tx spr-last-x) start-ty
+                 LB start-tx start-ty))
       (output!
        (triangle a r g b
-                 LT start-tx start-ty
-                 RT (+ start-tx spr-last-x) start-ty
-                 RB (+ start-tx spr-last-x) (+ start-ty spr-last-y))))
+                 LT start-tx (+ start-ty spr-last-y)
+                 RT (+ start-tx spr-last-x) (+ start-ty spr-last-y)
+                 RB (+ start-tx spr-last-x) start-ty)))
 
     (define (output! t)
       (2d-hash-add! tri-hash
