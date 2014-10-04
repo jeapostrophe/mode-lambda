@@ -207,10 +207,9 @@
     (F (?flvector-ref v1 O)
        (?flvector-ref v2 O)
        (?flvector-ref v3 O)))
-  (define (triangle-F-y F t) (triangle-F-O F 1 t))
-  (define (triangle-min-y t) (triangle-F-y min t))
+  (define (triangle-min-y t) (triangle-F-O min 1 t))
   (define (triangle-min-x t) (triangle-F-O min 0 t))
-  (define (triangle-max-y t) (triangle-F-y max t))
+  (define (triangle-max-y t) (triangle-F-O max 1 t))
   (define (triangle-max-x t) (triangle-F-O max 0 t))
   (define (when-point-in-triangle t x y f)
     (match-define
@@ -225,29 +224,26 @@
     (define y2 (?flvector-ref v2 1))
     (define x3 (?flvector-ref v3 0))
     (define y3 (?flvector-ref v3 1))
-    (define min-x (min x1 x2 x3))
-    (define max-x (max x1 x2 x3))
-    (when (<= min-x x max-x)
-      ;; Compute the Barycentric coordinates
-      (define detT
-        (+ (* (- y2 y3) (- x1 x3))
-           (* (- x3 x2) (- y1 y3))))
-      (define λ1
-        (/ (+ (* (- y2 y3) (- x x3))
-              (* (- x3 x2) (- y y3)))
-           detT))
-      (define λ2
-        (/ (+ (* (- y3 y1) (- x x3))
-              (* (- x1 x3) (- y y3)))
-           detT))
-      (define λ3
-        (- 1 λ1 λ2))
-      ;; This condition is when the point is actually in the
-      ;; triangle.
-      (when (and (<= 0 λ1 1)
-                 (<= 0 λ2 1)
-                 (<= 0 λ3 1))
-        (f λ1 λ2 λ3))))
+    ;; Compute the Barycentric coordinates
+    (define detT
+      (+ (* (- y2 y3) (- x1 x3))
+         (* (- x3 x2) (- y1 y3))))
+    (define λ1
+      (/ (+ (* (- y2 y3) (- x x3))
+            (* (- x3 x2) (- y y3)))
+         detT))
+    (define λ2
+      (/ (+ (* (- y3 y1) (- x x3))
+            (* (- x1 x3) (- y y3)))
+         detT))
+    (define λ3
+      (- 1 λ1 λ2))
+    ;; This condition is when the point is actually in the
+    ;; triangle.
+    (when (and (<= 0 λ1 1)
+               (<= 0 λ2 1)
+               (<= 0 λ3 1))
+      (f λ1 λ2 λ3)))
 
   (match-define (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty) csd)
   (define root-bs (make-bytes (* 4 width height)))
@@ -293,24 +289,24 @@
       (define Y (3*3matX3vec-mult M (3vec 0.0 hh 0.0)))
       (define Z (3*3matX3vec-mult M (3vec 0.0 0.0 1.0)))
 
-      (define LU (3vec-mult*add -1.0 X +1.0 Y Z))
-      (define RU (3vec-mult*add +1.0 X +1.0 Y Z))
-      (define LL (3vec-mult*add -1.0 X -1.0 Y Z))
-      (define RL (3vec-mult*add +1.0 X -1.0 Y Z))
+      (define LT (3vec-mult*add -1.0 X +1.0 Y Z))
+      (define RT (3vec-mult*add +1.0 X +1.0 Y Z))
+      (define LB (3vec-mult*add -1.0 X -1.0 Y Z))
+      (define RB (3vec-mult*add +1.0 X -1.0 Y Z))
 
       (define spr-last-x (sub1 spr-w))
       (define spr-last-y (sub1 spr-h))
 
       (output!
        (triangle a r g b
-                 LU start-tx (+ start-ty spr-last-y)
-                 RU (+ start-tx spr-last-x) (+ start-ty spr-last-y)
-                 LL start-tx start-ty))
+                 LT start-tx start-ty
+                 RB (+ start-tx spr-last-x) (+ start-ty spr-last-y)
+                 LB start-tx (+ start-ty spr-last-y)))
       (output!
        (triangle a r g b
-                 LL start-tx start-ty
-                 RU (+ start-tx spr-last-x) (+ start-ty spr-last-y)
-                 RL (+ start-tx spr-last-x) start-tx)))
+                 LT start-tx start-ty
+                 RT (+ start-tx spr-last-x) start-ty
+                 RB (+ start-tx spr-last-x) (+ start-ty spr-last-y))))
 
     (define (output! t)
       (2d-hash-add! tri-hash
