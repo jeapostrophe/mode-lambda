@@ -100,95 +100,159 @@
 ;; the layer part of the sprite!]
 
 (define (make-draw csd width height)
-  (local-require data/2d-hash)
+  (local-require racket/math
+                 racket/flonum
+                 racket/performance-hint
+                 racket/unsafe/ops
+                 data/2d-hash)
+
+  (begin-encourage-inline
+   (define ?flvector-ref flvector-ref)
+   (define ?flvector-set! flvector-set!)
+   (define ?bytes-ref bytes-ref)
+   (define ?bytes-set! bytes-set!)
+   (define ?flcos cos)
+   (define ?flsin sin)
+   (define ?fl* *)
+   (define ?fl+ +)
+   (define ?fl- -)
+   (define (pixel-ref bs w h bx by i)
+     (?bytes-ref bs (+ (* 4 w by) (* 4 bx) i)))
+   (define (pixel-set! bs w h bx by i v)
+     (?bytes-set! bs (+ (* 4 w by) (* 4 bx) i) v))
+   (define (3*3mat i00 i01 i02
+                   i10 i11 i12
+                   i20 i21 i22)
+     (flvector i00 i01 i02
+               i10 i11 i12
+               i20 i21 i22))
+   (define (3*3mat-zero)
+     (3*3mat 0.0 0.0 0.0
+             0.0 0.0 0.0
+             0.0 0.0 0.0))
+   (define (3*3mat-identity)
+     (3*3mat 1.0 0.0 0.0
+             0.0 1.0 0.0
+             0.0 0.0 1.0))
+   (define (2d-translate dx dy)
+     (3*3mat 1.0 0.0 dx
+             0.0 1.0 dy
+             0.0 0.0 1.0))
+   (define (2d-rotate theta)
+     (define cost (?flcos theta))
+     (define sint (?flsin theta))
+     (3*3mat cost sint 0.0
+             (?fl* -1 sint) cost 0.0
+             0.0 0.0 1.0))
+   (define (3*3mat-offset i j)
+     (+ (* 3 i) j))
+   (define (3*3mat-mult A B)
+     (define C (3*3mat-zero))
+     (for* ([i (in-range 3)]
+            [j (in-range 3)])
+       (?flvector-set!
+        C (3*3mat-offset i j)
+        (for/sum ([k (in-range 3)])
+          (* (?flvector-ref A (3*3mat-offset i k))
+             (?flvector-ref B (3*3mat-offset k j))))))
+     C)
+   (define-syntax 3*3mat-mult*
+     (syntax-rules ()
+       [(_) (3*3mat-identity)]
+       [(_ a . more) (3*3mat-mult a (3*3mat-mult* . more))]))
+   (define (3vec i0 i1 i2)
+     (flvector i0 i1 i2))
+   (define (2d-point x y)
+     (3vec x y 1.0))
+   (define (3vec-zero)
+     (3vec 0.0 0.0 0.0))
+   (define (3*3matX3vec-mult A v)
+     (define u (3vec-zero))
+     (for* ([i (in-range 3)])
+       (?flvector-set!
+        u i
+        (for/sum ([k (in-range 3)])
+          (?fl* (?flvector-ref A (3*3mat-offset i k))
+                (?flvector-ref v k)))))
+     u)
+   (define (3vec-mult*add λA A λB B C)
+     (define u (3vec-zero))
+     (for* ([i (in-range 3)])
+       (?flvector-set!
+        u i
+        (?fl+ (?fl* λA (?flvector-ref A i))
+              (?fl* λB (?flvector-ref B i))
+              (?flvector-ref C i))))
+     u))
+
+
+  ;; XXX separate into verticex-data & attributes
+  ;; XXX use cstructs for attributes
+
+  ;; bx and ty are like "varying" vertex attributes that are
+  ;; interpolated across the triangle. bs* are globals, and argb is
+  ;; non-varying
+  (struct triangle
+    (a r g b
+       v1 tx1 ty1
+       v2 tx2 ty2
+       v3 tx3 ty3))
+  (define (triangle-F-O F O t)
+    (match-define
+     (triangle a r g b
+               v1 tx1 ty1
+               v2 tx2 ty2
+               v3 tx3 ty3)
+     t)
+    (F (?flvector-ref v1 O)
+       (?flvector-ref v2 O)
+       (?flvector-ref v3 O)))
+  (define (triangle-F-y F t) (triangle-F-O F 1 t))
+  (define (triangle-min-y t) (triangle-F-y min t))
+  (define (triangle-min-x t) (triangle-F-O min 0 t))
+  (define (triangle-max-y t) (triangle-F-y max t))
+  (define (triangle-max-x t) (triangle-F-O max 0 t))
+  (define (when-point-in-triangle t x y f)
+    (match-define
+     (triangle a r g b
+               v1 tx1 ty1
+               v2 tx2 ty2
+               v3 tx3 ty3)
+     t)
+    (define x1 (?flvector-ref v1 0))
+    (define y1 (?flvector-ref v1 1))
+    (define x2 (?flvector-ref v2 0))
+    (define y2 (?flvector-ref v2 1))
+    (define x3 (?flvector-ref v3 0))
+    (define y3 (?flvector-ref v3 1))
+    (define min-x (min x1 x2 x3))
+    (define max-x (max x1 x2 x3))
+    (when (<= min-x x max-x)
+      ;; Compute the Barycentric coordinates
+      (define detT
+        (+ (* (- y2 y3) (- x1 x3))
+           (* (- x3 x2) (- y1 y3))))
+      (define λ1
+        (/ (+ (* (- y2 y3) (- x x3))
+              (* (- x3 x2) (- y y3)))
+           detT))
+      (define λ2
+        (/ (+ (* (- y3 y1) (- x x3))
+              (* (- x1 x3) (- y y3)))
+           detT))
+      (define λ3
+        (- 1 λ1 λ2))
+      ;; This condition is when the point is actually in the
+      ;; triangle.
+      (when (and (<= 0 λ1 1)
+                 (<= 0 λ2 1)
+                 (<= 0 λ3 1))
+        (f λ1 λ2 λ3))))
+
   (match-define (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty) csd)
   (define root-bs (make-bytes (* 4 width height)))
   (define tri-hash (make-2d-hash width height))
   (lambda (sprite-tree)
-    (local-require racket/math
-                   racket/flonum
-                   racket/performance-hint
-                   racket/unsafe/ops)
-
-    (begin-encourage-inline
-     (define ?flvector-ref flvector-ref)
-     (define ?flvector-set! flvector-set!)
-     (define ?bytes-ref bytes-ref)
-     (define ?bytes-set! bytes-set!)
-     (define ?flcos cos)
-     (define ?flsin sin)
-     (define ?fl* *)
-     (define ?fl+ +)
-     (define ?fl- -)
-     (define (pixel-ref bs w h bx by i)
-       (?bytes-ref bs (+ (* 4 w by) (* 4 bx) i)))
-     (define (pixel-set! bs w h bx by i v)
-       (?bytes-set! bs (+ (* 4 w by) (* 4 bx) i) v))
-     (define (3*3mat i00 i01 i02
-                     i10 i11 i12
-                     i20 i21 i22)
-       (flvector i00 i01 i02
-                 i10 i11 i12
-                 i20 i21 i22))
-     (define (3*3mat-zero)
-       (3*3mat 0.0 0.0 0.0
-               0.0 0.0 0.0
-               0.0 0.0 0.0))
-     (define (3*3mat-identity)
-       (3*3mat 1.0 0.0 0.0
-               0.0 1.0 0.0
-               0.0 0.0 1.0))
-     (define (2d-translate dx dy)
-       (3*3mat 1.0 0.0 dx
-               0.0 1.0 dy
-               0.0 0.0 1.0))
-     (define (2d-rotate theta)
-       (define cost (?flcos theta))
-       (define sint (?flsin theta))
-       (3*3mat cost sint 0.0
-               (?fl* -1 sint) cost 0.0
-               0.0 0.0 1.0))
-     (define (3*3mat-offset i j)
-       (+ (* 3 i) j))
-     (define (3*3mat-mult A B)
-       (define C (3*3mat-zero))
-       (for* ([i (in-range 3)]
-              [j (in-range 3)])
-         (?flvector-set!
-          C (3*3mat-offset i j)
-          (for/sum ([k (in-range 3)])
-            (* (?flvector-ref A (3*3mat-offset i k))
-               (?flvector-ref B (3*3mat-offset k j))))))
-       C)
-     (define-syntax 3*3mat-mult*
-       (syntax-rules ()
-         [(_) (3*3mat-identity)]
-         [(_ a . more) (3*3mat-mult a (3*3mat-mult* . more))]))
-     (define (3vec i0 i1 i2)
-       (flvector i0 i1 i2))
-     (define (2d-point x y)
-       (3vec x y 1.0))
-     (define (3vec-zero)
-       (3vec 0.0 0.0 0.0))
-     (define (3*3matX3vec-mult A v)
-       (define u (3vec-zero))
-       (for* ([i (in-range 3)])
-         (?flvector-set!
-          u i
-          (for/sum ([k (in-range 3)])
-            (?fl* (?flvector-ref A (3*3mat-offset i k))
-                  (?flvector-ref v k)))))
-       u)
-     (define (3vec-mult*add λA A λB B C)
-       (define u (3vec-zero))
-       (for* ([i (in-range 3)])
-         (?flvector-set!
-          u i
-          (?fl+ (?fl* λA (?flvector-ref A i))
-                (?fl* λB (?flvector-ref B i))
-                (?flvector-ref C i))))
-       u))
-
     ;; This whole function has lots of opportunities to be
     ;; optimized. Most of the math, when you unroll and inline all the
     ;; functions, has TONS of common-sub-expressions with no-state
@@ -213,69 +277,6 @@
       (unless (zero? na)
         (fill! na nr ng nb)))
 
-    ;; XXX separate into verticex-data & attributes
-    ;; XXX use cstructs for attributes
-
-    ;; bx and ty are like "varying" vertex attributes that are
-    ;; interpolated across the triangle. bs* are globals, and argb is
-    ;; non-varying
-    (struct triangle
-      (a r g b
-         v1 tx1 ty1
-         v2 tx2 ty2
-         v3 tx3 ty3))
-    (define (triangle-F-O F O t)
-      (match-define
-       (triangle a r g b
-                 v1 tx1 ty1
-                 v2 tx2 ty2
-                 v3 tx3 ty3)
-       t)
-      (F (?flvector-ref v1 O)
-         (?flvector-ref v2 O)
-         (?flvector-ref v3 O)))
-    (define (triangle-F-y F t) (triangle-F-O F 1 t))
-    (define (triangle-min-y t) (triangle-F-y min t))
-    (define (triangle-min-x t) (triangle-F-O min 0 t))
-    (define (triangle-max-y t) (triangle-F-y max t))
-    (define (triangle-max-x t) (triangle-F-O max 0 t))    
-    (define (when-point-in-triangle t x y f)
-      (match-define
-       (triangle a r g b
-                 v1 tx1 ty1
-                 v2 tx2 ty2
-                 v3 tx3 ty3)
-       t)
-      (define x1 (?flvector-ref v1 0))
-      (define y1 (?flvector-ref v1 1))
-      (define x2 (?flvector-ref v2 0))
-      (define y2 (?flvector-ref v2 1))
-      (define x3 (?flvector-ref v3 0))
-      (define y3 (?flvector-ref v3 1))
-      (define min-x (min x1 x2 x3))
-      (define max-x (max x1 x2 x3))
-      (when (<= min-x x max-x)
-        ;; Compute the Barycentric coordinates
-        (define detT
-          (+ (* (- y2 y3) (- x1 x3))
-             (* (- x3 x2) (- y1 y3))))
-        (define λ1
-          (/ (+ (* (- y2 y3) (- x x3))
-                (* (- x3 x2) (- y y3)))
-             detT))
-        (define λ2
-          (/ (+ (* (- y3 y1) (- x x3))
-                (* (- x1 x3) (- y y3)))
-             detT))
-        (define λ3
-          (- 1 λ1 λ2))
-        ;; This condition is when the point is actually in the
-        ;; triangle.
-        (when (and (<= 0 λ1 1)
-                   (<= 0 λ2 1)
-                   (<= 0 λ3 1))
-          (f λ1 λ2 λ3))))
-
     (define (geometry-shader output! s)
       (match-define (sprite-data dx dy r g b a spr pal mx my theta) s)
       (define M
@@ -299,7 +300,7 @@
 
       (define spr-last-x (sub1 spr-w))
       (define spr-last-y (sub1 spr-h))
-      
+
       (output!
        (triangle a r g b
                  LU start-tx (+ start-ty spr-last-y)
