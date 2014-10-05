@@ -1,6 +1,7 @@
 #lang racket/base
 (require racket/math
-         mode-lambda)
+         mode-lambda
+         mode-lambda/backend/software)
 
 (define (random-byte) (random 256))
 
