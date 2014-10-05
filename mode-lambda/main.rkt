@@ -3,6 +3,8 @@
          racket/contract/base
          (except-in ffi/unsafe ->))
 
+;; xxx separate into three files
+
 (struct sprite-db (loaders-box))
 (define (make-sprite-db)
   (sprite-db (box null)))
