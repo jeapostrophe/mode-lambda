@@ -31,9 +31,17 @@
                   0.0 0.0 0.0 1.0
                   n #f
                   1.0 1.0 0.0))))
-  (time
-   (for ([i (in-range 4)])
-     (draw s))))
+  (define last-bs
+    (time
+     (for/fold ([bs #f]) ([i (in-range 4)])
+       (draw s))))
+  (let ()
+    (local-require racket/draw
+                   racket/class)
+    (define root-bm
+      (make-bitmap W H))
+    (send root-bm set-argb-pixels 0 0 W H last-bs)
+    (send root-bm save-file "lambda.png" 'png 100 #:unscaled? #t)))
 
 (module+ main
   (require racket/cmdline)

@@ -368,6 +368,7 @@
       (fragment-shader drew x y
                        a r g b
                        tx ty))
+    
     (for* ([xb (in-range 0 (2d-hash-x-blocks tri-hash))]
            [yb (in-range 0 (2d-hash-y-blocks tri-hash))])
       (define tris (2d-hash-block-ref tri-hash xb yb))
@@ -386,14 +387,7 @@
 
     (2d-hash-clear! tri-hash)
 
-    (let ()
-      (local-require racket/draw
-                     racket/class)
-      (define root-bm
-        (make-bitmap width height))
-      (send root-bm set-argb-pixels 0 0 width height root-bs)
-      (send root-bm save-file "lambda.png" 'png 100 #:unscaled? #t))
-    (void)))
+    root-bs))
 
 (provide
  (contract-out
@@ -421,4 +415,4 @@
        exact-nonnegative-integer?
        exact-nonnegative-integer?
        (-> any/c
-           void?))]))
+           any))]))
