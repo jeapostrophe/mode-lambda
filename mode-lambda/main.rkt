@@ -6,22 +6,33 @@
 
 (define (make-sprite-db)
   (sprite-db (box null)))
-
-(define (sprite-db-add!/file sd name p)
+(define (sprite-db-add!/load sd load)
+  (match-define (sprite-db ls-b) sd)
+  (set-box! ls-b (cons load (unbox ls-b)))
+  (void))
+(define (sprite-db-add!/load-bm sd name load-bm)
   (local-require racket/draw
                  racket/class)
-  (match-define (sprite-db ls-b) sd)
   (define (load)
-    (define bm (read-bitmap p))
+    (define in (load-bm))
+    (define bm (read-bitmap in))
     (define w (send bm get-width))
     (define h (send bm get-height))
     (define bs (make-bytes (* w h 4)))
     (send bm get-argb-pixels 0 0 w h bs)
     (vector name w h bs))
-  (set-box! ls-b (cons load (unbox ls-b)))
-  (void))
+  (sprite-db-add!/load sd load))
+(define (sprite-db-add!/file sd name p)
+  (sprite-db-add!/load-bm sd name (λ () p)))
+(define (sprite-db-add!/convert sd name v)
+  (local-require file/convertible)
+  (sprite-db-add!/load-bm
+   sd name
+   (λ ()
+     (define bs (convert v 'png-bytes))
+     (define ip (open-input-bytes bs))
+     ip)))
 ;; xxx palettes
-;; xxx read from pict, htdp/image, etc
 
 (define (ushort? x)
   (and (exact-nonnegative-integer? x)
@@ -29,6 +40,11 @@
 (define (compile-sprite-db sd)
   (local-require "korf-bin.rkt")
   (match-define (sprite-db ls-b) sd)
+
+  (define pal-size 1)
+  (define pal-bs (make-bytes (* pal-size palette-depth 4)))
+  (define pal->idx (make-hasheq))
+
   (define ss (map (λ (l) (l)) (unbox ls-b)))
 
   (define-values (atlas-size places)
@@ -54,10 +70,6 @@
                    (* 4 w by) (* 4 w (add1 by))))
     (hash-set! spr->idx spr pi)
     (vector-set! idx->w*h*tx*ty pi (vector w h tx ty)))
-
-  (define pal-size 1)
-  (define pal-bs (make-bytes (* pal-size palette-depth 4)))
-  (define pal->idx (make-hasheq))
 
   (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
                       pal-size pal-bs pal->idx))
@@ -127,8 +139,22 @@
   [sprite-db?
    (-> any/c
        boolean?)]
+  [sprite-db-add!/load
+   (-> sprite-db?
+       ;; xxx these bytes could be specified to be the correct length
+       (-> (vector/c symbol? ushort? ushort? bytes?))
+       void?)]
+  [sprite-db-add!/load-bm
+   (-> sprite-db? symbol?
+       (-> (or path-string? input-port?))
+       void?)]
   [sprite-db-add!/file
    (-> sprite-db? symbol? path-string?
+       void?)]
+  [sprite-db-add!/convert
+   (-> sprite-db? symbol?
+       (let () (local-require file/convertible)
+            convertible?)
        void?)]
   [compile-sprite-db
    (-> sprite-db?

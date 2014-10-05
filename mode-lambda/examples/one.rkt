@@ -11,10 +11,22 @@
   (define sd (make-sprite-db))
   (define sprs (build-path p "sprs"))
   (define ns
-    (for/list ([f (in-list (directory-list sprs))])
-      (define n (string->symbol (regexp-replace #rx".png$" (path->string f) "")))
-      (sprite-db-add!/file sd n (build-path sprs f))
-      n))
+    (append
+     (let ()
+       (define (add! n v)
+         (sprite-db-add!/convert sd n v)
+         n)
+       (append
+        (let ()
+          (local-require 2htdp/image)
+          (list (add! 'star (star 100 "solid" "black"))))
+        (let ()
+          (local-require pict)
+          (list (add! 'fish (standard-fish 100 50))))))
+     (for/list ([f (in-list (directory-list sprs))])
+       (define n (string->symbol (regexp-replace #rx".png$" (path->string f) "")))
+       (sprite-db-add!/file sd n (build-path sprs f))
+       n)))
   (define (random-spr)
     (list-ref ns (random (length ns))))
   (define original-csd (compile-sprite-db sd))
@@ -33,9 +45,12 @@
                   (* (random) 2 pi)))
         (for*/list ([x (in-range W)]
                     [y (in-range W)])
+          (define i (min (sub1 (length ns))
+                         (+ (* x (quotient (length ns) W)) y)))
+          (define n (list-ref ns i))
           (sprite 0 (exact->inexact (* 16 x)) (exact->inexact (* 16 y))
                   0 0 0 1.0
-                  (random-spr-idx) 0
+                  (sprite-idx csd n) 0
                   1.0 1.0 0.0))))
   (define last-bs
     (time
