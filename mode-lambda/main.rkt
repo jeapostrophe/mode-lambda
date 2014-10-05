@@ -22,12 +22,6 @@
 ;; xxx palettes
 ;; xxx read from pict, htdp/image, etc
 
-;; xxx unsafe/inline
-(define (pixel-ref bs w h bx by i)
-  (bytes-ref bs (+ (* 4 w by) (* 4 bx) i)))
-(define (pixel-set! bs w h bx by i v)
-  (bytes-set! bs (+ (* 4 w by) (* 4 bx) i) v))
-
 (struct compiled-sprite-db (atlas-size atlas-bs spr->idx idx->w*h*tx*ty))
 (define (compile-sprite-db sd)
   (local-require "korf-bin.rkt")
@@ -46,13 +40,12 @@
   (for ([pl (in-list places)]
         [pi (in-naturals)])
     (match-define (placement tx ty (vector spr w h bs)) pl)
-    (for* ([bx (in-range w)]
-           [by (in-range h)]
-           [off (in-range 4)])
-      ;; xxx use bytes-copy! or make bytes-block-copy!
-      (pixel-set! atlas-bs atlas-size atlas-size
-                  (+ tx bx) (+ ty by) off
-                  (pixel-ref bs w h bx by off)))
+    (for ([by (in-range h)])
+      (bytes-copy! atlas-bs 
+                   (+ (* 4 atlas-size (+ ty by))
+                      (* 4 tx))
+                   bs
+                   (* 4 w by) (* 4 w (add1 by))))
     (hash-set! spr->idx spr pi)
     (vector-set! idx->w*h*tx*ty pi (vector w h tx ty)))
 
@@ -280,7 +273,7 @@
 
       (define spr-last-x (?fx- spr-w 1))
       (define spr-last-y (?fx- spr-h 1))
-      
+
       (define tx-top (?fx+ tx-bot spr-last-y))
       (define tx-right (?fx+ tx-left spr-last-x))
 
@@ -368,7 +361,7 @@
       (fragment-shader drew x y
                        a r g b
                        tx ty))
-    
+
     (for* ([xb (in-range 0 (2d-hash-x-blocks tri-hash))]
            [yb (in-range 0 (2d-hash-y-blocks tri-hash))])
       (define tris (2d-hash-block-ref tri-hash xb yb))
