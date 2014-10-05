@@ -178,19 +178,13 @@
           (fl* (?flvector-ref A (3*3mat-offset i k))
                (?flvector-ref v k)))))))
 
-  (struct triangle (a r g b
-                      v1.x v1.y tx1 ty1
-                      v2.x v2.y tx2 ty2
-                      v3.x v3.y tx3 ty3
-                      detT))
+  (struct triangle (detT
+                    a r g b
+                    v1.x v1.y tx1.0 ty1.0
+                    v2.x v2.y tx2.0 ty2.0
+                    v3.x v3.y tx3.0 ty3.0))
   (define (when-point-in-triangle t x y drew x.0 y.0 draw-triangle!)
-    (match-define
-     (triangle a r g b
-               x1 y1 tx1 ty1
-               x2 y2 tx2 ty2
-               x3 y3 tx3 ty3
-               detT)
-     t)
+    (match-define (triangle detT _ _ _ _ x1 y1 _ _ x2 y2 _ _ x3 y3 _ _) t)
     ;; Compute the Barycentric coordinates
     (define λ1
       (fl/ (fl+ (fl* (fl- y2 y3) (fl- x.0 x3))
@@ -229,9 +223,14 @@
       (define spr-idx (hash-ref spr->idx spr))
       (match-define (vector spr-w spr-h tx-left tx-bot)
                     (vector-ref idx->w*h*tx*ty spr-idx))
+      
+      (define spr-w.0 (fx->fl spr-w))
+      (define spr-h.0 (fx->fl spr-h))
+      (define tx-left.0 (fx->fl tx-left))
+      (define tx-bot.0 (fx->fl tx-bot))
 
-      (define hw (fl* (fl/ (fx->fl spr-w) 2.0) mx))
-      (define hh (fl* (fl/ (fx->fl spr-h) 2.0) my))
+      (define hw (fl* (fl/ spr-w.0 2.0) mx))
+      (define hh (fl* (fl/ spr-h.0 2.0) my))
       (3*3matX3vec-mult! M (3vec hw 0.0 0.0) X)
       (3*3matX3vec-mult! M (3vec 0.0 hh 0.0) Y)
       (3*3matX3vec-mult! M (3vec 0.0 0.0 1.0) Z)
@@ -254,38 +253,27 @@
       (define RBx (combine +1.0 -1.0 0))
       (define RBy (combine +1.0 -1.0 1))
 
-      (define spr-last-x (fx- spr-w 1))
-      (define spr-last-y (fx- spr-h 1))
+      (define spr-last-x (fl- spr-w.0 1.0))
+      (define spr-last-y (fl- spr-h.0 1.0))
 
-      (define tx-top (fx+ tx-bot spr-last-y))
-      (define tx-right (fx+ tx-left spr-last-x))
-
-      (define tx-top.0 (fx->fl tx-top))
-      (define tx-bot.0 (fx->fl tx-bot))
-      (define tx-left.0 (fx->fl tx-left))
-      (define tx-right.0 (fx->fl tx-right))
+      (define tx-top.0 (fl+ tx-bot.0 spr-last-y))
+      (define tx-right.0 (fl+ tx-left.0 spr-last-x))
 
       (output!
-       (triangle a r g b
+       (triangle (detT LTx LTy RBx RBy LBx LBy)
+                 a r g b
                  LTx LTy tx-left.0 tx-top.0
                  RBx RBy tx-right.0 tx-bot.0
-                 LBx LBy tx-left.0 tx-bot.0
-                 (detT LTx LTy RBx RBy LBx LBy)))
+                 LBx LBy tx-left.0 tx-bot.0))
       (output!
-       (triangle a r g b
+       (triangle (detT LTx LTy RTx RTy RBx RBy)
+                 a r g b
                  LTx LTy tx-left.0 tx-top.0
                  RTx RTy tx-right.0 tx-top.0
-                 RBx RBy tx-right.0 tx-bot.0
-                 (detT LTx LTy RTx RTy RBx RBy))))
+                 RBx RBy tx-right.0 tx-bot.0)))
 
     (define (output! t)
-      (match-define
-       (triangle a r g b
-                 x1 y1 tx1 ty1
-                 x2 y2 tx2 ty2
-                 x3 y3 tx3 ty3
-                 detT)
-       t)
+      (match-define (triangle _ _ _ _ _ x1 y1 _ _ x2 y2 _ _ x3 y3 _ _) t)
       (2d-hash-add! tri-hash
                     (fxmax 0
                            (fl->fx (flfloor (flmin3 x1 x2 x3))))
@@ -298,9 +286,7 @@
                     t))
     (tree-for geometry-shader sprite-tree)
 
-    (define (fragment-shader drew x y
-                             a r g b
-                             tx.0 ty.0)
+    (define (fragment-shader drew x y a r g b tx.0 ty.0)
       (define tx (fl->fx (flfloor tx.0)))
       (define ty (fl->fx (flfloor ty.0)))
       (define-syntax-rule (define-nc cr nr i r)
@@ -328,12 +314,8 @@
       ;; anything, then skip the rest of the triangles
       (drew))
     (define (draw-triangle! t x y drew λ1 λ2 λ3)
-      (match-define
-       (triangle a r g b
-                 _ _ tx1.0 ty1.0
-                 _ _ tx2.0 ty2.0
-                 _ _ tx3.0 ty3.0
-                 _)
+      (match-define 
+       (triangle _ a r g b _ _ tx1.0 ty1.0 _ _ tx2.0 ty2.0 _ _ tx3.0 ty3.0)
        t)
       (define tx (fl+ (fl+ (fl* λ1 tx1.0)
                            (fl* λ2 tx2.0))
