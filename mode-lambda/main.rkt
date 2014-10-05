@@ -52,6 +52,9 @@
 
   (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty))
 
+(define (sprite-idx csd spr)
+  (hash-ref (compiled-sprite-db-spr->idx csd) spr #f))
+
 (define (sprite-hw csd spr)
   #f)
 (define (sprite-hh csd spr)
@@ -76,20 +79,17 @@
 (define-cstruct _sprite-data
   ([dx _float]
    [dy _float]
-   ;; xxx change to _byte
-   [r _float]
-   [g _float]
-   [b _float]
-   [a _float]
-   ;; xxx change to _short
-   [spr _symbol]
-   ;; xxx change to _short
-   [pal _stdbool]
    [mx _float]
    [my _float]
-   [theta _float]))
-(define (sprite dx dy r g b a spr pal mx my theta)
-  (make-sprite-data dx dy r g b a spr pal mx my theta))
+   [theta _float]
+   [spr-idx _short]
+   [pal-idx _short]
+   [r _byte]
+   [g _byte]
+   [b _byte]
+   [a _byte]))
+(define (sprite dx dy r g b a spr-idx pal-idx mx my theta)
+  (make-sprite-data dx dy mx my theta spr-idx pal-idx r g b a))
 
 (define (tree-for f t)
   (cond
@@ -215,15 +215,17 @@
   (define Z (3vec-zero))
   (lambda (sprite-tree)
     (define (geometry-shader s)
-      (match-define (sprite-data dx dy r g b a spr pal mx my theta) s)
+      (match-define (sprite-data dx dy mx my theta spr-idx pal-idx r g b a) s)
       (2d-translate! dx dy T)
       (2d-rotate! theta R)
       (3*3mat-mult! T R M)
-      ;; XXX move this into the sprite-data constructor
-      (define spr-idx (hash-ref spr->idx spr))
       (match-define (vector spr-w spr-h tx-left tx-bot)
                     (vector-ref idx->w*h*tx*ty spr-idx))
       
+      (define a.0 (fl/ (fx->fl a) 255.0))
+      (define r.0 (fl/ (fx->fl r) 255.0))
+      (define g.0 (fl/ (fx->fl g) 255.0))
+      (define b.0 (fl/ (fx->fl b) 255.0))
       (define spr-w.0 (fx->fl spr-w))
       (define spr-h.0 (fx->fl spr-h))
       (define tx-left.0 (fx->fl tx-left))
@@ -261,13 +263,13 @@
 
       (output!
        (triangle (detT LTx LTy RBx RBy LBx LBy)
-                 a r g b
+                 a.0 r.0 g.0 b.0
                  LTx LTy tx-left.0 tx-top.0
                  RBx RBy tx-right.0 tx-bot.0
                  LBx LBy tx-left.0 tx-bot.0))
       (output!
        (triangle (detT LTx LTy RTx RTy RBx RBy)
-                 a r g b
+                 a.0 r.0 g.0 b.0
                  LTx LTy tx-left.0 tx-top.0
                  RTx RTy tx-right.0 tx-top.0
                  RBx RBy tx-right.0 tx-bot.0)))
@@ -360,11 +362,14 @@
   [save-csd!
    (-> compiled-sprite-db? path-string?
        void?)]
+  [sprite-idx
+   (-> compiled-sprite-db? symbol?
+       (or/c #f exact-nonnegative-integer?))]
   [sprite
    (-> flonum? flonum?
-       flonum? flonum? flonum? flonum?
-       symbol? ;; XXX replace with compiled form (idx)
-       #f ;; XXX replace with #f or compiled form
+       byte? byte? byte? byte?
+       exact-nonnegative-integer?
+       exact-nonnegative-integer?
        flonum? flonum?
        flonum?
        sprite-data?)]
