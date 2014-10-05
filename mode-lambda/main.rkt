@@ -125,6 +125,8 @@
        (?flvector-set! vec i v)))
    (define ?bytes-ref unsafe-bytes-ref)
    (define ?bytes-set! unsafe-bytes-set!)
+   (define (flmin3 x y z) (flmin (flmin x y) z))
+   (define (flmax3 x y z) (flmax (flmax x y) z))
    (define (pixel-ref bs w h bx by i)
      (?bytes-ref bs (fx+ (fx* (fx* 4 w) by) (fx+ (fx* 4 bx) i))))
    (define (pixel-set! bs w h bx by i v)
@@ -174,49 +176,22 @@
         u i
         (for/sum ([k (in-range 3)])
           (fl* (?flvector-ref A (3*3mat-offset i k))
-               (?flvector-ref v k))))))
-   (define (3vec-mult*add λA A λB B C)
-     (define u (flvector 0.0 0.0))
-     (for* ([i (in-range 2)])
-       (?flvector-set!
-        u i
-        (fl+ (fl+ (fl* λA (?flvector-ref A i))
-                  (fl* λB (?flvector-ref B i)))
-             (?flvector-ref C i))))
-     u))
+               (?flvector-ref v k)))))))
 
-  ;; xxx create a single flvector for all the triangle vertices: v1.x
-  ;; v1.y v2.x v2.y v3.x v3.y
-
-  ;; xxx create a single flvector for all triangle-wide
-  ;; attributes: a r g b
-
-  ;; xxx create single flvector for all triangle-vertex attributes: tx1
-  ;; ty1 tx2 ty2 tx3 ty3
-
-  (struct triangle
-    (a r g b
-       v1 tx1 ty1
-       v2 tx2 ty2
-       v3 tx3 ty3))
+  (struct triangle (a r g b
+                      v1.x v1.y tx1 ty1
+                      v2.x v2.y tx2 ty2
+                      v3.x v3.y tx3 ty3
+                      detT))
   (define (when-point-in-triangle t x y drew x.0 y.0 draw-triangle!)
     (match-define
      (triangle a r g b
-               v1 tx1 ty1
-               v2 tx2 ty2
-               v3 tx3 ty3)
+               x1 y1 tx1 ty1
+               x2 y2 tx2 ty2
+               x3 y3 tx3 ty3
+               detT)
      t)
-    (define x1 (?flvector-ref v1 0))
-    (define y1 (?flvector-ref v1 1))
-    (define x2 (?flvector-ref v2 0))
-    (define y2 (?flvector-ref v2 1))
-    (define x3 (?flvector-ref v3 0))
-    (define y3 (?flvector-ref v3 1))
     ;; Compute the Barycentric coordinates
-    ;; xxx cache this
-    (define detT
-      (fl+ (fl* (fl- y2 y3) (fl- x1 x3))
-           (fl* (fl- x3 x2) (fl- y1 y3))))
     (define λ1
       (fl/ (fl+ (fl* (fl- y2 y3) (fl- x.0 x3))
                 (fl* (fl- x3 x2) (fl- y.0 y3)))
@@ -261,10 +236,23 @@
       (3*3matX3vec-mult! M (3vec 0.0 hh 0.0) Y)
       (3*3matX3vec-mult! M (3vec 0.0 0.0 1.0) Z)
 
-      (define LT (3vec-mult*add -1.0 X +1.0 Y Z))
-      (define RT (3vec-mult*add +1.0 X +1.0 Y Z))
-      (define LB (3vec-mult*add -1.0 X -1.0 Y Z))
-      (define RB (3vec-mult*add +1.0 X -1.0 Y Z))
+      (begin-encourage-inline
+       (define (combine λX λY i)
+         (fl+ (fl+ (fl* λX (?flvector-ref X i))
+                   (fl* λY (?flvector-ref Y i)))
+              (?flvector-ref Z i)))
+       (define (detT x1 y1 x2 y2 x3 y3)
+         (fl+ (fl* (fl- y2 y3) (fl- x1 x3))
+              (fl* (fl- x3 x2) (fl- y1 y3)))))
+
+      (define LTx (combine -1.0 +1.0 0))
+      (define LTy (combine -1.0 +1.0 1))
+      (define RTx (combine +1.0 +1.0 0))
+      (define RTy (combine +1.0 +1.0 1))
+      (define LBx (combine -1.0 -1.0 0))
+      (define LBy (combine -1.0 -1.0 1))
+      (define RBx (combine +1.0 -1.0 0))
+      (define RBy (combine +1.0 -1.0 1))
 
       (define spr-last-x (fx- spr-w 1))
       (define spr-last-y (fx- spr-h 1))
@@ -272,42 +260,41 @@
       (define tx-top (fx+ tx-bot spr-last-y))
       (define tx-right (fx+ tx-left spr-last-x))
 
-      (output!
-       (triangle a r g b
-                 LT tx-left tx-top
-                 RB tx-right tx-bot
-                 LB tx-left tx-bot))
-      (output!
-       (triangle a r g b
-                 LT tx-left tx-top
-                 RT tx-right tx-top
-                 RB tx-right tx-bot)))
+      (define tx-top.0 (fx->fl tx-top))
+      (define tx-bot.0 (fx->fl tx-bot))
+      (define tx-left.0 (fx->fl tx-left))
+      (define tx-right.0 (fx->fl tx-right))
 
-    (begin-encourage-inline
-     (define (triangle-F-O F O t)
-       (match-define
-        (triangle a r g b
-                  v1 tx1 ty1
-                  v2 tx2 ty2
-                  v3 tx3 ty3)
-        t)
-       (F (F (?flvector-ref v1 O)
-             (?flvector-ref v2 O))
-          (?flvector-ref v3 O)))
-     (define (triangle-min-y t) (triangle-F-O flmin 1 t))
-     (define (triangle-min-x t) (triangle-F-O flmin 0 t))
-     (define (triangle-max-y t) (triangle-F-O flmax 1 t))
-     (define (triangle-max-x t) (triangle-F-O flmax 0 t)))
+      (output!
+       (triangle a r g b
+                 LTx LTy tx-left.0 tx-top.0
+                 RBx RBy tx-right.0 tx-bot.0
+                 LBx LBy tx-left.0 tx-bot.0
+                 (detT LTx LTy RBx RBy LBx LBy)))
+      (output!
+       (triangle a r g b
+                 LTx LTy tx-left.0 tx-top.0
+                 RTx RTy tx-right.0 tx-top.0
+                 RBx RBy tx-right.0 tx-bot.0
+                 (detT LTx LTy RTx RTy RBx RBy))))
+
     (define (output! t)
+      (match-define
+       (triangle a r g b
+                 x1 y1 tx1 ty1
+                 x2 y2 tx2 ty2
+                 x3 y3 tx3 ty3
+                 detT)
+       t)
       (2d-hash-add! tri-hash
                     (fxmax 0
-                           (fl->fx (flfloor (triangle-min-x t))))
+                           (fl->fx (flfloor (flmin3 x1 x2 x3))))
                     (fxmin (fx- width 1)
-                           (fl->fx (flceiling (triangle-max-x t))))
+                           (fl->fx (flceiling (flmax3 x1 x2 x3))))
                     (fxmax 0
-                           (fl->fx (flfloor (triangle-min-y t))))
+                           (fl->fx (flfloor (flmin3 y1 y2 y3))))
                     (fxmin (fx- height 1)
-                           (fl->fx (flceiling (triangle-max-y t))))
+                           (fl->fx (flceiling (flmax3 y1 y2 y3))))
                     t))
     (tree-for geometry-shader sprite-tree)
 
@@ -343,16 +330,17 @@
     (define (draw-triangle! t x y drew λ1 λ2 λ3)
       (match-define
        (triangle a r g b
-                 v1 tx1 ty1
-                 v2 tx2 ty2
-                 v3 tx3 ty3)
+                 _ _ tx1.0 ty1.0
+                 _ _ tx2.0 ty2.0
+                 _ _ tx3.0 ty3.0
+                 _)
        t)
-      (define tx (fl+ (fl+ (fl* λ1 (fx->fl tx1))
-                           (fl* λ2 (fx->fl tx2)))
-                      (fl* λ3 (fx->fl tx3))))
-      (define ty (fl+ (fl+ (fl* λ1 (fx->fl ty1))
-                           (fl* λ2 (fx->fl ty2)))
-                      (fl* λ3 (fx->fl ty3))))
+      (define tx (fl+ (fl+ (fl* λ1 tx1.0)
+                           (fl* λ2 tx2.0))
+                      (fl* λ3 tx3.0)))
+      (define ty (fl+ (fl+ (fl* λ1 ty1.0)
+                           (fl* λ2 ty2.0))
+                      (fl* λ3 ty3.0)))
       (fragment-shader drew x y
                        a r g b
                        tx ty))
