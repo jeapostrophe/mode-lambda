@@ -132,17 +132,26 @@
 ;; order) [i could actually draw all layers at the same time by making
 ;; the layer part of the sprite!]
 
+(define (sprite-attributes? x)
+  (match x
+    [(vector n w h bs)
+     (and (symbol? n)
+          (ushort? w)
+          (ushort? h)
+          (= (bytes-length bs) (* 4 w h)))]
+    [_
+     #f]))
+
 (provide
  (contract-out
   [make-sprite-db
    (-> sprite-db?)]
   [sprite-db?
-   (-> any/c
-       boolean?)]
+   (-> any/c boolean?)]
+  [sprite-attributes?
+   (-> any/c boolean?)]
   [sprite-db-add!/load
-   (-> sprite-db?
-       ;; xxx these bytes could be specified to be the correct length
-       (-> (vector/c symbol? ushort? ushort? bytes?))
+   (-> sprite-db? (-> sprite-attributes?)
        void?)]
   [sprite-db-add!/load-bm
    (-> sprite-db? symbol?
