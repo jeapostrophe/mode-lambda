@@ -1,6 +1,6 @@
 #lang racket/base
-(require racket/contract/base
-         (except-in ffi/unsafe ->))
+(require racket/match
+         ffi/unsafe)
 
 (struct sprite-db (loaders-box))
 
@@ -20,15 +20,13 @@
    [a _byte]))
 
 (define (tree-for f t)
-  (cond
-   [(null? t)
-    (void)]
-   [(pair? t)
-    (tree-for f (car t))
-    (tree-for f (cdr t))]
-   [else
-    (f t)]))
+  (match t
+    ['() (void)]
+    [(cons a d)
+     (tree-for f a)
+     (tree-for f d)]
+    [_
+     (f t)]))
 
 (provide
- ;; xxx
  (all-defined-out))
