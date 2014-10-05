@@ -9,7 +9,7 @@
   (define W 256)
   (define H 224)
   (define sd (make-sprite-db))
-  (define sprs (build-path p "sprs"))
+  (define sprs (build-path p "monochrome"))
   (define ns
     (append
      (let ()
