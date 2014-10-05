@@ -8,7 +8,7 @@
   (sprite-db (box null)))
 
 (define (sprite-db-add!/file sd name p)
-  (local-require racket/gui/base
+  (local-require racket/draw
                  racket/class)
   (match-define (sprite-db ls-b) sd)
   (define (load)
