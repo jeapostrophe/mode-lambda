@@ -17,10 +17,11 @@
       n))
   (define (random-spr)
     (list-ref ns (random (length ns))))
-  (define csd (compile-sprite-db sd))
+  (define original-csd (compile-sprite-db sd))
+  (save-csd! original-csd "csd")
+  (define csd (load-csd "csd"))
   (define (random-spr-idx)
     (sprite-idx csd (random-spr)))
-  (save-csd! csd "csd")
   (define draw (make-draw csd W H))
   (define s
     (if #t

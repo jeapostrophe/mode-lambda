@@ -1,15 +1,15 @@
 #lang racket/base
-(require racket/match
+(require (for-syntax racket/base
+                     (only-in srfi/1 iota))
+         data/2d-hash
          racket/contract/base
-         (except-in ffi/unsafe ->)
-         racket/math
          racket/fixnum
          racket/flonum
+         racket/match
+         racket/math
          racket/performance-hint
          racket/unsafe/ops
-         data/2d-hash
-         (for-syntax racket/base
-                     (only-in srfi/1 iota))
+         (except-in ffi/unsafe ->)
          "../core.rkt")
 
 (begin-encourage-inline
@@ -105,8 +105,9 @@
         (draw-triangle! t x y drew λ1 λ2 λ3)))))
 
 (define (make-draw csd width height)
-  (match-define 
-   (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty pal-bs pal->idx)
+  (match-define
+   (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
+                       pal-size pal-bs pal->idx)
    csd)
   (define root-bs (make-bytes (* 4 width height)))
   (define tri-hash (make-2d-hash width height))
