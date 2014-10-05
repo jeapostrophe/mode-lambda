@@ -23,6 +23,9 @@
 ;; xxx palettes
 ;; xxx read from pict, htdp/image, etc
 
+(define (ushort? x)
+  (and (exact-nonnegative-integer? x)
+       (<= 0 x 65535)))
 (define (compile-sprite-db sd)
   (local-require "korf-bin.rkt")
   (match-define (sprite-db ls-b) sd)
@@ -32,8 +35,9 @@
     (pack (λ (s) (vector-ref s 1))
           (λ (s) (vector-ref s 2))
           ss))
-  ;; xxx ensure this is a short
   (define how-many-places (length places))
+  (unless (ushort? how-many-places)
+    (error 'mode-lambda "Maximum sprite count overreached"))
   (define atlas-bs (make-bytes (* atlas-size atlas-size 4)))
   (define spr->idx (make-hasheq))
   (define idx->w*h*tx*ty (make-vector how-many-places #f))
@@ -112,8 +116,8 @@
   [sprite
    (-> layer/c flonum? flonum?
        byte? byte? byte? flonum?
-       exact-nonnegative-integer?
-       exact-nonnegative-integer?
+       ushort?
+       ushort?
        flonum? flonum?
        flonum?
        sprite-data?)]))
