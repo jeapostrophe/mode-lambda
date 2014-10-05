@@ -8,19 +8,27 @@
          racket/performance-hint
          racket/unsafe/ops
          data/2d-hash
+         (for-syntax racket/base
+                     (only-in srfi/1 iota))
          "../core.rkt")
 
 (begin-encourage-inline
  (define ?flvector-ref unsafe-flvector-ref)
  (define ?flvector-set! unsafe-flvector-set!)
- (define (?flvector-set!* vec . vs)
-   (for ([i (in-naturals)]
-         [v (in-list vs)])
-     (?flvector-set! vec i v)))
+ (define-syntax-rule (?flvector-set!*i vec [i v] ...)
+   (begin (?flvector-set! vec i v) ...))
+ (define-syntax (?flvector-set!* stx)
+   (syntax-case stx ()
+     [(_ vec v ...)
+      (with-syntax ([(i ...) (iota (length (syntax->list #'(v ...))))])
+        (syntax/loc stx
+          (?flvector-set!*i vec [i v] ...)))]))
  (define ?bytes-ref unsafe-bytes-ref)
  (define ?bytes-set! unsafe-bytes-set!)
  (define (flmin3 x y z) (flmin (flmin x y) z))
  (define (flmax3 x y z) (flmax (flmax x y) z))
+ (define (fl<=3 a b c)
+   (and (fl<= a b) (fl<= b c)))
  (define (pixel-ref bs w h bx by i)
    (?bytes-ref bs (fx+ (fx* (fx* 4 w) by) (fx+ (fx* 4 bx) i))))
  (define (pixel-set! bs w h bx by i v)
@@ -61,11 +69,10 @@
    (flvector i0 i1 i2))
  (define (3vec-zero)
    (3vec 0.0 0.0 0.0))
- ;; Notice that in these two functions we ignore doing the math for
- ;; the last cell of the vector, because we are specializing for 2d
- ;; points
+ ;; Notice that in this function we ignore doing the math for the last
+ ;; cell of the vector, because we are specializing for 2d points
  (define (3*3matX3vec-mult! A v u)
-   (for* ([i (in-range 2)])
+   (for ([i (in-range 2)])
      (?flvector-set!
       u i
       (for/sum ([k (in-range 3)])
@@ -84,17 +91,17 @@
     (fl/ (fl+ (fl* (fl- y2 y3) (fl- x.0 x3))
               (fl* (fl- x3 x2) (fl- y.0 y3)))
          detT))
-  (when (and (fl<= 0.0 λ1) (fl<= λ1 1.0))
+  (when (fl<=3 0.0 λ1 1.0)
     (define λ2
       (fl/ (fl+ (fl* (fl- y3 y1) (fl- x.0 x3))
                 (fl* (fl- x1 x3) (fl- y.0 y3)))
            detT))
-    (when (and (fl<= 0.0 λ2) (fl<= λ2 1.0))
+    (when (fl<=3 0.0 λ2 1.0)
       (define λ3
         (fl- (fl- 1.0 λ1) λ2))
-      ;; This condition is when the point is actually in the
+      ;; If all the conditions hold, the point is actually in the
       ;; triangle.
-      (when (and (fl<= 0.0 λ2) (fl<= λ2 1.0))
+      (when (fl<=3 0.0 λ3 1.0)
         (draw-triangle! t x y drew λ1 λ2 λ3)))))
 
 (define (make-draw csd width height)
@@ -224,21 +231,25 @@
                        a r g b
                        tx ty))
 
-    (for* ([xb (in-range 0 (2d-hash-x-blocks tri-hash))]
-           [yb (in-range 0 (2d-hash-y-blocks tri-hash))])
-      (define tris (2d-hash-block-ref tri-hash xb yb))
-      (unless (null? tris)
-        (for* ([x (in-range (2d-hash-x-block-min tri-hash xb)
-                            (min width (2d-hash-x-block-max tri-hash xb)))]
-               [y (in-range (2d-hash-y-block-min tri-hash yb)
-                            (min height (2d-hash-y-block-max tri-hash yb)))])
-          (define x.0 (fx->fl x))
-          (define y.0 (fx->fl y))
-          (let/ec drew
-            (for ([t (in-list tris)])
-              (when-point-in-triangle
-               t x y drew x.0 y.0
-               draw-triangle!))))))
+    (define max-xbs (2d-hash-x-blocks tri-hash))
+    (define max-ybs (2d-hash-y-blocks tri-hash))
+    (for ([xb (in-range 0 max-xbs)])
+      (define start-x (2d-hash-x-block-min tri-hash xb))
+      (define end-x (fxmin width (2d-hash-x-block-max tri-hash xb)))
+      (for ([yb (in-range 0 max-ybs)])
+        (define tris (2d-hash-block-ref tri-hash xb yb))
+        (unless (null? tris)
+          (define start-y (2d-hash-y-block-min tri-hash yb))
+          (define end-y (fxmin height (2d-hash-y-block-max tri-hash yb)))
+          (for ([x (in-range start-x end-x)])
+            (define x.0 (fx->fl x))
+            (for ([y (in-range start-y end-y)])
+              (define y.0 (fx->fl y))
+              (let/ec drew
+                (for ([t (in-list tris)])
+                  (when-point-in-triangle
+                   t x y drew x.0 y.0
+                   draw-triangle!))))))))
 
     (2d-hash-clear! tri-hash)
 
