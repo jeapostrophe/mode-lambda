@@ -32,6 +32,7 @@
     (pack (λ (s) (vector-ref s 1))
           (λ (s) (vector-ref s 2))
           ss))
+  ;; xxx ensure this is a short
   (define how-many-places (length places))
   (define atlas-bs (make-bytes (* atlas-size atlas-size 4)))
   (define spr->idx (make-hasheq))
@@ -48,8 +49,11 @@
                    (* 4 w by) (* 4 w (add1 by))))
     (hash-set! spr->idx spr pi)
     (vector-set! idx->w*h*tx*ty pi (vector w h tx ty)))
+  
+  (define pal-bs #"")
+  (define pal->idx (make-hasheq))
 
-  (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty))
+  (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty pal-bs pal->idx))
 
 (define (sprite-idx csd spr)
   (hash-ref (compiled-sprite-db-spr->idx csd) spr #f))
@@ -62,7 +66,9 @@
 (define (save-csd! csd p)
   (local-require racket/file)
   (make-directory* p)
-  (match-define (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty) csd)
+  (match-define 
+   (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty pal-bs pal->idx)
+   csd)
   (let ()
     (local-require racket/draw
                    racket/class)
@@ -75,8 +81,10 @@
 (define (load-csd p)
   #f)
 
-(define (sprite dx dy r g b a spr-idx pal-idx mx my theta)
-  (make-sprite-data dx dy mx my theta spr-idx pal-idx r g b a))
+(define layer/c
+  (and/c byte? (between/c 0 7)))
+(define (sprite layer dx dy r g b a spr-idx pal-idx mx my theta)
+  (make-sprite-data dx dy mx my theta spr-idx pal-idx layer r g b a))
 
 ;; xxx add layers... snes had 4 (or maybe 8 because each layer had 2
 ;; planes), saturn could do 5 scrolling + 2 rotating, 32 could be done
@@ -102,7 +110,7 @@
    (-> compiled-sprite-db? symbol?
        (or/c #f exact-nonnegative-integer?))]
   [sprite
-   (-> flonum? flonum?
+   (-> layer/c flonum? flonum?
        byte? byte? byte? byte?
        exact-nonnegative-integer?
        exact-nonnegative-integer?

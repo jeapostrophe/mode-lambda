@@ -4,7 +4,8 @@
 
 (struct sprite-db (loaders-box))
 
-(struct compiled-sprite-db (atlas-size atlas-bs spr->idx idx->w*h*tx*ty))
+(struct compiled-sprite-db 
+  (atlas-size atlas-bs spr->idx idx->w*h*tx*ty pal-bs pal->idx))
 
 (define-cstruct _sprite-data
   ([dx _float]
@@ -14,6 +15,7 @@
    [theta _float]
    [spr-idx _short]
    [pal-idx _short]
+   [layer _byte]
    [r _byte]
    [g _byte]
    [b _byte]

@@ -105,7 +105,9 @@
         (draw-triangle! t x y drew λ1 λ2 λ3)))))
 
 (define (make-draw csd width height)
-  (match-define (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty) csd)
+  (match-define 
+   (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty pal-bs pal->idx)
+   csd)
   (define root-bs (make-bytes (* 4 width height)))
   (define tri-hash (make-2d-hash width height))
 
@@ -117,7 +119,7 @@
   (define Z (3vec-zero))
   (lambda (sprite-tree)
     (define (geometry-shader s)
-      (match-define (sprite-data dx dy mx my theta spr-idx pal-idx r g b a) s)
+      (match-define (sprite-data dx dy mx my theta spr-idx pal-idx layer r g b a) s)
       (2d-translate! dx dy T)
       (2d-rotate! theta R)
       (3*3mat-mult! T R M)
