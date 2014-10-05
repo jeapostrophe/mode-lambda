@@ -119,17 +119,13 @@
   (define Z (3vec-zero))
   (lambda (sprite-tree)
     (define (geometry-shader s)
-      (match-define (sprite-data dx dy mx my theta spr-idx pal-idx layer r g b a) s)
+      (match-define (sprite-data dx dy mx my theta a.0 spr-idx pal-idx layer r g b) s)
       (2d-translate! dx dy T)
       (2d-rotate! theta R)
       (3*3mat-mult! T R M)
       (match-define (vector spr-w spr-h tx-left tx-bot)
                     (vector-ref idx->w*h*tx*ty spr-idx))
 
-      (define a.0 (fl/ (fx->fl a) 255.0))
-      (define r.0 (fl/ (fx->fl r) 255.0))
-      (define g.0 (fl/ (fx->fl g) 255.0))
-      (define b.0 (fl/ (fx->fl b) 255.0))
       (define spr-w.0 (fx->fl spr-w))
       (define spr-h.0 (fx->fl spr-h))
       (define tx-left.0 (fx->fl tx-left))
@@ -167,13 +163,13 @@
 
       (output!
        (triangle (detT LTx LTy RBx RBy LBx LBy)
-                 a.0 r.0 g.0 b.0
+                 a.0 r g b
                  LTx LTy tx-left.0 tx-top.0
                  RBx RBy tx-right.0 tx-bot.0
                  LBx LBy tx-left.0 tx-bot.0))
       (output!
        (triangle (detT LTx LTy RTx RTy RBx RBy)
-                 a.0 r.0 g.0 b.0
+                 a.0 r g b
                  LTx LTy tx-left.0 tx-top.0
                  RTx RTy tx-right.0 tx-top.0
                  RBx RBy tx-right.0 tx-bot.0)))
@@ -195,14 +191,17 @@
     (define (fragment-shader drew x y a r g b tx.0 ty.0)
       (define tx (fl->fx (flfloor tx.0)))
       (define ty (fl->fx (flfloor ty.0)))
-      (define-syntax-rule (define-nc cr nr i r)
+      (define-syntax-rule (define-mult-nc cr nr i r)
         (begin (define cr (pixel-ref atlas-bs atlas-size atlas-size tx ty i))
                (define nr (fl->fx (flround (fl* (fx->fl cr) r))))))
-      (define-nc ca na 0 a)
-      (define-nc cr nr 1 r)
-      (define-nc cg ng 2 g)
-      (define-nc cb nb 3 b)
-      ;; xxx pal translation goes here
+      (define-syntax-rule (define-add-nc cr nr i r)
+        (begin (define cr (pixel-ref atlas-bs atlas-size atlas-size tx ty i))
+               (define nr (fxmin 255 (fx+ cr r)))))
+      (define-mult-nc ca na 0 a)
+      (define-add-nc cr nr 1 r)
+      (define-add-nc cg ng 2 g)
+      (define-add-nc cb nb 3 b)
+      ;; xxx pal translation goes into figuring out c*
 
       ;; This "unless" corresponds to discarding non-opaque pixels
       (unless (fx= 0 na)

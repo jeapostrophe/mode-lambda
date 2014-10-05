@@ -12,14 +12,14 @@
    [dy _float]
    [mx _float]
    [my _float]
-   [theta _float]
+   [theta _float]   
+   [a _float]
    [spr-idx _short]
    [pal-idx _short]
    [layer _byte]
    [r _byte]
    [g _byte]
-   [b _byte]
-   [a _byte]))
+   [b _byte]))
 
 (define (tree-for f t)
   (match t

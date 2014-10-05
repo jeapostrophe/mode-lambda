@@ -84,7 +84,7 @@
 (define layer/c
   (and/c byte? (between/c 0 7)))
 (define (sprite layer dx dy r g b a spr-idx pal-idx mx my theta)
-  (make-sprite-data dx dy mx my theta spr-idx pal-idx layer r g b a))
+  (make-sprite-data dx dy mx my theta a spr-idx pal-idx layer r g b))
 
 ;; xxx add layers... snes had 4 (or maybe 8 because each layer had 2
 ;; planes), saturn could do 5 scrolling + 2 rotating, 32 could be done
@@ -111,7 +111,7 @@
        (or/c #f exact-nonnegative-integer?))]
   [sprite
    (-> layer/c flonum? flonum?
-       byte? byte? byte? byte?
+       byte? byte? byte? flonum?
        exact-nonnegative-integer?
        exact-nonnegative-integer?
        flonum? flonum?
