@@ -1,5 +1,6 @@
 #lang racket/base
 (require racket/runtime-path
+         racket/match
          racket/math
          file/untar
          file/gunzip
@@ -11,7 +12,7 @@
 
 (define-runtime-path here ".")
 
-(define (go)
+(define (go mode)
   (define p (build-path here "edb"))
   (define sprs (build-path p "monochrome"))
   (unless (directory-exists? sprs)
@@ -38,7 +39,6 @@
                   'grayscale)
             (add-cw! (color-wheel cw-slots) "hi~a")
             (add-cw! (color-wheel cw-slots #:s 0.67 #:b 0.6) "med~a")))
-
   (define ns
     (append
      (let ()
@@ -66,22 +66,21 @@
     (sprite-idx csd (random-spr)))
   (define draw (make-draw csd W H))
   (define s
-    (if #t
-        (for/list ([i (in-range (* 2 W))])
-          (sprite 0 (* W (random)) (* H (random))
-                  (random-byte) (random-byte) (random-byte) (+ 0.5 (* 0.5 (random)))
-                  (random-spr-idx) 0
-                  (* (random) 2) (* (random) 2)
-                  (* (random) 2 pi)))
-        (for*/list ([x (in-range W)]
-                    [y (in-range W)])
-          (define i (min (sub1 (length ns))
-                         (+ (* x (quotient (length ns) W)) y)))
-          (define n (list-ref ns i))
-          (sprite 0 (exact->inexact (* 16 x)) (exact->inexact (* 16 y))
-                  0 0 0 1.0
-                  (sprite-idx csd n) 0
-                  1.0 1.0 0.0))))
+    (match mode
+      ["rand"
+       (for/list ([i (in-range (* 2 W))])
+         (sprite 0 (* W (random)) (* H (random))
+                 (random-byte) (random-byte) (random-byte) (+ 0.5 (* 0.5 (random)))
+                 (random-spr-idx) 0
+                 (* (random) 2) (* (random) 2)
+                 (* (random) 2 pi)))]
+      ["grid"
+       (for*/list ([x (in-range W)]
+                   [y (in-range W)])
+         (sprite 0 (exact->inexact (* 16 x)) (exact->inexact (* 16 y))
+                 0 0 0 1.0
+                 (random-spr-idx) 0
+                 1.0 1.0 0.0))]))
   (define last-bs
     (time
      (for/fold ([bs #f]) ([i (in-range 4)])
@@ -95,4 +94,7 @@
     (send root-bm save-file (build-path here "lambda.png") 'png 100 #:unscaled? #t)))
 
 (module+ main
-  (go))
+  (require racket/cmdline)
+  (command-line
+   #:args (mode)
+   (go mode)))
