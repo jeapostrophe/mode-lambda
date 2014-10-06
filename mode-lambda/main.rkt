@@ -106,6 +106,24 @@
   (send atlas-bm get-argb-pixels 0 0 w h atlas-bs)
   (values w h atlas-bs))
 
+(require file/gunzip
+         file/gzip)
+(define (write-to-file/gzip v p)
+  (define-values (read-v-bs write-v) (make-pipe))
+  (write v write-v)
+  (close-output-port write-v)
+  (call-with-output-file
+      p #:exists 'replace
+      (λ (write-v-bs/gz)
+        (gzip-through-ports read-v-bs write-v-bs/gz #f (current-seconds)))))
+(define (file->value/gunzip p)
+  (define-values (read-v write-v-bs) (make-pipe))
+  (call-with-input-file p
+    (λ (read-v-bs/gz)
+      (gunzip-through-ports read-v-bs/gz write-v-bs)))
+  (close-output-port write-v-bs)
+  (read read-v))
+
 (define (save-csd! csd p)
   (local-require racket/file)
   (make-directory* p)
@@ -115,17 +133,16 @@
    csd)
   (write-png-bytes! atlas-bs atlas-size atlas-size (build-path p "sprites.png"))
   (write-png-bytes! pal-bs palette-depth pal-size (build-path p "palettes.png"))
-  (write-to-file spr->idx (build-path p "spr-idx.rktd") #:exists 'replace)
-  (write-to-file idx->w*h*tx*ty (build-path p "spr-data.rktd") #:exists 'replace)
-  (write-to-file pal->idx (build-path p "pal-idx.rktd") #:exists 'replace)
+  (write-to-file/gzip
+   (vector spr->idx idx->w*h*tx*ty pal->idx)
+   (build-path p "csd.rktd.gz"))
   (void))
 (define (load-csd p)
   (local-require racket/file)
   (define-values (atlas-size _atlas-size atlas-bs)
     (read-img-bytes (build-path p "sprites.png")))
-  (define spr->idx (file->value (build-path p "spr-idx.rktd")))
-  (define idx->w*h*tx*ty (file->value (build-path p "spr-data.rktd")))
-  (define pal->idx (file->value (build-path p "pal-idx.rktd")))
+  (match-define (vector spr->idx idx->w*h*tx*ty pal->idx)
+                (file->value/gunzip (build-path p "csd.rktd.gz")))
   (define-values (_pal-depth pal-size pal-bs)
     (read-img-bytes (build-path p "palettes.png")))
   (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty

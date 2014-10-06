@@ -133,6 +133,9 @@
   (check-equal? (argb 255 0 255 255)
                 (ahsv 1.0 180.0 1.0 1.0)))
 
+(define GRAY
+  (ahsv 1.0 0.0 0.0 0.5))
+
 (define (color-wheel how-many #:s [s 1.0] #:b [b 1.0])
   (for/list ([i (in-range 0 how-many)])
     (ahsv 1.0 (fl* 360.0 (fl/ (fx->fl i) (fx->fl how-many))) s b)))
@@ -221,6 +224,7 @@
 
 (provide
  (contract-out
+  [GRAY color?]
   [color?
    (-> any/c
        boolean?)]

@@ -1,6 +1,8 @@
 #lang racket/base
 (require racket/runtime-path
          racket/math
+         file/untar
+         file/gunzip
          gfx/color
          mode-lambda
          mode-lambda/backend/software)
@@ -11,6 +13,16 @@
 
 (define (go)
   (define p (build-path here "edb"))
+  (define sprs (build-path p "monochrome"))
+  (unless (directory-exists? sprs)
+    (define-values (in-bytes out-bytes) (make-pipe))
+    (call-with-input-file (build-path p "monochrome.tgz")
+      (λ (in-file)
+        (gunzip-through-ports in-file out-bytes)))
+    (close-output-port out-bytes)
+    (untar in-bytes
+           #:dest p))
+
   (define W 256)
   (define H 224)
   (define sd (make-sprite-db))
@@ -20,11 +32,13 @@
       (define n (string->symbol (format fmt i)))
       (add-palette! sd n (color->palette c))
       n))
-  (define cw-slots (* 1 2 3 4 2))  
-  (define ps 
-    (append (add-cw! (color-wheel cw-slots) "hi~a")
+  (define cw-slots (* 1 2 3 4 2))
+  (define ps
+    (append (list (add-palette! sd 'grayscale (color->palette GRAY))
+                  'grayscale)
+            (add-cw! (color-wheel cw-slots) "hi~a")
             (add-cw! (color-wheel cw-slots #:s 0.67 #:b 0.6) "med~a")))
-  (define sprs (build-path p "monochrome"))
+
   (define ns
     (append
      (let ()
