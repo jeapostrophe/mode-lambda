@@ -1,22 +1,29 @@
 #lang racket/base
-(require racket/math
+(require racket/runtime-path
+         racket/math
          gfx/color
          mode-lambda
          mode-lambda/backend/software)
 
 (define (random-byte) (random 256))
 
-(define (go p)
+(define-runtime-path here ".")
+
+(define (go)
+  (define p (build-path here "edb"))
   (define W 256)
   (define H 224)
   (define sd (make-sprite-db))
-  (define CW (color-wheel (* 1 2 3 4 2)))
-  (define ps
+  (define (add-cw! CW fmt)
     (for/list ([c (in-list CW)]
                [i (in-naturals)])
-      (define n (string->symbol (format "cw~a" i)))
+      (define n (string->symbol (format fmt i)))
       (add-palette! sd n (color->palette c))
       n))
+  (define cw-slots (* 1 2 3 4 2))  
+  (define ps 
+    (append (add-cw! (color-wheel cw-slots) "hi~a")
+            (add-cw! (color-wheel cw-slots #:s 0.67 #:b 0.6) "med~a")))
   (define sprs (build-path p "monochrome"))
   (define ns
     (append
@@ -38,8 +45,9 @@
   (define (random-spr)
     (list-ref ns (random (length ns))))
   (define original-csd (compile-sprite-db sd))
-  (save-csd! original-csd "csd")
-  (define csd (load-csd "csd"))
+  (define csd-p (build-path here "csd"))
+  (save-csd! original-csd csd-p)
+  (define csd (load-csd csd-p))
   (define (random-spr-idx)
     (sprite-idx csd (random-spr)))
   (define draw (make-draw csd W H))
@@ -70,11 +78,7 @@
     (define root-bm
       (make-bitmap W H))
     (send root-bm set-argb-pixels 0 0 W H last-bs)
-    (send root-bm save-file "lambda.png" 'png 100 #:unscaled? #t)))
+    (send root-bm save-file (build-path here "lambda.png") 'png 100 #:unscaled? #t)))
 
 (module+ main
-  (require racket/cmdline)
-  (command-line
-   #:program "one"
-   #:args (p)
-   (go p)))
+  (go))

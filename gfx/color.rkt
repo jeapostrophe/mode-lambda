@@ -133,9 +133,9 @@
   (check-equal? (argb 255 0 255 255)
                 (ahsv 1.0 180.0 1.0 1.0)))
 
-(define (color-wheel how-many)
+(define (color-wheel how-many #:s [s 1.0] #:b [b 1.0])
   (for/list ([i (in-range 0 how-many)])
-    (ahsv 1.0 (fl* 360.0 (fl/ (fx->fl i) (fx->fl how-many))) 1.0 1.0)))
+    (ahsv 1.0 (fl* 360.0 (fl/ (fx->fl i) (fx->fl how-many))) s b)))
 (module+ test
   (displayln "Color Wheel")
   (show-colors
@@ -228,5 +228,7 @@
    (-> color?
        (listof color?))]
   [color-wheel
-   (-> exact-nonnegative-integer?
-       (listof color?))]))
+   (->* (exact-nonnegative-integer?)
+        (#:s (real-in 0.0 1.0)
+         #:b (real-in 0.0 1.0))
+        (listof color?))]))
