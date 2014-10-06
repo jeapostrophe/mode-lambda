@@ -1,7 +1,10 @@
 #lang racket/base
-(require racket/fixnum
+(require racket/contract/base
+         racket/fixnum
          racket/flonum
-         racket/match)
+         racket/match
+         racket/list
+         (only-in srfi/1 iota))
 (module+ test
   (require rackunit))
 
@@ -75,10 +78,11 @@
   (show-colors (color->tint RED 4)))
 
 (define (color->palette base)
-  (append (list TRANSPARENT)
-          (color->shades base 8)
+  (append (list TRANSPARENT BLACK)
+          (color->shades base 7)
           (list base)
-          (color->tint base 8)))
+          (color->tint base 7)
+          (list WHITE)))
 (module+ test
   (displayln "Palette")
   (show-colors (color->palette RED)))
@@ -135,6 +139,94 @@
 (module+ test
   (displayln "Color Wheel")
   (show-colors
-   (color-wheel 13)))
+   (color-wheel 12)))
 
-;; xxx harmonies
+;; http://www.tigercolor.com/color-lab/color-theory/color-theory-intro.htm
+(define (complement-idxs hm)
+  (define half (quotient hm 2))
+  (for/list ([x (iota half)]
+             [y (iota half half)])
+    (vector x y)))
+(module+ test
+  ;; Should be divisible by 3 and 4
+  (define harmony-wheel (* 2 3 4))
+  (define simple-wheel (color-wheel harmony-wheel))
+  (define (show-color-vector x)
+    (apply ~a
+           (add-between
+            (for/list ([e (in-vector x)])
+              (show-color (list-ref simple-wheel e)))
+            "-> ")))
+  (displayln "Complements")
+  (define complements (complement-idxs harmony-wheel))
+  complements
+  (show-table show-color-vector complements))
+
+(define (analogous-idxs hm)
+  (for/list ([x (iota hm)])
+    (vector (modulo (+ x 1) hm) x (modulo (- x 1) hm))))
+(module+ test
+  (displayln "Analogous")
+  (define analogous (analogous-idxs harmony-wheel))
+  analogous
+  (show-table show-color-vector analogous))
+
+(define (triadic-idxs hm)
+  (define third (quotient hm 3))
+  (for/list ([x (iota third)]
+             [y (iota third third)]
+             [z (iota third (* 2 third))])
+    (vector x y z)))
+(module+ test
+  (displayln "Triadic")
+  (define triadic (triadic-idxs harmony-wheel))
+  triadic
+  (show-table show-color-vector triadic))
+
+(define (split-complementary-idxs hm)
+  (define half (quotient hm 2))
+  (for/list ([x (iota hm)]
+             [y (iota hm half)])
+    (vector x (modulo (+ y 1) hm) (modulo (- y 1) hm))))
+(module+ test
+  (displayln "Split-Complementary")
+  (define split-complementary (split-complementary-idxs harmony-wheel))
+  split-complementary
+  (show-table show-color-vector split-complementary))
+
+(define (tetradic-idxs hm)
+  (define half (quotient hm 2))
+  (for/list ([x (iota hm)]
+             [y (iota hm half)])
+    (vector (modulo (+ x 1) hm) (modulo (- x 1) hm)
+            (modulo (+ y 1) hm) (modulo (- y 1) hm))))
+(module+ test
+  (displayln "Tetradic")
+  (define tetradic (tetradic-idxs harmony-wheel))
+  tetradic
+  (show-table show-color-vector tetradic))
+
+(define (square-idxs hm)
+  (define fourth (quotient hm 4))
+  (for/list ([a (iota fourth (* 0 fourth))]
+             [b (iota fourth (* 1 fourth))]
+             [c (iota fourth (* 2 fourth))]
+             [d (iota fourth (* 3 fourth))])
+    (vector a b c d)))
+(module+ test
+  (displayln "Square")
+  (define square (square-idxs harmony-wheel))
+  square
+  (show-table show-color-vector square))
+
+(provide
+ (contract-out
+  [color?
+   (-> any/c
+       boolean?)]
+  [color->palette
+   (-> color?
+       (listof color?))]
+  [color-wheel
+   (-> exact-nonnegative-integer?
+       (listof color?))]))

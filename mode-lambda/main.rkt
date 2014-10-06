@@ -5,9 +5,10 @@
          "core.rkt")
 
 (define (make-sprite-db)
-  (sprite-db (box null)))
+  (sprite-db (box null) (make-hasheq)))
+
 (define (sprite-db-add!/load sd load)
-  (match-define (sprite-db ls-b) sd)
+  (match-define (sprite-db ls-b _) sd)
   (set-box! ls-b (cons load (unbox ls-b)))
   (void))
 (define (sprite-db-add!/load-bm sd name load-bm)
@@ -32,18 +33,28 @@
      (define bs (convert v 'png-bytes))
      (define ip (open-input-bytes bs))
      ip)))
-;; xxx palettes
+;; xxx use palettes when parsing pngs
+
+(define (add-palette! sd n pal)
+  (define pals (sprite-db-palettes sd))
+  (hash-set! pals n pal))
 
 (define (ushort? x)
   (and (exact-nonnegative-integer? x)
        (<= 0 x 65535)))
 (define (compile-sprite-db sd)
   (local-require "korf-bin.rkt")
-  (match-define (sprite-db ls-b) sd)
+  (match-define (sprite-db ls-b palettes) sd)
 
-  (define pal-size 1)
+  (define pal-size (add1 (hash-count palettes)))
   (define pal-bs (make-bytes (* pal-size palette-depth 4)))
   (define pal->idx (make-hasheq))
+  (for ([(n p) (in-hash palettes)]
+        [y (in-naturals 1)])
+    (for ([c (in-list p)]
+          [x (in-naturals)])
+      (bytes-copy! pal-bs (+ (* 4 palette-depth y) (* 4 x)) c))
+    (hash-set! pal->idx n y))
 
   (define ss (map (λ (l) (l)) (unbox ls-b)))
 
@@ -102,19 +113,19 @@
    (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
                        pal-size pal-bs pal->idx)
    csd)
-  (write-png-bytes! atlas-bs atlas-size atlas-size (build-path p "atlas.png"))
+  (write-png-bytes! atlas-bs atlas-size atlas-size (build-path p "sprites.png"))
   (write-png-bytes! pal-bs palette-depth pal-size (build-path p "palettes.png"))
-  (write-to-file spr->idx (build-path p "sprite.index") #:exists 'replace)
-  (write-to-file idx->w*h*tx*ty (build-path p "sprite.data") #:exists 'replace)
-  (write-to-file pal->idx (build-path p "palette.index") #:exists 'replace)
+  (write-to-file spr->idx (build-path p "spr-idx.rktd") #:exists 'replace)
+  (write-to-file idx->w*h*tx*ty (build-path p "spr-data.rktd") #:exists 'replace)
+  (write-to-file pal->idx (build-path p "pal-idx.rktd") #:exists 'replace)
   (void))
 (define (load-csd p)
   (local-require racket/file)
   (define-values (atlas-size _atlas-size atlas-bs)
-    (read-img-bytes (build-path p "atlas.png")))
-  (define spr->idx (file->value (build-path p "sprite.index")))
-  (define idx->w*h*tx*ty (file->value (build-path p "sprite.data")))
-  (define pal->idx (file->value (build-path p "palette.index")))
+    (read-img-bytes (build-path p "sprites.png")))
+  (define spr->idx (file->value (build-path p "spr-idx.rktd")))
+  (define idx->w*h*tx*ty (file->value (build-path p "spr-data.rktd")))
+  (define pal->idx (file->value (build-path p "pal-idx.rktd")))
   (define-values (_pal-depth pal-size pal-bs)
     (read-img-bytes (build-path p "palettes.png")))
   (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
@@ -164,6 +175,11 @@
    (-> sprite-db? symbol?
        (let () (local-require file/convertible)
             convertible?)
+       void?)]
+  [add-palette!
+   (-> sprite-db? symbol?
+       (let () (local-require gfx/color)
+            (listof color?))
        void?)]
   [compile-sprite-db
    (-> sprite-db?

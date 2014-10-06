@@ -2,7 +2,7 @@
 (require racket/match
          ffi/unsafe)
 
-(struct sprite-db (loaders-box))
+(struct sprite-db (sprite-loaders-box palettes))
 
 (define palette-depth 16)
 

@@ -1,5 +1,6 @@
 #lang racket/base
 (require racket/math
+         gfx/color
          mode-lambda
          mode-lambda/backend/software)
 
@@ -9,6 +10,13 @@
   (define W 256)
   (define H 224)
   (define sd (make-sprite-db))
+  (define CW (color-wheel (* 1 2 3 4 2)))
+  (define ps
+    (for/list ([c (in-list CW)]
+               [i (in-naturals)])
+      (define n (string->symbol (format "cw~a" i)))
+      (add-palette! sd n (color->palette c))
+      n))
   (define sprs (build-path p "monochrome"))
   (define ns
     (append
