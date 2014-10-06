@@ -7,11 +7,11 @@
 (define (make-sprite-db)
   (sprite-db (box null) (make-hasheq)))
 
-(define (sprite-db-add!/load sd load)
+(define (add-sprite! sd load)
   (match-define (sprite-db ls-b _) sd)
   (set-box! ls-b (cons load (unbox ls-b)))
   (void))
-(define (sprite-db-add!/load-bm sd name load-bm)
+(define (add-sprite!/bm sd name load-bm)
   (local-require racket/draw
                  racket/class)
   (define (load)
@@ -22,12 +22,12 @@
     (define bs (make-bytes (* w h 4)))
     (send bm get-argb-pixels 0 0 w h bs)
     (vector name w h bs))
-  (sprite-db-add!/load sd load))
-(define (sprite-db-add!/file sd name p)
-  (sprite-db-add!/load-bm sd name (λ () p)))
-(define (sprite-db-add!/convert sd name v)
+  (add-sprite! sd load))
+(define (add-sprite!/file sd name p)
+  (add-sprite!/bm sd name (λ () p)))
+(define (add-sprite!/value sd name v)
   (local-require file/convertible)
-  (sprite-db-add!/load-bm
+  (add-sprite!/bm
    sd name
    (λ ()
      (define bs (convert v 'png-bytes))
@@ -161,17 +161,17 @@
    (-> any/c boolean?)]
   [sprite-attributes?
    (-> any/c boolean?)]
-  [sprite-db-add!/load
+  [add-sprite!
    (-> sprite-db? (-> sprite-attributes?)
        void?)]
-  [sprite-db-add!/load-bm
+  [add-sprite!/bm
    (-> sprite-db? symbol?
        (-> (or path-string? input-port?))
        void?)]
-  [sprite-db-add!/file
+  [add-sprite!/file
    (-> sprite-db? symbol? path-string?
        void?)]
-  [sprite-db-add!/convert
+  [add-sprite!/value
    (-> sprite-db? symbol?
        (let () (local-require file/convertible)
             convertible?)

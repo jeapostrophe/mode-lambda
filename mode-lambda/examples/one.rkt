@@ -22,7 +22,7 @@
     (append
      (let ()
        (define (add! n v)
-         (sprite-db-add!/convert sd n v)
+         (add-sprite!/value sd n v)
          n)
        (append
         (let ()
@@ -33,7 +33,7 @@
           (list (add! 'fish (standard-fish 100 50))))))
      (for/list ([f (in-list (directory-list sprs))])
        (define n (string->symbol (regexp-replace #rx".png$" (path->string f) "")))
-       (sprite-db-add!/file sd n (build-path sprs f))
+       (add-sprite!/file sd n (build-path sprs f))
        n)))
   (define (random-spr)
     (list-ref ns (random (length ns))))
