@@ -25,7 +25,7 @@
 
 (define (tree-for f t)
   (match t
-    ['() (void)]
+    [(or #f (? void?) '()) (void)]
     [(cons a d)
      (tree-for f a)
      (tree-for f d)]

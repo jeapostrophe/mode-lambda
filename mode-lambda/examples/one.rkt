@@ -2,6 +2,9 @@
 (require racket/runtime-path
          racket/match
          racket/math
+         racket/file
+         racket/list
+         racket/string
          file/untar
          file/gunzip
          gfx/color
@@ -11,6 +14,23 @@
 (define (random-byte) (random 256))
 
 (define-runtime-path here ".")
+
+(define (parse-blocks p)
+  (define block-data (string-split (file->string p) "\n\n"))
+  (for/vector ([bd (in-list block-data)])
+    (define lines (string-split bd "\n"))
+    (define R (build-vector 4 (λ (i) (build-vector 4 (λ (i) (make-bytes 4 0))))))
+    (for ([ld (in-list lines)]
+          [y (in-naturals)])
+      (for ([rd (in-list (string-split ld))]
+            [r (in-naturals)])
+        (for ([xd (in-string rd)]
+              [x (in-naturals)])
+          (bytes-set! (vector-ref (vector-ref R r) y) x
+                      (if (char=? #\0 xd)
+                          0
+                          1)))))
+    R))
 
 (define (go mode)
   (define p (build-path here "edb"))
@@ -99,21 +119,32 @@
                  (random-spr-idx) 0
                  1.0 1.0 0.0))]
       ["blocks"
-       ;; xxx in this image, the right and bottom of the display has
-       ;; thinner black borders than the left and top
        (define schemes (polygon-idxs 7 cw-slots))
        (match-define scheme (random-list-ref schemes))
-       (for*/list ([x (in-range (sub1 (quotient W 8)))]
-                   [y (in-range (sub1 (quotient H 8)))])
-         (define block-style (random 3))
-         (define color-scheme (random-vector-ref scheme))
-         (sprite 0 
-                 (+ 3 4 0.5 (exact->inexact (* 8 x)))
-                 (+ 3 4 0.5 (exact->inexact (* 8 y)))
-                 0 0 0 1.0
-                 (sprite-idx csd (string->symbol (format "Block~a" block-style)))
-                 (palette-idx csd (string->symbol (format "hi~a" color-scheme)))
-                 1.0 1.0 0.0))]))
+       (define blocks (parse-blocks (build-path here "blocks.txt")))
+       (define block-styles
+         (for/vector ([b (in-vector blocks)])
+           (sprite-idx csd (string->symbol (format "Block~a" (random 3))))))
+       (define color-schemes
+         (for/vector ([c (in-vector scheme)])
+           (palette-idx csd (string->symbol (format "hi~a" c)))))
+       (for*/list ([c (in-range (quotient (quotient W 8) 4))]
+                   [r (in-range (quotient (quotient H 8) 4))])
+         (define block (random 7))
+         (define block-data (vector-ref blocks block))
+         (define rotation (random-vector-ref block-data))
+         (for*/list ([cc (in-range 4)]
+                     [rr (in-range 4)])
+           (when (= 1 (bytes-ref (vector-ref rotation rr) cc))
+             (define x (+ (* 4 c) cc))
+             (define y (+ (* 4 r) rr))
+             (sprite 0
+                     (+ 3 4 0.5 (exact->inexact (* 8 x)))
+                     (+ 3 4 0.5 (exact->inexact (* 8 y)))
+                     0 0 0 1.0
+                     (vector-ref block-styles block)
+                     (vector-ref color-schemes block)
+                     1.0 1.0 0.0))))]))
   (define last-bs
     (time
      (for/fold ([bs #f]) ([i (in-range 4)])
