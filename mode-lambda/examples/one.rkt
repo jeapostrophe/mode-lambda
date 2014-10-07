@@ -95,12 +95,12 @@
                  (random-spr-idx) 0
                  1.0 1.0 0.0))]
       ["blocks"
-       (define tetras (tetradic-idxs cw-slots))
-       (match-define tetra (random-list-ref tetras))
+       (define schemes (square-idxs cw-slots))
+       (match-define scheme (random-list-ref schemes))
        (for*/list ([x (in-range (sub1 (quotient W 8)))]
                    [y (in-range (sub1 (quotient H 8)))])
-         (define block-style 0 #;(random 3))
-         (define color-scheme (random-vector-ref tetra))
+         (define block-style (random 3))
+         (define color-scheme (random-vector-ref scheme))
          (sprite 0 
                  (+ 3 4 (exact->inexact (* 8 x)))
                  (+ 3 4 (exact->inexact (* 8 y)))

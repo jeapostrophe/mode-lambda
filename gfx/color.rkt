@@ -239,4 +239,8 @@
   [tetradic-idxs
    (-> exact-nonnegative-integer?
        (listof (vector/c exact-nonnegative-integer? exact-nonnegative-integer? 
+                         exact-nonnegative-integer? exact-nonnegative-integer?)))]
+  [square-idxs
+   (-> exact-nonnegative-integer?
+       (listof (vector/c exact-nonnegative-integer? exact-nonnegative-integer? 
                          exact-nonnegative-integer? exact-nonnegative-integer?)))]))
