@@ -24,8 +24,12 @@
     (untar in-bytes
            #:dest p))
 
+  ;; SNES
   (define W 256)
   (define H 224)
+  ;; GB-SNES
+  (set! W (* 26 16))
+  (set! H (* 26 9))
   (define sd (make-sprite-db))
   (define (add-cw! CW fmt)
     (for/list ([c (in-list CW)]
@@ -33,7 +37,7 @@
       (define n (string->symbol (format fmt i)))
       (add-palette! sd n (color->palette c))
       n))
-  (define cw-slots (* 1 2 3 4 2))
+  (define cw-slots (* 3 4 7))
   (define ps
     (append (list (add-palette! sd 'grayscale (color->palette GRAY))
                   'grayscale)
@@ -95,7 +99,9 @@
                  (random-spr-idx) 0
                  1.0 1.0 0.0))]
       ["blocks"
-       (define schemes (square-idxs cw-slots))
+       ;; xxx in this image, the right and bottom of the display has
+       ;; thinner black borders than the left and top
+       (define schemes (polygon-idxs 7 cw-slots))
        (match-define scheme (random-list-ref schemes))
        (for*/list ([x (in-range (sub1 (quotient W 8)))]
                    [y (in-range (sub1 (quotient H 8)))])

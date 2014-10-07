@@ -195,6 +195,7 @@
                       pal-size pal-bs pal->idx))
 
 (define layer/c
+  ;; xxx move 7 to core.rkt when palette-depth is specified
   (and/c byte? (between/c 0 7)))
 (define (sprite layer dx dy r g b a spr-idx pal-idx mx my theta)
   (make-sprite-data dx dy mx my theta a spr-idx pal-idx layer r g b))
@@ -211,6 +212,19 @@
 ;; layer are translated. this gives you scrolling. should i also do a
 ;; rotation-theta per layer? Q: How to make torus/wrapping layers?
 ;; What about Mode-7 like effects?
+
+;; xxx apply sprite-transformations before applying
+;; screen-transformations: Spr_DXY * Spr_Theta * Screen_DXY *
+;; Screen_Theta * Vertex. This happens in Pass-One as it changes where
+;; pixels end up in the layer render.
+
+;; xxx get torus/wrapping by specifying that the layer's W/H isn't the
+;; screen W/H, then in Pass-Two transform the coords and read a
+;; wrapped pixel.
+
+;; xxx get Mode-7/perspective effects by specifying an angle that the
+;; layer is rotated in Z and/or the distance then perform an inverse
+;; perspective projection in Phase-Two and grab the appropriate pixel.
 
 (define (sprite-attributes? x)
   (match x

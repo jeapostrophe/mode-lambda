@@ -151,8 +151,8 @@
              [y (iota half half)])
     (vector x y)))
 (module+ test
-  ;; Should be divisible by 3 and 4
-  (define harmony-wheel (* 2 3 4))
+  ;; Should be divisible by what shapes you use later in selecting color schemes
+  (define harmony-wheel (* 3 4))
   (define simple-wheel (color-wheel harmony-wheel))
   (define (show-color-vector x)
     (apply ~a
@@ -174,6 +174,7 @@
   analogous
   (show-table show-color-vector analogous))
 
+;; XXX generalize to n-polygons
 (define (triadic-idxs hm)
   (define third (quotient hm 3))
   (for/list ([x (iota third)]
@@ -222,6 +223,19 @@
   square
   (show-table show-color-vector square))
 
+(define (polygon-idxs n hm)
+  (define side (quotient hm n))
+  (apply map vector
+         (for/list ([i (in-range n)])
+           (iota side (* i side)))))
+(module+ test
+  (check-equal? (polygon-idxs 3 harmony-wheel)
+                (triadic-idxs harmony-wheel))
+  (check-equal? (polygon-idxs 4 harmony-wheel)
+                (square-idxs harmony-wheel))
+  (displayln "Six-gon")
+  (show-table show-color-vector (polygon-idxs 6 harmony-wheel)))
+
 (provide
  (contract-out
   [GRAY color?]
@@ -234,13 +248,17 @@
   [color-wheel
    (->* (exact-nonnegative-integer?)
         (#:s (real-in 0.0 1.0)
-         #:b (real-in 0.0 1.0))
+             #:b (real-in 0.0 1.0))
         (listof color?))]
   [tetradic-idxs
    (-> exact-nonnegative-integer?
-       (listof (vector/c exact-nonnegative-integer? exact-nonnegative-integer? 
+       (listof (vector/c exact-nonnegative-integer? exact-nonnegative-integer?
                          exact-nonnegative-integer? exact-nonnegative-integer?)))]
   [square-idxs
    (-> exact-nonnegative-integer?
-       (listof (vector/c exact-nonnegative-integer? exact-nonnegative-integer? 
-                         exact-nonnegative-integer? exact-nonnegative-integer?)))]))
+       (listof (vector/c exact-nonnegative-integer? exact-nonnegative-integer?
+                         exact-nonnegative-integer? exact-nonnegative-integer?)))]
+  [polygon-idxs
+   (-> exact-nonnegative-integer? exact-nonnegative-integer?
+       ;; xxx could use dependent contract
+       (listof (vectorof exact-nonnegative-integer?)))]))

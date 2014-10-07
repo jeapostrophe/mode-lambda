@@ -40,14 +40,14 @@
   (quotient y (2d-hash-ydiv ht)))
 
 (define (offset ht x y)
-  (define r (+ (* (2d-hash-xbs ht) x) y))
+  (define r (+ (* (2d-hash-xbs ht) y) x))
   r)
 
 (define (2d-hash-add! ht mx Mx my My v)
-  (define-syntax-rule (in-buckets x-bucket mx Mx)
+  (define-syntax-rule (in-buckets 2d-hash-xbs x-bucket mx Mx)
     (in-range (x-bucket ht mx) (add1 (x-bucket ht Mx))))
-  (for* ([xb (in-buckets x-bucket mx Mx)]
-         [yb (in-buckets y-bucket my My)])
+  (for* ([xb (in-buckets 2d-hash-xbs x-bucket mx Mx)]
+         [yb (in-buckets 2d-hash-ybs y-bucket my My)])
     (vector-cons! (2d-hash-vec ht)
                   (offset ht xb yb)
                   v)))
