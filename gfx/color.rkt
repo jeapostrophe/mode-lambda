@@ -227,14 +227,17 @@
   (define side (quotient hm n))
   (apply map vector
          (for/list ([i (in-range n)])
-           (iota side (* i side)))))
+           (map (λ (x) (modulo x hm))
+                (iota hm (* i side))))))
 (module+ test
-  (check-equal? (polygon-idxs 3 harmony-wheel)
+  (check-equal? (take (polygon-idxs 3 harmony-wheel) 4)
                 (triadic-idxs harmony-wheel))
-  (check-equal? (polygon-idxs 4 harmony-wheel)
+  (check-equal? (take (polygon-idxs 4 harmony-wheel) 3)
                 (square-idxs harmony-wheel))
   (displayln "Six-gon")
-  (show-table show-color-vector (polygon-idxs 6 harmony-wheel)))
+  (define polys (polygon-idxs 6 harmony-wheel))
+  polys
+  (show-table show-color-vector polys))
 
 (provide
  (contract-out
@@ -260,5 +263,4 @@
                          exact-nonnegative-integer? exact-nonnegative-integer?)))]
   [polygon-idxs
    (-> exact-nonnegative-integer? exact-nonnegative-integer?
-       ;; xxx could use dependent contract
        (listof (vectorof exact-nonnegative-integer?)))]))

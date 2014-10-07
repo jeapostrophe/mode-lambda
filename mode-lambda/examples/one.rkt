@@ -16,7 +16,7 @@
 (define-runtime-path here ".")
 
 (define (parse-blocks p)
-  (define block-data (string-split (file->string p) "\n\n"))
+  (define block-data (rest (string-split (file->string p) "\n\n")))
   (for/vector ([bd (in-list block-data)])
     (define lines (string-split bd "\n"))
     (define R (build-vector 4 (λ (i) (build-vector 4 (λ (i) (make-bytes 4 0))))))

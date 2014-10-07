@@ -269,6 +269,8 @@
 
 (provide
  (contract-out
+  ;; XXX rename this and specify the contracts of this function and
+  ;; ones like it. (make-get-argb, make-draw-on-canvas, etc)
   [make-draw
    (-> compiled-sprite-db?
        exact-nonnegative-integer?
