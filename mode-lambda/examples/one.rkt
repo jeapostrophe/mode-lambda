@@ -108,8 +108,8 @@
          (define block-style (random 3))
          (define color-scheme (random-vector-ref scheme))
          (sprite 0 
-                 (+ 3 4 (exact->inexact (* 8 x)))
-                 (+ 3 4 (exact->inexact (* 8 y)))
+                 (+ 3 4 0.5 (exact->inexact (* 8 x)))
+                 (+ 3 4 0.5 (exact->inexact (* 8 y)))
                  0 0 0 1.0
                  (sprite-idx csd (string->symbol (format "Block~a" block-style)))
                  (palette-idx csd (string->symbol (format "hi~a" color-scheme)))

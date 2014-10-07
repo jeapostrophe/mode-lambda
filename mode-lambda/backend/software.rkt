@@ -190,8 +190,8 @@
     (tree-for geometry-shader sprite-tree)
 
     (define (fragment-shader drew x y pal-idx a r g b tx.0 ty.0)
-      (define tx (fl->fx (flfloor tx.0)))
-      (define ty (fl->fx (flfloor ty.0)))
+      (define tx (fl->fx (flfloor (fl+ tx.0 0.5))))
+      (define ty (fl->fx (flfloor (fl+ ty.0 0.5))))
       (define-syntax-rule (define-cr cr i)
         (define cr
           (if (fx= 0 pal-idx)
@@ -227,7 +227,7 @@
       (pixel-set! root-bs width height x y 2 ng)
       (pixel-set! root-bs width height x y 3 nb)
       ;; This is like a "depth" test. If the fragment drew
-      ;; anything, then skip the rest of the triangles
+      ;; anything, then skip the rest of the triangles      
       (drew))
     (define (draw-triangle! t x y drew λ1 λ2 λ3)
       (match-define
