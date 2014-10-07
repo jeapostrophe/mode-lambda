@@ -42,6 +42,14 @@
   (define ns
     (append
      (let ()
+       (add-palette!/file sd 'block-pal (build-path p "blocks" "pal.png"))
+       (define (add! i)
+         (define n (string->symbol (format "Block~a" i)))
+         (add-sprite!/file sd n (build-path p "blocks" (format "~a.png" n))
+                           #:palette 'block-pal)
+         n)
+       (for/list ([i (in-range 3)]) (add! i)))
+     (let ()
        (define (add! n v)
          (add-sprite!/value sd n v)
          n)
@@ -56,8 +64,12 @@
        (define n (string->symbol (regexp-replace #rx".png$" (path->string f) "")))
        (add-sprite!/file sd n (build-path sprs f))
        n)))
+  (define (random-vector-ref l)
+    (vector-ref l (random (vector-length l))))
+  (define (random-list-ref l)
+    (list-ref l (random (length l))))
   (define (random-spr)
-    (list-ref ns (random (length ns))))
+    (random-list-ref ns))
   (define original-csd (compile-sprite-db sd))
   (define csd-p (build-path here "csd"))
   (save-csd! original-csd csd-p)
@@ -66,6 +78,7 @@
     (sprite-idx csd (random-spr)))
   (define draw (make-draw csd W H))
   (define s
+    ;; xxx make a layers mode to test layers
     (match mode
       ["rand"
        (for/list ([i (in-range (* 2 W))])
@@ -80,6 +93,20 @@
          (sprite 0 (exact->inexact (* 16 x)) (exact->inexact (* 16 y))
                  0 0 0 1.0
                  (random-spr-idx) 0
+                 1.0 1.0 0.0))]
+      ["blocks"
+       (define tetras (tetradic-idxs cw-slots))
+       (match-define tetra (random-list-ref tetras))
+       (for*/list ([x (in-range (sub1 (quotient W 8)))]
+                   [y (in-range (sub1 (quotient H 8)))])
+         (define block-style 0 #;(random 3))
+         (define color-scheme (random-vector-ref tetra))
+         (sprite 0 
+                 (+ 3 4 (exact->inexact (* 8 x)))
+                 (+ 3 4 (exact->inexact (* 8 y)))
+                 0 0 0 1.0
+                 (sprite-idx csd (string->symbol (format "Block~a" block-style)))
+                 (palette-idx csd (string->symbol (format "hi~a" color-scheme)))
                  1.0 1.0 0.0))]))
   (define last-bs
     (time

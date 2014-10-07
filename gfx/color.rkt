@@ -235,4 +235,8 @@
    (->* (exact-nonnegative-integer?)
         (#:s (real-in 0.0 1.0)
          #:b (real-in 0.0 1.0))
-        (listof color?))]))
+        (listof color?))]
+  [tetradic-idxs
+   (-> exact-nonnegative-integer?
+       (listof (vector/c exact-nonnegative-integer? exact-nonnegative-integer? 
+                         exact-nonnegative-integer? exact-nonnegative-integer?)))]))

@@ -80,12 +80,12 @@
              (?flvector-ref v k)))))))
 
 (struct triangle (detT
-                  a r g b
+                  pal-idx a r g b
                   v1.x v1.y tx1.0 ty1.0
                   v2.x v2.y tx2.0 ty2.0
                   v3.x v3.y tx3.0 ty3.0))
 (define (when-point-in-triangle t x y drew x.0 y.0 draw-triangle!)
-  (match-define (triangle detT _ _ _ _ x1 y1 _ _ x2 y2 _ _ x3 y3 _ _) t)
+  (match-define (triangle detT _ _ _ _ _ x1 y1 _ _ x2 y2 _ _ x3 y3 _ _) t)
   ;; Compute the Barycentric coordinates
   (define λ1
     (fl/ (fl+ (fl* (fl- y2 y3) (fl- x.0 x3))
@@ -164,19 +164,19 @@
 
       (output!
        (triangle (detT LTx LTy RBx RBy LBx LBy)
-                 a.0 r g b
+                 pal-idx a.0 r g b
                  LTx LTy tx-left.0 tx-top.0
                  RBx RBy tx-right.0 tx-bot.0
                  LBx LBy tx-left.0 tx-bot.0))
       (output!
        (triangle (detT LTx LTy RTx RTy RBx RBy)
-                 a.0 r g b
+                 pal-idx a.0 r g b
                  LTx LTy tx-left.0 tx-top.0
                  RTx RTy tx-right.0 tx-top.0
                  RBx RBy tx-right.0 tx-bot.0)))
 
     (define (output! t)
-      (match-define (triangle _ _ _ _ _ x1 y1 _ _ x2 y2 _ _ x3 y3 _ _) t)
+      (match-define (triangle _ _ _ _ _ _ x1 y1 _ _ x2 y2 _ _ x3 y3 _ _) t)
       (2d-hash-add! tri-hash
                     (fxmax 0
                            (fl->fx (flfloor (flmin3 x1 x2 x3))))
@@ -189,20 +189,30 @@
                     t))
     (tree-for geometry-shader sprite-tree)
 
-    (define (fragment-shader drew x y a r g b tx.0 ty.0)
+    (define (fragment-shader drew x y pal-idx a r g b tx.0 ty.0)
       (define tx (fl->fx (flfloor tx.0)))
       (define ty (fl->fx (flfloor ty.0)))
-      (define-syntax-rule (define-mult-nc cr nr i r)
-        (begin (define cr (pixel-ref atlas-bs atlas-size atlas-size tx ty i))
-               (define nr (fl->fx (flround (fl* (fx->fl cr) r))))))
-      (define-syntax-rule (define-add-nc cr nr i r)
-        (begin (define cr (pixel-ref atlas-bs atlas-size atlas-size tx ty i))
-               (define nr (fxmin 255 (fx+ cr r)))))
-      (define-mult-nc ca na 0 a)
-      (define-add-nc cr nr 1 r)
-      (define-add-nc cg ng 2 g)
-      (define-add-nc cb nb 3 b)
-      ;; xxx pal translation goes into figuring out c*
+      (define-syntax-rule (define-cr cr i)
+        (define cr
+          (if (fx= 0 pal-idx)
+              (pixel-ref atlas-bs atlas-size #f tx ty i)
+              (pixel-ref pal-bs palette-depth #f
+                         (pixel-ref atlas-bs atlas-size #f tx ty 2)
+                         pal-idx
+                         i))))
+      (define-cr ca 0)
+      (define-cr cr 1)
+      (define-cr cg 2)
+      (define-cr cb 3)
+
+      (define-syntax-rule (define-nc* cr nr i r)
+        (define nr (fl->fx (flround (fl* (fx->fl cr) r)))))
+      (define-syntax-rule (define-nc+ cr nr i r)
+        (define nr (fxmin 255 (fx+ cr r))))
+      (define-nc* ca na 0 a)
+      (define-nc+ cr nr 1 r)
+      (define-nc+ cg ng 2 g)
+      (define-nc+ cb nb 3 b)
 
       ;; This "unless" corresponds to discarding non-opaque pixels
       (unless (fx= 0 na)
@@ -221,7 +231,7 @@
       (drew))
     (define (draw-triangle! t x y drew λ1 λ2 λ3)
       (match-define
-       (triangle _ a r g b _ _ tx1.0 ty1.0 _ _ tx2.0 ty2.0 _ _ tx3.0 ty3.0)
+       (triangle _ pal-idx a r g b _ _ tx1.0 ty1.0 _ _ tx2.0 ty2.0 _ _ tx3.0 ty3.0)
        t)
       (define tx (fl+ (fl+ (fl* λ1 tx1.0)
                            (fl* λ2 tx2.0))
@@ -230,7 +240,7 @@
                            (fl* λ2 ty2.0))
                       (fl* λ3 ty3.0)))
       (fragment-shader drew x y
-                       a r g b
+                       pal-idx a r g b
                        tx ty))
 
     (define max-xbs (2d-hash-x-blocks tri-hash))
