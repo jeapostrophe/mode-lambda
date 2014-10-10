@@ -128,23 +128,45 @@
        (define color-schemes
          (for/vector ([c (in-vector scheme)])
            (palette-idx csd (string->symbol (format "hi~a" c)))))
-       (for*/list ([c (in-range (quotient (quotient W 8) 4))]
-                   [r (in-range (quotient (quotient H 8) 4))])
-         (define block (random 7))
-         (define block-data (vector-ref blocks block))
-         (define rotation (random-vector-ref block-data))
-         (for*/list ([cc (in-range 4)]
-                     [rr (in-range 4)])
-           (when (= 1 (bytes-ref (vector-ref rotation rr) cc))
-             (define x (+ (* 4 c) cc))
-             (define y (+ (* 4 r) rr))
-             (sprite 0
-                     (+ 3 4 0.5 (exact->inexact (* 8 x)))
-                     (+ 3 4 0.5 (exact->inexact (* 8 y)))
-                     0 0 0 1.0
-                     (vector-ref block-styles block)
-                     (vector-ref color-schemes block)
-                     1.0 1.0 0.0))))]))
+       (define block-sprites
+         (for*/list ([c (in-range (quotient (quotient W 8) 4))]
+                     [r (in-range (quotient (quotient H 8) 4))])
+           (define block (random 7))
+           (define block-data (vector-ref blocks block))
+           (define rotation (random-vector-ref block-data))
+           (for*/list ([cc (in-range 4)]
+                       [rr (in-range 4)])
+             (when (= 1 (bytes-ref (vector-ref rotation rr) cc))
+               (define x (+ (* 4 c) cc))
+               (define y (+ (* 4 r) rr))
+               (sprite 4
+                       (+ 3 4 0.5 (exact->inexact (* 8 x)))
+                       (+ 3 4 0.5 (exact->inexact (* 8 y)))
+                       0 0 0 1.0
+                       (vector-ref block-styles block)
+                       (vector-ref color-schemes block)
+                       1.0 1.0 0.0)))))
+       (define background-sprites
+         (for*/list ([x (in-range (quotient W 8))]
+                     [y (in-range (quotient H 8))])
+           (sprite 0
+                   (+ 4 (exact->inexact (* 8 x)))
+                   (+ 4 (exact->inexact (* 8 y)))
+                   0 0 0 1.0
+                   (vector-ref block-styles 0)
+                   (palette-idx csd 'grayscale)
+                   1.0 1.0 0.0)))
+       (define foreground-sprites
+         (for*/list ([x (in-range (quotient W 8))]
+                     [y (in-range (quotient H 8))])
+           (sprite 7
+                   (+ 4 (exact->inexact (* 8 x)))
+                   (+ 4 (exact->inexact (* 8 y)))
+                   0 0 0 0.25
+                   (vector-ref block-styles 1)
+                   (palette-idx csd 'med0)
+                   1.0 1.0 0.0)))
+       (list* block-sprites background-sprites foreground-sprites)]))
   (define last-bs
     (time
      (for/fold ([bs #f]) ([i (in-range 4)])

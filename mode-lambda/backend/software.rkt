@@ -80,12 +80,12 @@
              (?flvector-ref v k)))))))
 
 (struct triangle (detT
-                  pal-idx a r g b
+                  layer pal-idx a r g b
                   v1.x v1.y tx1.0 ty1.0
                   v2.x v2.y tx2.0 ty2.0
                   v3.x v3.y tx3.0 ty3.0))
-(define (when-point-in-triangle t x y drew x.0 y.0 draw-triangle!)
-  (match-define (triangle detT _ _ _ _ _ x1 y1 _ _ x2 y2 _ _ x3 y3 _ _) t)
+(define (when-point-in-triangle t x y x.0 y.0 draw-triangle!)
+  (match-define (triangle detT _ _ _ _ _ _ x1 y1 _ _ x2 y2 _ _ x3 y3 _ _) t)
   ;; Compute the Barycentric coordinates
   (define λ1
     (fl/ (fl+ (fl* (fl- y2 y3) (fl- x.0 x3))
@@ -102,14 +102,17 @@
       ;; If all the conditions hold, the point is actually in the
       ;; triangle.
       (when (fl<=3 0.0 λ3 1.0)
-        (draw-triangle! t x y drew λ1 λ2 λ3)))))
+        (draw-triangle! t x y λ1 λ2 λ3)))))
 
 (define (stage-render csd width height)
   (match-define
    (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
                        pal-size pal-bs pal->idx)
    csd)
-  (define root-bs (make-bytes (* 4 width height)))
+  (define root-bs-v
+    (build-vector layers (λ (i) (make-bytes (* 4 width height)))))
+  (define root-bs
+    (make-bytes (* 4 width height)))
   (define tri-hash (make-2d-hash width height))
 
   (define T (3*3mat-zero))
@@ -164,19 +167,19 @@
 
       (output!
        (triangle (detT LTx LTy RBx RBy LBx LBy)
-                 pal-idx a.0 r g b
+                 layer pal-idx a.0 r g b
                  LTx LTy tx-left.0 tx-top.0
                  RBx RBy tx-right.0 tx-bot.0
                  LBx LBy tx-left.0 tx-bot.0))
       (output!
        (triangle (detT LTx LTy RTx RTy RBx RBy)
-                 pal-idx a.0 r g b
+                 layer pal-idx a.0 r g b
                  LTx LTy tx-left.0 tx-top.0
                  RTx RTy tx-right.0 tx-top.0
                  RBx RBy tx-right.0 tx-bot.0)))
 
     (define (output! t)
-      (match-define (triangle _ _ _ _ _ _ x1 y1 _ _ x2 y2 _ _ x3 y3 _ _) t)
+      (match-define (triangle _ _ _ _ _ _ _ x1 y1 _ _ x2 y2 _ _ x3 y3 _ _) t)
       (2d-hash-add! tri-hash
                     (fxmax 0
                            (fl->fx (flfloor (flmin3 x1 x2 x3))))
@@ -189,7 +192,7 @@
                     t))
     (tree-for geometry-shader sprite-tree)
 
-    (define (fragment-shader drew x y pal-idx a r g b tx.0 ty.0)
+    (define (fragment-shader layer x y pal-idx a r g b tx.0 ty.0)
       (define tx (fl->fx (flfloor (fl+ tx.0 0.5))))
       (define ty (fl->fx (flfloor (fl+ ty.0 0.5))))
       (define-syntax-rule (define-cr cr i)
@@ -216,22 +219,22 @@
 
       ;; This "unless" corresponds to discarding non-opaque pixels
       (unless (fx= 0 na)
-        (fill! drew x y na nr ng nb)))
+        (fill! layer x y na nr ng nb)))
 
     ;; Clear the screen
-    (bytes-fill! root-bs 0)
+    (for ([root-bs (in-vector root-bs-v)])
+      (bytes-fill! root-bs 0))
     ;; Fill the screen
-    (define (fill! drew x y na nr ng nb)
+    (define (fill! layer x y na nr ng nb)
+      (define root-bs (vector-ref root-bs-v layer))
       (pixel-set! root-bs width height x y 0 na)
       (pixel-set! root-bs width height x y 1 nr)
       (pixel-set! root-bs width height x y 2 ng)
-      (pixel-set! root-bs width height x y 3 nb)
-      ;; This is like a "depth" test. If the fragment drew
-      ;; anything, then skip the rest of the triangles      
-      (drew))
-    (define (draw-triangle! t x y drew λ1 λ2 λ3)
+      (pixel-set! root-bs width height x y 3 nb))
+    (define (draw-triangle! t x y λ1 λ2 λ3)
       (match-define
-       (triangle _ pal-idx a r g b _ _ tx1.0 ty1.0 _ _ tx2.0 ty2.0 _ _ tx3.0 ty3.0)
+       (triangle _ layer pal-idx a r g b
+                 _ _ tx1.0 ty1.0 _ _ tx2.0 ty2.0 _ _ tx3.0 ty3.0)
        t)
       (define tx (fl+ (fl+ (fl* λ1 tx1.0)
                            (fl* λ2 tx2.0))
@@ -239,7 +242,7 @@
       (define ty (fl+ (fl+ (fl* λ1 ty1.0)
                            (fl* λ2 ty2.0))
                       (fl* λ3 ty3.0)))
-      (fragment-shader drew x y
+      (fragment-shader layer x y
                        pal-idx a r g b
                        tx ty))
 
@@ -257,13 +260,33 @@
             (define x.0 (fx->fl x))
             (for ([y (in-range start-y end-y)])
               (define y.0 (fx->fl y))
-              (let/ec drew
-                (for ([t (in-list tris)])
-                  (when-point-in-triangle
-                   t x y drew x.0 y.0
-                   draw-triangle!))))))))
+              (for ([t (in-list tris)])
+                (when-point-in-triangle
+                 t x y x.0 y.0
+                 draw-triangle!)))))))
 
     (2d-hash-clear! tri-hash)
+
+    (for* ([x (in-range width)]
+           [y (in-range height)])
+      (pixel-set! root-bs width height x y 0 255)
+      (define nr 0)
+      (define ng 0)
+      (define nb 0)
+      (for ([layer-bs (in-vector root-bs-v)])
+        (define na (pixel-ref layer-bs width height x y 0))
+        (define na.0 (fl/ (fx->fl na) 255.0))
+        (define-syntax-rule (combined! nr off)
+          (begin (define cr (pixel-ref layer-bs width height x y off))
+                 (set! nr (fl->fx
+                           (flround (fl+ (fl* (fx->fl nr) (fl- 1.0 na.0))
+                                         (fl* na.0 (fx->fl cr))))))))
+        (combined! nr 1)
+        (combined! ng 2)
+        (combined! nb 3))
+      (pixel-set! root-bs width height x y 1 nr)
+      (pixel-set! root-bs width height x y 2 ng)
+      (pixel-set! root-bs width height x y 3 nb))
 
     root-bs))
 

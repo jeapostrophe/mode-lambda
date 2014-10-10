@@ -199,19 +199,6 @@
 (define (sprite layer dx dy r g b a spr-idx pal-idx mx my theta)
   (make-sprite-data dx dy mx my theta a spr-idx pal-idx layer r g b))
 
-;; xxx add layers... snes had 4 (or maybe 8 because each layer had 2
-;; planes), saturn could do 5 scrolling + 2 rotating, 32 could be done
-;; in a single opengl shader, so 8? (opengl will make a texture array,
-;; and use a shader with two triangles to combine them in a particular
-;; order) [i could actually draw all layers at the same time by making
-;; the layer part of the sprite!]
-
-;; xxx layers: each sprite names one of a few layers. when you draw,
-;; you give a center (or corner) of each layer and all sprites on that
-;; layer are translated. this gives you scrolling. should i also do a
-;; rotation-theta per layer? Q: How to make torus/wrapping layers?
-;; What about Mode-7 like effects?
-
 ;; xxx apply sprite-transformations before applying
 ;; screen-transformations: Spr_DXY * Spr_Theta * Screen_DXY *
 ;; Screen_Theta * Vertex. This happens in Pass-One as it changes where
