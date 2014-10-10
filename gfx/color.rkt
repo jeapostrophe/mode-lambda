@@ -174,7 +174,6 @@
   analogous
   (show-table show-color-vector analogous))
 
-;; XXX generalize to n-polygons
 (define (triadic-idxs hm)
   (define third (quotient hm 3))
   (for/list ([x (iota third)]

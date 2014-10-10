@@ -104,7 +104,7 @@
       (when (fl<=3 0.0 λ3 1.0)
         (draw-triangle! t x y drew λ1 λ2 λ3)))))
 
-(define (make-draw csd width height)
+(define (stage-render csd width height)
   (match-define
    (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
                        pal-size pal-bs pal->idx)
@@ -269,11 +269,4 @@
 
 (provide
  (contract-out
-  ;; XXX rename this and specify the contracts of this function and
-  ;; ones like it. (make-get-argb, make-draw-on-canvas, etc)
-  [make-draw
-   (-> compiled-sprite-db?
-       exact-nonnegative-integer?
-       exact-nonnegative-integer?
-       (-> any/c
-           any))]))
+  [stage-render (stage-backend/c render/c)]))

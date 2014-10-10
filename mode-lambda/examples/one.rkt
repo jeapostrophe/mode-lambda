@@ -100,7 +100,7 @@
   (define csd (load-csd csd-p))
   (define (random-spr-idx)
     (sprite-idx csd (random-spr)))
-  (define draw (make-draw csd W H))
+  (define render (stage-render csd W H))
   (define s
     ;; xxx make a layers mode to test layers
     (match mode
@@ -148,7 +148,7 @@
   (define last-bs
     (time
      (for/fold ([bs #f]) ([i (in-range 4)])
-       (draw s))))
+       (render s))))
   (let ()
     (local-require racket/draw
                    racket/class)

@@ -4,6 +4,8 @@
          (except-in ffi/unsafe ->)
          "core.rkt")
 
+(struct sprite-db (sprite-loaders-box palettes))
+
 (define (make-sprite-db)
   (sprite-db (box null) (make-hasheq)))
 
@@ -194,9 +196,6 @@
   (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
                       pal-size pal-bs pal->idx))
 
-(define layer/c
-  ;; xxx move 7 to core.rkt when palette-depth is specified
-  (and/c byte? (between/c 0 7)))
 (define (sprite layer dx dy r g b a spr-idx pal-idx mx my theta)
   (make-sprite-data dx dy mx my theta a spr-idx pal-idx layer r g b))
 
