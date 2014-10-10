@@ -199,10 +199,8 @@
 (define (sprite layer dx dy r g b a spr-idx pal-idx mx my theta)
   (make-sprite-data dx dy mx my theta a spr-idx pal-idx layer r g b))
 
-;; xxx apply sprite-transformations before applying
-;; screen-transformations: Spr_DXY * Spr_Theta * Screen_DXY *
-;; Screen_Theta * Vertex. This happens in Pass-One as it changes where
-;; pixels end up in the layer render.
+(define (layer cx cy mx my theta)
+  (make-layer-data cx cy mx my theta))
 
 ;; xxx get torus/wrapping by specifying that the layer's W/H isn't the
 ;; screen W/H, then in Pass-Two transform the coords and read a
@@ -283,4 +281,9 @@
        ushort?
        flonum? flonum?
        flonum?
-       sprite-data?)]))
+       sprite-data?)]
+  [layer
+   (-> flonum? flonum? 
+       flonum? flonum?
+       flonum?
+       layer-data?)]))

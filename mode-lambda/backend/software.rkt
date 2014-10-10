@@ -25,6 +25,8 @@
           (?flvector-set!*i vec [i v] ...)))]))
  (define ?bytes-ref unsafe-bytes-ref)
  (define ?bytes-set! unsafe-bytes-set!)
+ (define (fxclamp m x M)
+   (fxmax m (fxmin x M)))
  (define (flmin3 x y z) (flmin (flmin x y) z))
  (define (flmax3 x y z) (flmax (flmax x y) z))
  (define (fl<=3 a b c)
@@ -105,6 +107,8 @@
         (draw-triangle! t x y λ1 λ2 λ3)))))
 
 (define (stage-render csd width height)
+  (define hwidth.0 (fl* 0.5 (fx->fl width)))
+  (define hheight.0 (fl* 0.5 (fx->fl height)))
   (match-define
    (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
                        pal-size pal-bs pal->idx)
@@ -117,16 +121,36 @@
 
   (define T (3*3mat-zero))
   (define R (3*3mat-zero))
+  (define M0 (3*3mat-zero))
+  (define M1 (3*3mat-zero))
+  (define M2 (3*3mat-zero))
   (define M (3*3mat-zero))
   (define X (3vec-zero))
   (define Y (3vec-zero))
   (define Z (3vec-zero))
-  (lambda (sprite-tree)
+  (lambda (layer-config sprite-tree)
+    ;; The layer multiplications can be used for all vertices and we
+    ;; could just upload the correct matrices, one per layer (M2) in
+    ;; this code.
     (define (geometry-shader s)
       (match-define (sprite-data dx dy mx my theta a.0 spr-idx pal-idx layer r g b) s)
-      (2d-translate! dx dy T)
+      (match-define (layer-data Lcx Lcy Lmx Lmy Ltheta)
+                    (or (vector-ref layer-config layer)
+                        default-layer))
+      ;; First we rotate the sprite
       (2d-rotate! theta R)
-      (3*3mat-mult! T R M)
+      ;; Then we move it to correct place on the layer
+      (2d-translate! dx dy T)
+      (3*3mat-mult! T R M1)
+      ;; Next, we move the whole layer so the center is the (0,0)
+      (2d-translate! (fl* -1.0 hwidth.0) (fl* -1.0 hheight.0) T)
+      ;; Then, we perform the layer rotation
+      (2d-rotate! Ltheta R)
+      (3*3mat-mult! R T M0)
+      ;; Next, we move the layer back to the new center specified
+      (2d-translate! Lcx Lcy T)
+      (3*3mat-mult! T M0 M2)
+      (3*3mat-mult! M2 M1 M)
       (match-define (vector spr-w spr-h tx-left tx-bot)
                     (vector-ref idx->w*h*tx*ty spr-idx))
 
@@ -135,8 +159,8 @@
       (define tx-left.0 (fx->fl tx-left))
       (define tx-bot.0 (fx->fl tx-bot))
 
-      (define hw (fl* (fl/ spr-w.0 2.0) mx))
-      (define hh (fl* (fl/ spr-h.0 2.0) my))
+      (define hw (fl* (fl/ spr-w.0 2.0) (fl* mx Lmx)))
+      (define hh (fl* (fl/ spr-h.0 2.0) (fl* my Lmy)))
       (3*3matX3vec-mult! M (3vec hw 0.0 0.0) X)
       (3*3matX3vec-mult! M (3vec 0.0 hh 0.0) Y)
       (3*3matX3vec-mult! M (3vec 0.0 0.0 1.0) Z)
@@ -181,14 +205,18 @@
     (define (output! t)
       (match-define (triangle _ _ _ _ _ _ _ x1 y1 _ _ x2 y2 _ _ x3 y3 _ _) t)
       (2d-hash-add! tri-hash
-                    (fxmax 0
-                           (fl->fx (flfloor (flmin3 x1 x2 x3))))
-                    (fxmin (fx- width 1)
-                           (fl->fx (flceiling (flmax3 x1 x2 x3))))
-                    (fxmax 0
-                           (fl->fx (flfloor (flmin3 y1 y2 y3))))
-                    (fxmin (fx- height 1)
-                           (fl->fx (flceiling (flmax3 y1 y2 y3))))
+                    (fxclamp 0
+                             (fl->fx (flfloor (flmin3 x1 x2 x3)))
+                             (fx- width 1))
+                    (fxclamp 0
+                             (fl->fx (flceiling (flmax3 x1 x2 x3)))
+                             (fx- width 1))
+                    (fxclamp 0
+                             (fl->fx (flfloor (flmin3 y1 y2 y3)))
+                             (fx- height 1))
+                    (fxclamp 0
+                             (fl->fx (flceiling (flmax3 y1 y2 y3)))
+                             (fx- height 1))
                     t))
     (tree-for geometry-shader sprite-tree)
 

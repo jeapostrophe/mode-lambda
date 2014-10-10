@@ -1,6 +1,8 @@
 #lang racket/base
 (require racket/runtime-path
          racket/match
+         racket/flonum
+         racket/fixnum
          racket/math
          racket/file
          racket/list
@@ -137,11 +139,11 @@
            (for*/list ([cc (in-range 4)]
                        [rr (in-range 4)])
              (when (= 1 (bytes-ref (vector-ref rotation rr) cc))
-               (define x (+ (* 4 c) cc))
-               (define y (+ (* 4 r) rr))
+               (define x (fx+ (fx* 4 c) cc))
+               (define y (fx+ (fx* 4 r) rr))
                (sprite 4
-                       (+ 3 4 0.5 (exact->inexact (* 8 x)))
-                       (+ 3 4 0.5 (exact->inexact (* 8 y)))
+                       (+ 3 4 0.5 (fx->fl (fx* 8 x)))
+                       (+ 3 4 0.5 (fx->fl (fx* 8 y)))
                        0 0 0 1.0
                        (vector-ref block-styles block)
                        (vector-ref color-schemes block)
@@ -150,8 +152,8 @@
          (for*/list ([x (in-range (quotient W 8))]
                      [y (in-range (quotient H 8))])
            (sprite 0
-                   (+ 4 (exact->inexact (* 8 x)))
-                   (+ 4 (exact->inexact (* 8 y)))
+                   (fl+ 4.0 (fx->fl (fx* 8 x)))
+                   (fl+ 4.0 (fx->fl (fx* 8 y)))
                    0 0 0 1.0
                    (vector-ref block-styles 0)
                    (palette-idx csd 'grayscale)
@@ -160,8 +162,8 @@
          (for*/list ([x (in-range (quotient W 8))]
                      [y (in-range (quotient H 8))])
            (sprite 7
-                   (+ 4 (exact->inexact (* 8 x)))
-                   (+ 4 (exact->inexact (* 8 y)))
+                   (fl+ 4.0 (fx->fl (fx* 8 x)))
+                   (fl+ 4.0 (fx->fl (fx* 8 y)))
                    0 0 0 0.25
                    (vector-ref block-styles 1)
                    (palette-idx csd 'med0)
@@ -170,7 +172,14 @@
   (define last-bs
     (time
      (for/fold ([bs #f]) ([i (in-range 4)])
-       (render s))))
+       (render (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)) 1.0 1.0 0.0)
+                       #f #f #f
+                       (layer (fx->fl (/ W 2)) (fl+ (fx->fl (/ H 2)) 25.0) 
+                              1.0 1.0
+                              (fl/ pi 2.0))
+                       #f #f
+                       (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)) 2.0 2.0 0.0))
+               s))))
   (let ()
     (local-require racket/draw
                    racket/class)

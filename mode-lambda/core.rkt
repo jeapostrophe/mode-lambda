@@ -12,6 +12,16 @@
 (define layer/c
   (and/c byte? (between/c 0 (sub1 layers))))
 
+(define-cstruct _layer-data
+  ([cx _float]
+   [cy _float]
+   [mx _float]
+   [my _float]
+   [theta _float]))
+
+(define default-layer
+  (make-layer-data 0.0 0.0 1.0 1.0 0.0))
+
 (define-cstruct _sprite-data
   ([dx _float]
    [dy _float]
@@ -38,10 +48,12 @@
 (define tree/c
   any/c)
 
+;; xxx merge
 (define draw!/c
-  (-> tree/c void?))
+  ;; xxx must have 8
+  (-> (vectorof layer-data?) tree/c void?))
 (define render/c
-  (-> tree/c bytes?))
+  (-> (vectorof layer-data?) tree/c bytes?))
 
 (define (stage-backend/c output/c)
   (-> compiled-sprite-db?
