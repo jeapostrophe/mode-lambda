@@ -199,16 +199,12 @@
 (define (sprite layer dx dy r g b a spr-idx pal-idx mx my theta)
   (make-sprite-data dx dy mx my theta a spr-idx pal-idx layer r g b))
 
-(define (layer cx cy mx my theta)
-  (make-layer-data cx cy mx my theta))
+(define (layer cx cy mx my theta mode7-coeff horizon fov)
+  (make-layer-data cx cy mx my theta mode7-coeff horizon fov))
 
 ;; xxx get torus/wrapping by specifying that the layer's W/H isn't the
 ;; screen W/H, then in Pass-Two transform the coords and read a
 ;; wrapped pixel.
-
-;; xxx get Mode-7/perspective effects by specifying an angle that the
-;; layer is rotated in Z and/or the distance then perform an inverse
-;; perspective projection in Phase-Two and grab the appropriate pixel.
 
 (define (sprite-attributes? x)
   (match x
@@ -286,4 +282,5 @@
    (-> flonum? flonum? 
        flonum? flonum?
        flonum?
+       flonum? flonum? flonum?
        layer-data?)]))

@@ -104,7 +104,6 @@
     (sprite-idx csd (random-spr)))
   (define render (stage-render csd W H))
   (define s
-    ;; xxx make a layers mode to test layers
     (match mode
       ["rand"
        (for/list ([i (in-range (* 2 W))])
@@ -176,12 +175,15 @@
   (define last-bs
     (time
      (for/fold ([bs #f]) ([i (in-range 4)])
-       (render (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)) 1.0 1.0 0.0)
+       (render (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)) 1.0 1.0 0.0
+                              2.0 0.0 (fl* 8.0 (fl/ (fx->fl W) (fx->fl H))))
                        #f #f #f
                        (layer (fx->fl (/ W 2)) (fl+ (fx->fl (/ H 2)) 25.0)
-                              1.0 1.0 (fl/ pi 4.0))
+                              1.0 1.0 (fl/ pi 4.0)
+                              0.0 0.0 1.0)
                        #f #f
-                       (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)) 2.0 2.0 0.0))
+                       (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)) 2.0 2.0 0.0
+                              0.0 0.0 1.0))
                s))))
   (let ()
     (local-require racket/draw

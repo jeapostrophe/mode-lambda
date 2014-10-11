@@ -18,10 +18,13 @@
    [cy _float]
    [mx _float]
    [my _float]
-   [theta _float]))
+   [theta _float]
+   [mode7-coeff _float]
+   [horizon _float]
+   [fov _float]))
 
 (define default-layer
-  (make-layer-data 0.0 0.0 1.0 1.0 0.0))
+  (make-layer-data 0.0 0.0 1.0 1.0 0.0 0.0 0.0 0.0))
 
 (define-cstruct _sprite-data
   ([dx _float]

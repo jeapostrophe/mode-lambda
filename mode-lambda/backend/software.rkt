@@ -23,10 +23,12 @@
       (with-syntax ([(i ...) (iota (length (syntax->list #'(v ...))))])
         (syntax/loc stx
           (?flvector-set!*i vec [i v] ...)))]))
- (define ?bytes-ref unsafe-bytes-ref)
- (define ?bytes-set! unsafe-bytes-set!)
+ (define ?bytes-ref bytes-ref)
+ (define ?bytes-set! bytes-set!)
  (define (fxclamp m x M)
    (fxmax m (fxmin x M)))
+ (define (flclamp m x M)
+   (flmax m (flmin x M)))
  (define (flmin3 x y z) (flmin (flmin x y) z))
  (define (flmax3 x y z) (flmax (flmax x y) z))
  (define (fl<=3 a b c)
@@ -69,6 +71,8 @@
              (?flvector-ref B (3*3mat-offset k j)))))))
  (define (3vec i0 i1 i2)
    (flvector i0 i1 i2))
+ (define (3vec! i0 i1 i2 V)
+   (?flvector-set!* V i0 i1 i2))
  (define (3vec-zero)
    (3vec 0.0 0.0 0.0))
  ;; Notice that in this function we ignore doing the math for the last
@@ -107,8 +111,10 @@
         (draw-triangle! t x y λ1 λ2 λ3)))))
 
 (define (stage-render csd width height)
-  (define hwidth.0 (fl* 0.5 (fx->fl width)))
-  (define hheight.0 (fl* 0.5 (fx->fl height)))
+  (define width.0 (fx->fl width))
+  (define hwidth.0 (fl* 0.5 width.0))
+  (define height.0 (fx->fl height))
+  (define hheight.0 (fl* 0.5 height.0))
   (match-define
    (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
                        pal-size pal-bs pal->idx)
@@ -125,6 +131,7 @@
   (define M1 (3*3mat-zero))
   (define M2 (3*3mat-zero))
   (define M (3*3mat-zero))
+  (define P (3vec-zero))
   (define X (3vec-zero))
   (define Y (3vec-zero))
   (define Z (3vec-zero))
@@ -138,7 +145,9 @@
     ;; this code.
     (define (geometry-shader s)
       (match-define (sprite-data dx dy mx my theta a.0 spr-idx pal-idx layer r g b) s)
-      (match-define (layer-data Lcx Lcy Lmx Lmy Ltheta) (layer-config-of layer))
+      (match-define (layer-data Lcx Lcy Lmx Lmy Ltheta
+                                _ _ fov)
+                    (layer-config-of layer))
       ;; First we rotate the sprite
       (2d-rotate! theta R)
       ;; Then we move it to correct place on the layer
@@ -163,9 +172,12 @@
 
       (define hw (fl* (fl/ spr-w.0 2.0) (fl* mx Lmx)))
       (define hh (fl* (fl/ spr-h.0 2.0) (fl* my Lmy)))
-      (3*3matX3vec-mult! M (3vec hw 0.0 0.0) X)
-      (3*3matX3vec-mult! M (3vec 0.0 hh 0.0) Y)
-      (3*3matX3vec-mult! M (3vec 0.0 0.0 1.0) Z)
+      (3vec! hw 0.0 0.0 P)
+      (3*3matX3vec-mult! M P X)
+      (3vec! 0.0 hh 0.0 P)
+      (3*3matX3vec-mult! M P Y)
+      (3vec! 0.0 0.0 1.0 P)
+      (3*3matX3vec-mult! M P Z)
 
       (begin-encourage-inline
        (define (combine λX λY i)
@@ -176,14 +188,14 @@
          (fl+ (fl* (fl- y2 y3) (fl- x1 x3))
               (fl* (fl- x3 x2) (fl- y1 y3)))))
 
-      (define LTx (combine -1.0 +1.0 0))
-      (define LTy (combine -1.0 +1.0 1))
-      (define RTx (combine +1.0 +1.0 0))
-      (define RTy (combine +1.0 +1.0 1))
-      (define LBx (combine -1.0 -1.0 0))
-      (define LBy (combine -1.0 -1.0 1))
-      (define RBx (combine +1.0 -1.0 0))
-      (define RBy (combine +1.0 -1.0 1))
+      (define-syntax-rule (define-LT LTx LTy x y)
+        (begin (define LTx (combine x y 0))
+               (define LTy (combine x y 1))))
+
+      (define-LT LTx LTy -1.0 +1.0)
+      (define-LT RTx RTy +1.0 +1.0)
+      (define-LT LBx LBy -1.0 -1.0)
+      (define-LT RBx RBy +1.0 -1.0)
 
       (define spr-last-x (fl- spr-w.0 1.0))
       (define spr-last-y (fl- spr-h.0 1.0))
@@ -303,19 +315,75 @@
       (define nr 0)
       (define ng 0)
       (define nb 0)
-      (for ([layer-bs (in-vector root-bs-v)])
-        (define ex ax)
-        (define ey ay)
-        (define na (pixel-ref layer-bs width height ex ey 0))
-        (define na.0 (fl/ (fx->fl na) 255.0))
-        (define-syntax-rule (combined! nr off)
-          (begin (define cr (pixel-ref layer-bs width height ex ey off))
-                 (set! nr (fl->fx
-                           (flround (fl+ (fl* (fx->fl nr) (fl- 1.0 na.0))
-                                         (fl* na.0 (fx->fl cr))))))))
-        (combined! nr 1)
-        (combined! ng 2)
-        (combined! nb 3))
+      (for ([layer-bs (in-vector root-bs-v)]
+            [layer (in-naturals)])
+        (match-define (layer-data Lcx Lcy Lmx Lmy Ltheta
+                                  mode7-coeff horizon fov)
+                      (layer-config-of layer))
+
+        (define px (fx->fl ax))
+        (define py (fx->fl ay))
+        ;; Z: 1.0 FOV: 1.0 -- no mode7
+
+        ;; If Z increases towards top of screen, then it is a ceiling
+        ;; and Hor-Y is Positive and when negative, Z should be +inf.0
+
+        ;; If Z increases towards bot of screen, then it is a floor
+        ;; and Hor-Y is Negative and when positive, Z should be +inf.0
+
+        ;; If Z increases away from horizon, then it is a cylinder and
+        ;; we want the absolute value of the distance
+
+        (define ay-horiz
+          (fl- horizon (fx->fl ay)))
+
+        (define-syntax-rule (Lagrange x [x0 y0] [x1 y1] [x2 y2] [x3 y3])
+          (fl+ (fl+ (fl* y0 (lagrange-basis x x0 (x1 x2 x3)))
+                    (fl* y1 (lagrange-basis x x1 (x0 x2 x3))))
+               (fl+ (fl* y2 (lagrange-basis x x2 (x1 x0 x3)))
+                    (fl* y3 (lagrange-basis x x3 (x1 x2 x0))))))
+        (define-syntax-rule (lagrange-basis x x0 (x1 x2 x3))
+          (fl* (lagrange-term x x0 x1)
+               (fl* (lagrange-term x x0 x2)
+                    (lagrange-term x x0 x3))))
+        (define-syntax-rule (lagrange-term x xj xm)
+          (fl/ (fl- x xm) (fl- xj xm)))
+
+        (define pz
+          (Lagrange
+           mode7-coeff
+           ;; No Mode7
+           [0.0 1.0]
+           ;; Ceiling
+           [1.0 ay-horiz]
+           ;; Floor
+           [2.0 (fl* -1.0 ay-horiz)]
+           ;; Cylinder
+           [3.0 (flabs ay-horiz)]))        
+
+        ;; Y' = ((Y - Yc) * (F/Z)) + Yc
+        
+        (unless (fl<= pz 0.0)
+          (define-syntax-rule (define-ex ex px ax hwidth.0)
+            (begin
+              (define ix
+                (flround (fl+ (fl* (fl- px hwidth.0) (fl/ fov pz))
+                              hwidth.0)))
+              (define ex (if (integer? ix) (fl->fx ix) -1.0))))
+          (define-ex ex px ax hwidth.0)
+          (define-ex ey py ay hheight.0)
+          (when (and (and (fx<= 0 ex) (fx< ex width))
+                     (and (fx<= 0 ey) (fx< ey height)))
+            (define na (pixel-ref layer-bs width height ex ey 0))
+            (define na.0 (fl/ (fx->fl na) 255.0))
+            (define-syntax-rule (combined! nr off)
+              (begin (define cr (pixel-ref layer-bs width height ex ey off))
+                     (set! nr (fl->fx
+                               (flround (fl+ (fl* (fx->fl nr) (fl- 1.0 na.0))
+                                             (fl* na.0 (fx->fl cr))))))))
+            (combined! nr 1)
+            (combined! ng 2)
+            (combined! nb 3))))
       (pixel-set! combined-bs width height ax ay 1 nr)
       (pixel-set! combined-bs width height ax ay 2 ng)
       (pixel-set! combined-bs width height ax ay 3 nb))
