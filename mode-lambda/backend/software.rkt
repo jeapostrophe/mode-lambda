@@ -115,7 +115,7 @@
    csd)
   (define root-bs-v
     (build-vector layers (λ (i) (make-bytes (* 4 width height)))))
-  (define root-bs
+  (define combined-bs
     (make-bytes (* 4 width height)))
   (define tri-hash (make-2d-hash width height))
 
@@ -297,7 +297,7 @@
 
     (for* ([x (in-range width)]
            [y (in-range height)])
-      (pixel-set! root-bs width height x y 0 255)
+      (pixel-set! combined-bs width height x y 0 255)
       (define nr 0)
       (define ng 0)
       (define nb 0)
@@ -312,11 +312,11 @@
         (combined! nr 1)
         (combined! ng 2)
         (combined! nb 3))
-      (pixel-set! root-bs width height x y 1 nr)
-      (pixel-set! root-bs width height x y 2 ng)
-      (pixel-set! root-bs width height x y 3 nb))
+      (pixel-set! combined-bs width height x y 1 nr)
+      (pixel-set! combined-bs width height x y 2 ng)
+      (pixel-set! combined-bs width height x y 3 nb))
 
-    root-bs))
+    combined-bs))
 
 (provide
  (contract-out
