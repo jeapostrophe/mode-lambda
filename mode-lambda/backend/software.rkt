@@ -3,28 +3,26 @@
                      (only-in srfi/1 iota))
          data/2d-hash
          racket/contract/base
-         racket/fixnum
-         racket/flonum
+         racket/require
+         (filtered-in (λ (name) (regexp-replace #rx"unsafe-" name ""))
+                      racket/unsafe/ops)
+         (only-in (combine-in racket/fixnum
+                              racket/flonum)
+                  flvector)
          racket/match
          racket/math
          racket/performance-hint
-         racket/unsafe/ops
-         (except-in ffi/unsafe ->)
          "../core.rkt")
 
 (begin-encourage-inline
- (define ?flvector-ref unsafe-flvector-ref)
- (define ?flvector-set! unsafe-flvector-set!)
- (define-syntax-rule (?flvector-set!*i vec [i v] ...)
-   (begin (?flvector-set! vec i v) ...))
- (define-syntax (?flvector-set!* stx)
+ (define-syntax-rule (flvector-set!*i vec [i v] ...)
+   (begin (flvector-set! vec i v) ...))
+ (define-syntax (flvector-set!* stx)
    (syntax-case stx ()
      [(_ vec v ...)
       (with-syntax ([(i ...) (iota (length (syntax->list #'(v ...))))])
         (syntax/loc stx
-          (?flvector-set!*i vec [i v] ...)))]))
- (define ?bytes-ref bytes-ref)
- (define ?bytes-set! bytes-set!)
+          (flvector-set!*i vec [i v] ...)))]))
  (define (fxclamp m x M)
    (fxmax m (fxmin x M)))
  (define (flclamp m x M)
@@ -34,9 +32,9 @@
  (define (fl<=3 a b c)
    (and (fl<= a b) (fl<= b c)))
  (define (pixel-ref bs w h bx by i)
-   (?bytes-ref bs (fx+ (fx* (fx* 4 w) by) (fx+ (fx* 4 bx) i))))
+   (bytes-ref bs (fx+ (fx* (fx* 4 w) by) (fx+ (fx* 4 bx) i))))
  (define (pixel-set! bs w h bx by i v)
-   (?bytes-set! bs (fx+ (fx* (fx* 4 w) by) (fx+ (fx* 4 bx) i)) v))
+   (bytes-set! bs (fx+ (fx* (fx* 4 w) by) (fx+ (fx* 4 bx) i)) v))
  (define (3*3mat i00 i01 i02
                  i10 i11 i12
                  i20 i21 i22)
@@ -48,42 +46,42 @@
            0.0 0.0 0.0
            0.0 0.0 0.0))
  (define (2d-translate! dx dy M)
-   (?flvector-set!* M
-                    1.0 0.0 dx
-                    0.0 1.0 dy
-                    0.0 0.0 1.0))
+   (flvector-set!* M
+                   1.0 0.0 dx
+                   0.0 1.0 dy
+                   0.0 0.0 1.0))
  (define (2d-rotate! theta M)
    (define cost (flcos theta))
    (define sint (flsin theta))
-   (?flvector-set!* M
-                    cost sint 0.0
-                    (fl* -1.0 sint) cost 0.0
-                    0.0 0.0 1.0))
+   (flvector-set!* M
+                   cost sint 0.0
+                   (fl* -1.0 sint) cost 0.0
+                   0.0 0.0 1.0))
  (define (3*3mat-offset i j)
    (fx+ (fx* 3 i) j))
  (define (3*3mat-mult! A B C)
    (for* ([i (in-range 3)]
           [j (in-range 3)])
-     (?flvector-set!
+     (flvector-set!
       C (3*3mat-offset i j)
       (for/sum ([k (in-range 3)])
-        (fl* (?flvector-ref A (3*3mat-offset i k))
-             (?flvector-ref B (3*3mat-offset k j)))))))
+        (fl* (flvector-ref A (3*3mat-offset i k))
+             (flvector-ref B (3*3mat-offset k j)))))))
  (define (3vec i0 i1 i2)
    (flvector i0 i1 i2))
  (define (3vec! i0 i1 i2 V)
-   (?flvector-set!* V i0 i1 i2))
+   (flvector-set!* V i0 i1 i2))
  (define (3vec-zero)
    (3vec 0.0 0.0 0.0))
  ;; Notice that in this function we ignore doing the math for the last
  ;; cell of the vector, because we are specializing for 2d points
  (define (3*3matX3vec-mult! A v u)
    (for ([i (in-range 2)])
-     (?flvector-set!
+     (flvector-set!
       u i
       (for/sum ([k (in-range 3)])
-        (fl* (?flvector-ref A (3*3mat-offset i k))
-             (?flvector-ref v k)))))))
+        (fl* (flvector-ref A (3*3mat-offset i k))
+             (flvector-ref v k)))))))
 
 (struct triangle (detT
                   layer pal-idx a r g b
@@ -166,23 +164,24 @@
 
       (define spr-w.0 (fx->fl spr-w))
       (define spr-h.0 (fx->fl spr-h))
-      (define tx-left.0 (fx->fl tx-left))
-      (define tx-bot.0 (fx->fl tx-bot))
 
-      (define hw (fl* (fl/ spr-w.0 2.0) (fl* mx Lmx)))
-      (define hh (fl* (fl/ spr-h.0 2.0) (fl* my Lmy)))
-      (3vec! hw 0.0 0.0 P)
-      (3*3matX3vec-mult! M P X)
-      (3vec! 0.0 hh 0.0 P)
-      (3*3matX3vec-mult! M P Y)
-      (3vec! 0.0 0.0 1.0 P)
-      (3*3matX3vec-mult! M P Z)
+      (let ()
+        (define hw (fl* (fl/ spr-w.0 2.0) (fl* mx Lmx)))
+        (3vec! hw 0.0 0.0 P)
+        (3*3matX3vec-mult! M P X))
+      (let ()
+        (define hh (fl* (fl/ spr-h.0 2.0) (fl* my Lmy)))
+        (3vec! 0.0 hh 0.0 P)
+        (3*3matX3vec-mult! M P Y))
+      (let ()
+        (3vec! 0.0 0.0 1.0 P)
+        (3*3matX3vec-mult! M P Z))
 
       (begin-encourage-inline
        (define (combine λX λY i)
-         (fl+ (fl+ (fl* λX (?flvector-ref X i))
-                   (fl* λY (?flvector-ref Y i)))
-              (?flvector-ref Z i)))
+         (fl+ (fl+ (fl* λX (flvector-ref X i))
+                   (fl* λY (flvector-ref Y i)))
+              (flvector-ref Z i)))
        (define (detT x1 y1 x2 y2 x3 y3)
          (fl+ (fl* (fl- y2 y3) (fl- x1 x3))
               (fl* (fl- x3 x2) (fl- y1 y3)))))
@@ -198,7 +197,8 @@
 
       (define spr-last-x (fl- spr-w.0 1.0))
       (define spr-last-y (fl- spr-h.0 1.0))
-
+      (define tx-left.0 (fx->fl tx-left))
+      (define tx-bot.0 (fx->fl tx-bot))
       (define tx-top.0 (fl+ tx-bot.0 spr-last-y))
       (define tx-right.0 (fl+ tx-left.0 spr-last-x))
 
@@ -215,21 +215,19 @@
                  RTx RTy tx-right.0 tx-top.0
                  RBx RBy tx-right.0 tx-bot.0)))
 
+    (define Mheight (fx- height 1))
+    (define Mwidth (fx- width 1))
     (define (output! t)
       (match-define (triangle _ _ _ _ _ _ _ x1 y1 _ _ x2 y2 _ _ x3 y3 _ _) t)
+      (define-syntax-rule (tri-range flfloor flmin3 x1 x2 x3 Mwidth)
+        (fxclamp 0
+                 (fl->fx (flfloor (flmin3 x1 x2 x3)))
+                 Mwidth))
       (2d-hash-add! tri-hash
-                    (fxclamp 0
-                             (fl->fx (flfloor (flmin3 x1 x2 x3)))
-                             (fx- width 1))
-                    (fxclamp 0
-                             (fl->fx (flceiling (flmax3 x1 x2 x3)))
-                             (fx- width 1))
-                    (fxclamp 0
-                             (fl->fx (flfloor (flmin3 y1 y2 y3)))
-                             (fx- height 1))
-                    (fxclamp 0
-                             (fl->fx (flceiling (flmax3 y1 y2 y3)))
-                             (fx- height 1))
+                    (tri-range flfloor flmin3 x1 x2 x3 Mwidth)
+                    (tri-range flceiling flmax3 x1 x2 x3 Mwidth)
+                    (tri-range flfloor flmin3 y1 y2 y3 Mheight)
+                    (tri-range flceiling flmax3 y1 y2 y3 Mheight)
                     t))
     (tree-for geometry-shader sprite-tree)
 
