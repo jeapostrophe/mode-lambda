@@ -320,15 +320,16 @@
                 (lagrange-term x x0 x3))))
     (define-syntax-rule (lagrange-term x xj xm)
       (fl/ (fl- x xm) (fl- xj xm)))
+    
     (for* ([ax (in-range width)]
            [ay (in-range height)])
       (define px (fx->fl ax))
       (define py (fx->fl ay))
 
       (pixel-set! combined-bs width height ax ay 0 255)
-      (define nr 0)
-      (define ng 0)
-      (define nb 0)
+      (define pr 0)
+      (define pg 0)
+      (define pb 0)
       (for ([layer-bs (in-vector root-bs-v)]
             [layer (in-naturals)])
         (match-define (layer-data Lcx Lcy Lmx Lmy Ltheta
@@ -362,17 +363,18 @@
                      (and (fx<= 0 ey) (fx< ey height)))
             (define na (pixel-ref layer-bs width height ex ey 0))
             (define na.0 (fl/ (fx->fl na) 255.0))
-            (define-syntax-rule (combined! nr off)
+            (define-syntax-rule (combined! nr pr off)
               (begin (define cr (pixel-ref layer-bs width height ex ey off))
                      (set! nr (fl->fx
-                               (flround (fl+ (fl* (fx->fl nr) (fl- 1.0 na.0))
+                               (flround (fl+ (fl* (fx->fl pr) (fl- 1.0 na.0))
                                              (fl* na.0 (fx->fl cr))))))))
-            (combined! nr 1)
-            (combined! ng 2)
-            (combined! nb 3))))
-      (pixel-set! combined-bs width height ax ay 1 nr)
-      (pixel-set! combined-bs width height ax ay 2 ng)
-      (pixel-set! combined-bs width height ax ay 3 nb))
+            (combined! pr pr 1)
+            (combined! pg pg 2)
+            (combined! pb pb 3))))
+      
+      (pixel-set! combined-bs width height ax ay 1 pr)
+      (pixel-set! combined-bs width height ax ay 2 pg)
+      (pixel-set! combined-bs width height ax ay 3 pb))
 
     combined-bs))
 
