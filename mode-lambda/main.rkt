@@ -47,7 +47,7 @@
 (define (add-palette!/file sd n p)
   (define-values (w h bs) (in->bm p))
   (define pal
-    (for/list ([i (in-range palette-depth)])
+    (for/list ([i (in-range PALETTE-DEPTH)])
       (define start (* 4 i))
       (subbytes bs start (+ start 4))))
   (add-palette! sd n pal))
@@ -60,13 +60,13 @@
   (match-define (sprite-db ls-b palettes) sd)
 
   (define pal-size (add1 (hash-count palettes)))
-  (define pal-bs (make-bytes (* pal-size palette-depth 4)))
+  (define pal-bs (make-bytes (* pal-size PALETTE-DEPTH 4)))
   (define pal->idx (make-hasheq))
   (for ([(n p) (in-hash palettes)]
         [y (in-naturals 1)])
     (for ([c (in-list p)]
-          [x (in-range palette-depth)])
-      (bytes-copy! pal-bs (+ (* 4 palette-depth y) (* 4 x)) c))
+          [x (in-range PALETTE-DEPTH)])
+      (bytes-copy! pal-bs (+ (* 4 PALETTE-DEPTH y) (* 4 x)) c))
     (hash-set! pal->idx n y))
 
   (define ss (map (λ (l) (l)) (unbox ls-b)))
@@ -101,8 +101,8 @@
                                 "Unknown palette ~v for sprite ~v"
                                 pal spr))))
        (define lookup
-         (for/hash ([i (in-range palette-depth)])
-           (define start (+ (* 4 palette-depth idx) (* 4 i)))
+         (for/hash ([i (in-range PALETTE-DEPTH)])
+           (define start (+ (* 4 PALETTE-DEPTH idx) (* 4 i)))
            (values (subbytes pal-bs start (+ start 4)) i)))
        (define from-sprite (make-bytes 4))
        (define to-atlas (bytes 255 0 0 0))
@@ -122,7 +122,7 @@
                        0)))
          (bytes-set! to-atlas 2 which)
          (bytes-set! to-atlas 3 
-                     (inexact->exact (floor (* 255 (/ which palette-depth)))))
+                     (inexact->exact (floor (* 255 (/ which PALETTE-DEPTH)))))
          (bytes-copy! atlas-bs
                       (+ (* 4 atlas-size (+ ty by))
                          (* 4 (+ tx bx)))
@@ -180,7 +180,7 @@
                        pal-size pal-bs pal->idx)
    csd)
   (write-png-bytes! atlas-bs atlas-size atlas-size (build-path p "sprites.png"))
-  (write-png-bytes! pal-bs palette-depth pal-size (build-path p "palettes.png"))
+  (write-png-bytes! pal-bs PALETTE-DEPTH pal-size (build-path p "palettes.png"))
   (write-to-file/gzip
    (vector spr->idx idx->w*h*tx*ty pal->idx)
    (build-path p "csd.rktd.gz"))

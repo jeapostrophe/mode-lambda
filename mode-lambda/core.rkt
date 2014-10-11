@@ -4,14 +4,14 @@
          racket/list
          (except-in ffi/unsafe ->))
 
-(define palette-depth 16)
+(define PALETTE-DEPTH 16)
 
 (struct compiled-sprite-db 
   (atlas-size atlas-bs spr->idx idx->w*h*tx*ty pal-size pal-bs pal->idx))
 
-(define layers 8)
+(define LAYERS 8)
 (define layer/c
-  (and/c byte? (between/c 0 (sub1 layers))))
+  (and/c byte? (between/c 0 (sub1 LAYERS))))
 
 (define-cstruct _layer-data
   ([cx _float]

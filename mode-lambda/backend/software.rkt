@@ -114,7 +114,7 @@
                        pal-size pal-bs pal->idx)
    csd)
   (define root-bs-v
-    (build-vector layers (λ (i) (make-bytes (* 4 width height)))))
+    (build-vector LAYERS (λ (i) (make-bytes (* 4 width height)))))
   (define combined-bs
     (make-bytes (* 4 width height)))
   (define tri-hash (make-2d-hash width height))
@@ -227,7 +227,7 @@
         (define cr
           (if (fx= 0 pal-idx)
               (pixel-ref atlas-bs atlas-size #f tx ty i)
-              (pixel-ref pal-bs palette-depth #f
+              (pixel-ref pal-bs PALETTE-DEPTH #f
                          (pixel-ref atlas-bs atlas-size #f tx ty 2)
                          pal-idx
                          i))))
