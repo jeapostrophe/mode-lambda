@@ -309,8 +309,22 @@
 
     (2d-hash-clear! tri-hash)
 
+    (define-syntax-rule (Lagrange x [x0 y0] [x1 y1] [x2 y2] [x3 y3])
+      (fl+ (fl+ (fl* y0 (lagrange-basis x x0 (x1 x2 x3)))
+                (fl* y1 (lagrange-basis x x1 (x0 x2 x3))))
+           (fl+ (fl* y2 (lagrange-basis x x2 (x1 x0 x3)))
+                (fl* y3 (lagrange-basis x x3 (x1 x2 x0))))))
+    (define-syntax-rule (lagrange-basis x x0 (x1 x2 x3))
+      (fl* (lagrange-term x x0 x1)
+           (fl* (lagrange-term x x0 x2)
+                (lagrange-term x x0 x3))))
+    (define-syntax-rule (lagrange-term x xj xm)
+      (fl/ (fl- x xm) (fl- xj xm)))
     (for* ([ax (in-range width)]
            [ay (in-range height)])
+      (define px (fx->fl ax))
+      (define py (fx->fl ay))
+
       (pixel-set! combined-bs width height ax ay 0 255)
       (define nr 0)
       (define ng 0)
@@ -320,45 +334,7 @@
         (match-define (layer-data Lcx Lcy Lmx Lmy Ltheta
                                   mode7-coeff horizon fov)
                       (layer-config-of layer))
-
-        (define px (fx->fl ax))
-        (define py (fx->fl ay))
-        ;; Z: 1.0 FOV: 1.0 -- no mode7
-        
-        ;; Docs:
-        ;; - http://www.coranac.com/tonc/text/mode7.htm
-        ;; - http://unspecified.wordpress.com/2012/06/21/calculating-the-gluperspective-matrix-and-other-opengl-matrix-maths/
-        ;; - http://stackoverflow.com/questions/22886853/how-to-convert-projected-points-to-screen-coordinatesviewport-matrix
-        ;; - http://scratchapixel.com/lessons/3d-advanced-lessons/perspective-and-orthographic-projection-matrix/perspective-projection-matrix/
-        ;; - https://en.wikipedia.org/wiki/Mode_7
-        ;; - http://gamedev.stackexchange.com/questions/24957/doing-an-snes-mode-7-affine-transform-effect-in-pygame
-        ;; - http://stackoverflow.com/questions/15844101/projection-transforming-3d-to-2d
-        ;; - http://stackoverflow.com/questions/724219/how-to-convert-a-3d-point-into-2d-perspective-projection
-
-        ;; If Z increases towards top of screen, then it is a ceiling
-        ;; and Hor-Y is Positive and when negative, Z should be +inf.0
-
-        ;; If Z increases towards bot of screen, then it is a floor
-        ;; and Hor-Y is Negative and when positive, Z should be +inf.0
-
-        ;; If Z increases away from horizon, then it is a cylinder and
-        ;; we want the absolute value of the distance
-
-        (define ay-horiz
-          (fl- horizon (fx->fl ay)))
-
-        (define-syntax-rule (Lagrange x [x0 y0] [x1 y1] [x2 y2] [x3 y3])
-          (fl+ (fl+ (fl* y0 (lagrange-basis x x0 (x1 x2 x3)))
-                    (fl* y1 (lagrange-basis x x1 (x0 x2 x3))))
-               (fl+ (fl* y2 (lagrange-basis x x2 (x1 x0 x3)))
-                    (fl* y3 (lagrange-basis x x3 (x1 x2 x0))))))
-        (define-syntax-rule (lagrange-basis x x0 (x1 x2 x3))
-          (fl* (lagrange-term x x0 x1)
-               (fl* (lagrange-term x x0 x2)
-                    (lagrange-term x x0 x3))))
-        (define-syntax-rule (lagrange-term x xj xm)
-          (fl/ (fl- x xm) (fl- xj xm)))
-
+        (define ay-horiz (fl- horizon (fx->fl ay)))
         (define pz
           (Lagrange
            mode7-coeff
@@ -369,10 +345,10 @@
            ;; Floor
            [2.0 (fl* -1.0 ay-horiz)]
            ;; Cylinder
-           [3.0 (flabs ay-horiz)]))        
+           [3.0 (flabs ay-horiz)]))
 
         ;; Y' = ((Y - Yc) * (F/Z)) + Yc
-        
+
         (unless (fl<= pz 0.0)
           (define-syntax-rule (define-ex ex px ax hwidth.0)
             (begin
