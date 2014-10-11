@@ -324,6 +324,16 @@
         (define px (fx->fl ax))
         (define py (fx->fl ay))
         ;; Z: 1.0 FOV: 1.0 -- no mode7
+        
+        ;; Docs:
+        ;; - http://www.coranac.com/tonc/text/mode7.htm
+        ;; - http://unspecified.wordpress.com/2012/06/21/calculating-the-gluperspective-matrix-and-other-opengl-matrix-maths/
+        ;; - http://stackoverflow.com/questions/22886853/how-to-convert-projected-points-to-screen-coordinatesviewport-matrix
+        ;; - http://scratchapixel.com/lessons/3d-advanced-lessons/perspective-and-orthographic-projection-matrix/perspective-projection-matrix/
+        ;; - https://en.wikipedia.org/wiki/Mode_7
+        ;; - http://gamedev.stackexchange.com/questions/24957/doing-an-snes-mode-7-affine-transform-effect-in-pygame
+        ;; - http://stackoverflow.com/questions/15844101/projection-transforming-3d-to-2d
+        ;; - http://stackoverflow.com/questions/724219/how-to-convert-a-3d-point-into-2d-perspective-projection
 
         ;; If Z increases towards top of screen, then it is a ceiling
         ;; and Hor-Y is Positive and when negative, Z should be +inf.0
