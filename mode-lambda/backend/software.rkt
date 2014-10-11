@@ -136,10 +136,6 @@
   (define Y (3vec-zero))
   (define Z (3vec-zero))
   (lambda (layer-config sprite-tree)
-    (define (layer-config-of layer)
-      (or (vector-ref layer-config layer)
-          default-layer))
-
     ;; The layer multiplications can be used for all vertices and we
     ;; could just upload the correct matrices, one per layer (M2) in
     ;; this code.
@@ -147,7 +143,10 @@
       (match-define (sprite-data dx dy mx my theta a.0 spr-idx pal-idx layer r g b) s)
       (match-define (layer-data Lcx Lcy Lmx Lmy Ltheta
                                 _ _ fov)
-                    (layer-config-of layer))
+                    (or (vector-ref layer-config layer)
+                        (error 'geometry-shader
+                               "Cannot draw on layer ~v without config"
+                               layer)))
       ;; First we rotate the sprite
       (2d-rotate! theta R)
       ;; Then we move it to correct place on the layer
@@ -322,55 +321,55 @@
     (define-syntax-rule (lagrange-term x xj xm)
       (fl/ (fl- x xm) (fl- xj xm)))
 
-    (for* ([ax (in-range width)]
-           [ay (in-range height)])
-      (define px (fx->fl ax))
-      (define py (fx->fl ay))
-
-      (pixel-set! combined-bs width height ax ay 0 255)
-      (for ([layer-bs (in-vector root-bs-v)]
-            [layer (in-naturals)])
-        (match-define (layer-data Lcx Lcy Lmx Lmy Ltheta
-                                  mode7-coeff horizon fov)
-                      (layer-config-of layer))
-        (define ay-horiz (fl- horizon (fx->fl ay)))
-        (define pz
-          (Lagrange
-           mode7-coeff
-           ;; No Mode7
-           [0.0 1.0]
-           ;; Ceiling
-           [1.0 ay-horiz]
-           ;; Floor
-           [2.0 (fl* -1.0 ay-horiz)]
-           ;; Cylinder
-           [3.0 (flabs ay-horiz)]))
-
-        ;; Y' = ((Y - Yc) * (F/Z)) + Yc
-
-        (unless (fl<= pz 0.0)
-          (define-syntax-rule (define-ex ex px ax hwidth.0)
-            (begin
-              (define ix
-                (flround (fl+ (fl* (fl- px hwidth.0) (fl/ fov pz))
-                              hwidth.0)))
-              (define ex (if (integer? ix) (fl->fx ix) -1.0))))
-          (define-ex ex px ax hwidth.0)
-          (define-ex ey py ay hheight.0)
-          (when (and (and (fx<= 0 ex) (fx< ex width))
-                     (and (fx<= 0 ey) (fx< ey height)))
-            (define na (pixel-ref layer-bs width height ex ey 0))
-            (define na.0 (fl/ (fx->fl na) 255.0))
-            (define-syntax-rule (combined! off)
-              (begin (define cr (pixel-ref layer-bs width height ex ey off))
-                     (define pr (pixel-ref combined-bs width height ax ay off))
-                     (pixel-set! combined-bs width height ax ay off
-                                 (fl->fx
-                                  (flround (fl+ (fl* (fx->fl pr) (fl- 1.0 na.0))
-                                                (fl* na.0 (fx->fl cr))))))))
-            (combined! 1)
-            (combined! 2)
-            (combined! 3)))))
+    (for ([layer-bs (in-vector root-bs-v)]
+          [lc (in-vector layer-config)]
+          [layer (in-naturals)])
+      (match lc
+        [#f (void)]
+        [(layer-data Lcx Lcy Lmx Lmy Ltheta
+                     mode7-coeff horizon fov)
+         (define (compute-pz ay-horiz)
+           (Lagrange
+            mode7-coeff
+            ;; No Mode7
+            [0.0 1.0]
+            ;; Ceiling
+            [1.0 ay-horiz]
+            ;; Floor
+            [2.0 (fl* -1.0 ay-horiz)]
+            ;; Cylinder
+            [3.0 (flabs ay-horiz)]))
+         (for ([ay (in-range height)])
+           (define py (fx->fl ay))
+           (define ay-horiz (fl- horizon py))
+           (define pz (compute-pz ay-horiz))
+           (define-syntax-rule (define-ex ex px ax hwidth.0)
+             (begin
+               ;; Y' = ((Y - Yc) * (F/Z)) + Yc
+               (define ix
+                 (flround (fl+ (fl* (fl- px hwidth.0) (fl/ fov pz))
+                               hwidth.0)))
+               (define ex (if (integer? ix) (fl->fx ix) -1))))
+           (unless (fl<= pz 0.0)
+             (define-ex ey py ay hheight.0)
+             (when (and (fx<= 0 ey) (fx< ey height))
+               (for ([ax (in-range width)])
+                 (define px (fx->fl ax))
+                 (pixel-set! combined-bs width height ax ay 0 255)
+                 (define-ex ex px ax hwidth.0)
+                 (when (and (fx<= 0 ex) (fx< ex width))
+                   (define na (pixel-ref layer-bs width height ex ey 0))
+                   (define na.0 (fl/ (fx->fl na) 255.0))
+                   (define-syntax-rule (combined! off)
+                     (begin (define cr (pixel-ref layer-bs width height ex ey off))
+                            (define pr (pixel-ref combined-bs width height ax ay off))
+                            (pixel-set! combined-bs width height ax ay off
+                                        (fl->fx
+                                         (flround (fl+ (fl* (fx->fl pr) (fl- 1.0 na.0))
+                                                       (fl* na.0 (fx->fl cr))))))))
+                   (combined! 1)
+                   (combined! 2)
+                   (combined! 3))))))]))
 
     combined-bs))
 

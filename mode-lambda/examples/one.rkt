@@ -107,7 +107,7 @@
     (match mode
       ["rand"
        (for/list ([i (in-range (* 2 W))])
-         (sprite 0 (* W (random)) (* H (random))
+         (sprite 4 (* W (random)) (* H (random))
                  (random-byte) (random-byte) (random-byte) (+ 0.5 (* 0.5 (random)))
                  (random-spr-idx) 0
                  (* (random) 2) (* (random) 2)
@@ -115,7 +115,7 @@
       ["grid"
        (for*/list ([x (in-range W)]
                    [y (in-range W)])
-         (sprite 0 (exact->inexact (* 16 x)) (exact->inexact (* 16 y))
+         (sprite 4 (exact->inexact (* 16 x)) (exact->inexact (* 16 y))
                  0 0 0 1.0
                  (random-spr-idx) 0
                  1.0 1.0 0.0))]
