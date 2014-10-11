@@ -103,22 +103,33 @@
   (define (random-spr-idx)
     (sprite-idx csd (random-spr)))
   (define render (stage-render csd W H))
-  (define s
+  (define-values
+    (s lc)
     (match mode
       ["rand"
-       (for/list ([i (in-range (* 2 W))])
-         (sprite 4 (* W (random)) (* H (random))
-                 (random-byte) (random-byte) (random-byte) (+ 0.5 (* 0.5 (random)))
-                 (random-spr-idx) 0
-                 (* (random) 2) (* (random) 2)
-                 (* (random) 2 pi)))]
+       (values
+        (for/list ([i (in-range (* 2 W))])
+          (sprite 0 (* W (random)) (* H (random))
+                  (random-byte) (random-byte) (random-byte) (+ 0.5 (* 0.5 (random)))
+                  (random-spr-idx) 0
+                  (* (random) 2) (* (random) 2)
+                  (* (random) 2 pi)))
+        (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
+                       1.0 1.0 0.0
+                       0.0 0.0 1.0)
+                #f #f #f #f #f #f #f))]
       ["grid"
-       (for*/list ([x (in-range W)]
-                   [y (in-range W)])
-         (sprite 4 (exact->inexact (* 16 x)) (exact->inexact (* 16 y))
-                 0 0 0 1.0
-                 (random-spr-idx) 0
-                 1.0 1.0 0.0))]
+       (values
+        (for*/list ([x (in-range W)]
+                    [y (in-range W)])
+          (sprite 0 (exact->inexact (* 16 x)) (exact->inexact (* 16 y))
+                  255 0 0 1.0
+                  (random-spr-idx) 0
+                  1.0 1.0 0.0))
+        (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
+                       1.0 1.0 0.0
+                       0.0 0.0 1.0)
+                #f #f #f #f #f #f #f))]
       ["blocks"
        (define schemes (polygon-idxs 7 cw-slots))
        (match-define scheme (random-list-ref schemes))
@@ -171,11 +182,8 @@
                      (vector-ref block-styles 1)
                      (palette-idx csd 'med0)
                      1.0 1.0 0.0))))
-       (list* block-sprites background-sprites foreground-sprites)]))
-  (define last-bs
-    (time
-     (for/fold ([bs #f]) ([i (in-range 4)])
-       (render (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)) 1.0 1.0 0.0
+       (values (list* block-sprites background-sprites foreground-sprites)
+               (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)) 1.0 1.0 0.0
                               2.0 0.0 (fl* 8.0 (fl/ (fx->fl W) (fx->fl H))))
                        #f #f #f
                        (layer (fx->fl (/ W 2)) (fl+ (fx->fl (/ H 2)) 25.0)
@@ -183,8 +191,11 @@
                               0.0 0.0 1.0)
                        #f #f
                        (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)) 2.0 2.0 0.0
-                              0.0 0.0 1.0))
-               s))))
+                              0.0 0.0 1.0)))]))
+  (define last-bs
+    (time
+     (for/fold ([bs #f]) ([i (in-range 4)])
+       (render lc s))))
   (let ()
     (local-require racket/draw
                    racket/class)
