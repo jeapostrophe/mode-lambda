@@ -129,14 +129,16 @@
   (define Y (3vec-zero))
   (define Z (3vec-zero))
   (lambda (layer-config sprite-tree)
+    (define (layer-config-of layer)
+      (or (vector-ref layer-config layer)
+          default-layer))
+
     ;; The layer multiplications can be used for all vertices and we
     ;; could just upload the correct matrices, one per layer (M2) in
     ;; this code.
     (define (geometry-shader s)
       (match-define (sprite-data dx dy mx my theta a.0 spr-idx pal-idx layer r g b) s)
-      (match-define (layer-data Lcx Lcy Lmx Lmy Ltheta)
-                    (or (vector-ref layer-config layer)
-                        default-layer))
+      (match-define (layer-data Lcx Lcy Lmx Lmy Ltheta) (layer-config-of layer))
       ;; First we rotate the sprite
       (2d-rotate! theta R)
       ;; Then we move it to correct place on the layer
@@ -295,26 +297,28 @@
 
     (2d-hash-clear! tri-hash)
 
-    (for* ([x (in-range width)]
-           [y (in-range height)])
-      (pixel-set! combined-bs width height x y 0 255)
+    (for* ([ax (in-range width)]
+           [ay (in-range height)])
+      (pixel-set! combined-bs width height ax ay 0 255)
       (define nr 0)
       (define ng 0)
       (define nb 0)
       (for ([layer-bs (in-vector root-bs-v)])
-        (define na (pixel-ref layer-bs width height x y 0))
+        (define ex ax)
+        (define ey ay)
+        (define na (pixel-ref layer-bs width height ex ey 0))
         (define na.0 (fl/ (fx->fl na) 255.0))
         (define-syntax-rule (combined! nr off)
-          (begin (define cr (pixel-ref layer-bs width height x y off))
+          (begin (define cr (pixel-ref layer-bs width height ex ey off))
                  (set! nr (fl->fx
                            (flround (fl+ (fl* (fx->fl nr) (fl- 1.0 na.0))
                                          (fl* na.0 (fx->fl cr))))))))
         (combined! nr 1)
         (combined! ng 2)
         (combined! nb 3))
-      (pixel-set! combined-bs width height x y 1 nr)
-      (pixel-set! combined-bs width height x y 2 ng)
-      (pixel-set! combined-bs width height x y 3 nb))
+      (pixel-set! combined-bs width height ax ay 1 nr)
+      (pixel-set! combined-bs width height ax ay 2 ng)
+      (pixel-set! combined-bs width height ax ay 3 nb))
 
     combined-bs))
 

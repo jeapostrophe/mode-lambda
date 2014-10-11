@@ -50,7 +50,7 @@
   any/c)
 
 (define layer-vector/c
-  (apply vector/c (make-list 8 layer-data?)))
+  (apply vector/c (make-list 8 (or/c false/c layer-data?))))
 
 (define-syntax-rule (backend/c (addl-input ...) output)
   (-> layer-vector/c tree/c addl-input ... output))

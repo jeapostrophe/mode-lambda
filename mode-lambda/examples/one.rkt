@@ -179,10 +179,7 @@
        (render (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)) 1.0 1.0 0.0)
                        #f #f #f
                        (layer (fx->fl (/ W 2)) (fl+ (fx->fl (/ H 2)) 25.0)
-                              1.0 1.0
-                              (fl/ pi 4.0))
-                       #;(layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
-                              1.0 1.0 0.0)
+                              1.0 1.0 (fl/ pi 4.0))
                        #f #f
                        (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)) 2.0 2.0 0.0))
                s))))
