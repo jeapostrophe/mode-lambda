@@ -1,6 +1,7 @@
 #lang racket/base
 (require racket/match
          racket/contract/base
+         racket/list
          (except-in ffi/unsafe ->))
 
 (define palette-depth 16)
@@ -48,12 +49,14 @@
 (define tree/c
   any/c)
 
-;; xxx merge
-(define draw!/c
-  ;; xxx must have 8
-  (-> (vectorof layer-data?) tree/c void?))
-(define render/c
-  (-> (vectorof layer-data?) tree/c bytes?))
+(define layer-vector/c
+  (apply vector/c (make-list 8 layer-data?)))
+
+(define-syntax-rule (backend/c (addl-input ...) output)
+  (-> layer-vector/c tree/c addl-input ... output))
+
+(define draw!/c (backend/c () void?))
+(define render/c (backend/c () bytes?))
 
 (define (stage-backend/c output/c)
   (-> compiled-sprite-db?

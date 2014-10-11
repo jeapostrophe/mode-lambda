@@ -151,32 +151,38 @@
        (define background-sprites
          (for*/list ([x (in-range (quotient W 8))]
                      [y (in-range (quotient H 8))])
-           (sprite 0
-                   (fl+ 4.0 (fx->fl (fx* 8 x)))
-                   (fl+ 4.0 (fx->fl (fx* 8 y)))
-                   0 0 0 1.0
-                   (vector-ref block-styles 0)
-                   (palette-idx csd 'grayscale)
-                   1.0 1.0 0.0)))
+           (when (or (and (even? y) (even? x))
+                     (and (odd? x) (odd? y)))
+             (sprite 0
+                     (fl+ 4.0 (fx->fl (fx* 8 x)))
+                     (fl+ 4.0 (fx->fl (fx* 8 y)))
+                     0 0 0 1.0
+                     (vector-ref block-styles 0)
+                     (palette-idx csd 'grayscale)
+                     1.0 1.0 0.0))))
        (define foreground-sprites
          (for*/list ([x (in-range (quotient W 8))]
                      [y (in-range (quotient H 8))])
-           (sprite 7
-                   (fl+ 4.0 (fx->fl (fx* 8 x)))
-                   (fl+ 4.0 (fx->fl (fx* 8 y)))
-                   0 0 0 0.25
-                   (vector-ref block-styles 1)
-                   (palette-idx csd 'med0)
-                   1.0 1.0 0.0)))
+           (when (or (and (even? x) (odd? y))
+                     (and (even? y) (odd? x)))
+             (sprite 7
+                     (fl+ 4.0 (fx->fl (fx* 8 x)))
+                     (fl+ 4.0 (fx->fl (fx* 8 y)))
+                     0 0 0 0.5
+                     (vector-ref block-styles 1)
+                     (palette-idx csd 'med0)
+                     1.0 1.0 0.0))))
        (list* block-sprites background-sprites foreground-sprites)]))
   (define last-bs
     (time
      (for/fold ([bs #f]) ([i (in-range 4)])
        (render (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)) 1.0 1.0 0.0)
                        #f #f #f
-                       (layer (fx->fl (/ W 2)) (fl+ (fx->fl (/ H 2)) 25.0) 
+                       (layer (fx->fl (/ W 2)) (fl+ (fx->fl (/ H 2)) 25.0)
                               1.0 1.0
-                              (fl/ pi 2.0))
+                              (fl/ pi 4.0))
+                       #;(layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
+                              1.0 1.0 0.0)
                        #f #f
                        (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)) 2.0 2.0 0.0))
                s))))
