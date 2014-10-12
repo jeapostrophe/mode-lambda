@@ -151,7 +151,7 @@
     ;; The layer multiplications can be used for all vertices and we
     ;; could just upload the correct matrices, one per layer (M2) in
     ;; this code.
-    
+
     ;; I shouldn't really use a geometry shader in OpenGL, because
     ;; they are slower and this is a simple task, I just have to
     ;; create more vertex data: 4 wraps * 2 triangles * 3 verts * 1
@@ -235,14 +235,14 @@
                      RBx RBy RBtxx RBtxy
                      LBx LBy LBtxx LBtxy)))
 
-        ;; XXX Mr McCarthy! add more macros!
-        (define (measure-x x)
-          (flfloor (fl* (fl/ -1.0 Lw) (fl- x (fl+ Lcx Lhw)))))
-        (define (measure-y y)
-          (flfloor (fl* (fl/ -1.0 Lh) (fl- y (fl+ Lcy Lhh)))))
+        (define-syntax-rule (define-measure measure-x Lw Lcx Lhw)
+          (define (measure-x x)
+            (fl* Lw (flfloor (fl* (fl/ -1.0 Lw) (fl- x (fl+ Lcx Lhw)))))))
+        (define-measure measure-x Lw Lcx Lhw)
+        (define-measure measure-y Lh Lcy Lhh)
 
         ;; I am nervous that this doesn't work for sprites that
-        ;; are so big they will end up on both sides of the screen.        
+        ;; are so big they will end up on both sides of the screen.
         (for* ([xs (in-list (list (vector #t (λ (x) 0.0))
                                   (vector wrap-x? measure-x)))]
                [ys (in-list (list (vector #t (λ (y) 0.0))
@@ -250,18 +250,15 @@
           (match-define (vector apply-x? measure-x) xs)
           (match-define (vector apply-y? measure-y) ys)
           (when (and apply-x? apply-y?)
-            (define mx
-              (flabsmax3 (measure-x LTx)
-                         (measure-x RBx)
-                         (measure-x LBx)))
-            (define my
-              (flabsmax3 (measure-y LTy)
-                         (measure-y RBy)
-                         (measure-y LBy)))
-            (define (adjust-x LTx)
-              (fl+ LTx (fl* mx Lw)))
-            (define (adjust-y LTy)
-              (fl+ LTy (fl* my Lh)))
+            (define-syntax-rule (define-adjust adjust-x measure-x LTx RBx LBx)
+              (begin (define mx
+                       (flabsmax3 (measure-x LTx)
+                                  (measure-x RBx)
+                                  (measure-x LBx)))
+                     (define (adjust-x LTx)
+                       (fl+ LTx mx))))
+            (define-adjust adjust-x measure-x LTx RBx LBx)
+            (define-adjust adjust-y measure-y LTy RBy LBy)
             (real-output! (adjust-x LTx) (adjust-y LTy)
                           (adjust-x RBx) (adjust-y RBy)
                           (adjust-x LBx) (adjust-y LBy)))))

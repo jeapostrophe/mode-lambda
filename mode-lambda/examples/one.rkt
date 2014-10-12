@@ -115,7 +115,7 @@
                   (* (random) 2) (* (random) 2)
                   (* (random) 2 pi)))
         (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
-                       +inf.0 +inf.0
+                       +inf.0 +inf.0 #f #f
                        1.0 1.0 0.0
                        0.0 0.0 1.0)
                 #f #f #f #f #f #f #f))]
@@ -128,7 +128,7 @@
                   (random-spr-idx) 0
                   1.0 1.0 0.0))
         (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
-                       +inf.0 +inf.0
+                       +inf.0 +inf.0 #f #f
                        1.0 1.0 0.0
                        0.0 0.0 1.0)
                 #f #f #f #f #f #f #f))]
@@ -186,17 +186,17 @@
                      1.0 1.0 0.0))))
        (values (list* block-sprites background-sprites foreground-sprites)
                (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
-                              +inf.0 +inf.0
+                              +inf.0 +inf.0 #f #f
                               1.0 1.0 0.0
                               2.0 0.0 (fl* 8.0 (fl/ (fx->fl W) (fx->fl H))))
                        #f #f #f
                        (layer (fx->fl (/ W 2)) (fl+ (fx->fl (/ H 2)) 25.0)
-                              +inf.0 +inf.0
+                              +inf.0 +inf.0 #f #f
                               1.0 1.0 (fl/ pi 4.0)
                               0.0 0.0 1.0)
                        #f #f
                        (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
-                              +inf.0 +inf.0
+                              +inf.0 +inf.0 #f #f
                               2.0 2.0 0.0
                               0.0 0.0 1.0)))]
       ["tile"
@@ -207,6 +207,7 @@
                 1.0 1.0 0.0)
         (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
                        (fl/ (fx->fl W) 8.0) (fl/ (fx->fl H) 8.0)
+                       #f #f
                        0.5 0.5 0.0
                        0.0 0.0 1.0)
                 #f #f #f #f #f #f #f))]

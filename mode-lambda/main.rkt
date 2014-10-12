@@ -204,10 +204,6 @@
 (define (layer cx cy hw hh wrap-x? wrap-y? mx my theta mode7-coeff horizon fov)
   (make-layer-data cx cy hw hh mx my theta mode7-coeff horizon fov wrap-x? wrap-y?))
 
-;; xxx get wrap-around by detecting when triangles go over a
-;; boundary... potentially by generating more triangles (ugh!):
-;; http://www.wildbunny.co.uk/blog/2012/04/13/implementing-a-wrap-around-world/
-
 (define (sprite-attributes? x)
   (match x
     [(vector n pal w h bs)
