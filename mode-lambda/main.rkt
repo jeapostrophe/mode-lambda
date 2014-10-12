@@ -121,7 +121,7 @@
                               (map bytes->list (hash-keys lookup)))
                        0)))
          (bytes-set! to-atlas 2 which)
-         (bytes-set! to-atlas 3 
+         (bytes-set! to-atlas 3
                      (inexact->exact (floor (* 255 (/ which PALETTE-DEPTH)))))
          (bytes-copy! atlas-bs
                       (+ (* 4 atlas-size (+ ty by))
@@ -196,12 +196,29 @@
   (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
                       pal-size pal-bs pal->idx))
 
-;; xxx keywords and options
-(define (sprite layer dx dy r g b a spr-idx pal-idx mx my theta)
+(define (sprite dx dy spr-idx
+                #:layer [layer 0]
+                #:r [r 0]
+                #:g [g 0]
+                #:b [b 0]
+                #:a [a 1.0]
+                #:pal-idx [pal-idx 0]
+                #:mx [mx 1.0]
+                #:my [my 1.0]
+                #:theta [theta 0.0])
   (make-sprite-data dx dy mx my theta a spr-idx pal-idx layer r g b))
 
-;; xxx keywords and options
-(define (layer cx cy hw hh wrap-x? wrap-y? mx my theta mode7-coeff horizon fov)
+(define (layer cx cy
+               #:hw [hw +inf.0]
+               #:hh [hh +inf.0]
+               #:wrap-x? [wrap-x? #f]
+               #:wrap-y? [wrap-y? #f]
+               #:mx [mx 1.0]
+               #:my [my 1.0]
+               #:theta [theta 0.0]
+               #:mode7 [mode7-coeff 0.0]
+               #:horizon [horizon 0.0]
+               #:fov [fov 1.0])
   (make-layer-data cx cy hw hh mx my theta mode7-coeff horizon fov wrap-x? wrap-y?))
 
 (define (sprite-attributes? x)
@@ -269,16 +286,25 @@
    (-> compiled-sprite-db? symbol?
        (or/c #f ushort?))]
   [sprite
-   (-> layer/c flonum? flonum?
-       byte? byte? byte? flonum?
-       ushort?
-       ushort?
-       flonum? flonum?
-       flonum?
-       sprite-data?)]
+   (->* (flonum? flonum? ushort?)
+        (#:layer
+         layer/c
+         #:r byte? #:g byte? #:b byte? #:a flonum?
+         #:pal-idx ushort?
+         #:mx flonum? #:my flonum?
+         #:theta flonum?)
+        sprite-data?)]
   [layer
-   (-> flonum? flonum? flonum? flonum? 
-       boolean? boolean? flonum? flonum?
-       flonum?
-       flonum? flonum? flonum?
-       layer-data?)]))
+   (->* (flonum? flonum?)
+        (#:hw 
+         flonum?
+         #:hh flonum?
+         #:wrap-x? boolean?
+         #:wrap-y? boolean?
+         #:mx flonum?
+         #:my flonum?
+         #:theta flonum?
+         #:mode7 flonum?
+         #:horizon flonum?
+         #:fov flonum?)
+        layer-data?)]))
