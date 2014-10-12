@@ -199,8 +199,8 @@
 (define (sprite layer dx dy r g b a spr-idx pal-idx mx my theta)
   (make-sprite-data dx dy mx my theta a spr-idx pal-idx layer r g b))
 
-(define (layer cx cy mx my theta mode7-coeff horizon fov)
-  (make-layer-data cx cy mx my theta mode7-coeff horizon fov))
+(define (layer cx cy hw hh mx my theta mode7-coeff horizon fov)
+  (make-layer-data cx cy hw hh mx my theta mode7-coeff horizon fov))
 
 ;; xxx get torus/wrapping by specifying that the layer's W/H isn't the
 ;; screen W/H, then in Pass-Two transform the coords and read a
@@ -279,7 +279,7 @@
        flonum?
        sprite-data?)]
   [layer
-   (-> flonum? flonum? 
+   (-> flonum? flonum? flonum? flonum? 
        flonum? flonum?
        flonum?
        flonum? flonum? flonum?

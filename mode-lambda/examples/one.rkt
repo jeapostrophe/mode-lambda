@@ -115,6 +115,7 @@
                   (* (random) 2) (* (random) 2)
                   (* (random) 2 pi)))
         (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
+                       +inf.0 +inf.0
                        1.0 1.0 0.0
                        0.0 0.0 1.0)
                 #f #f #f #f #f #f #f))]
@@ -127,6 +128,7 @@
                   (random-spr-idx) 0
                   1.0 1.0 0.0))
         (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
+                       +inf.0 +inf.0
                        1.0 1.0 0.0
                        0.0 0.0 1.0)
                 #f #f #f #f #f #f #f))]
@@ -183,15 +185,31 @@
                      (palette-idx csd 'med0)
                      1.0 1.0 0.0))))
        (values (list* block-sprites background-sprites foreground-sprites)
-               (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)) 1.0 1.0 0.0
+               (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)) 
+                              +inf.0 +inf.0
+                              1.0 1.0 0.0
                               2.0 0.0 (fl* 8.0 (fl/ (fx->fl W) (fx->fl H))))
                        #f #f #f
                        (layer (fx->fl (/ W 2)) (fl+ (fx->fl (/ H 2)) 25.0)
+                              +inf.0 +inf.0
                               1.0 1.0 (fl/ pi 4.0)
                               0.0 0.0 1.0)
                        #f #f
-                       (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)) 2.0 2.0 0.0
-                              0.0 0.0 1.0)))]))
+                       (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
+                              +inf.0 +inf.0
+                              2.0 2.0 0.0
+                              0.0 0.0 1.0)))]
+      ["tile"
+       (values
+        (sprite 0 (fx->fl (/ W 2)) (fx->fl (/ H 2))
+                255 255 255 1.0
+                (sprite-idx csd 'star) 0
+                1.0 1.0 0.0)
+        (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
+                       (fl/ (fx->fl W) 8.0) (fl/ (fx->fl H) 8.0)
+                       0.5 0.5 0.0
+                       0.0 0.0 1.0)
+                #f #f #f #f #f #f #f))]))
   (define last-bs
     (time
      (for/fold ([bs #f]) ([i (in-range 4)])

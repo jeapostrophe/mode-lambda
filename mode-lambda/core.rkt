@@ -16,6 +16,8 @@
 (define-cstruct _layer-data
   ([cx _float]
    [cy _float]
+   [hw _float]
+   [hh _float]
    [mx _float]
    [my _float]
    [theta _float]
@@ -24,7 +26,7 @@
    [fov _float]))
 
 (define default-layer
-  (make-layer-data 0.0 0.0 1.0 1.0 0.0 0.0 0.0 0.0))
+  (make-layer-data 0.0 0.0 0.0 0.0 1.0 1.0 0.0 0.0 0.0 0.0))
 
 ;; Mode7 Docs:
 ;; - http://www.coranac.com/tonc/text/mode7.htm

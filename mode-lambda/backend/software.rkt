@@ -31,6 +31,14 @@
  (define (flmax3 x y z) (flmax (flmax x y) z))
  (define (fl<=3 a b c)
    (and (fl<= a b) (fl<= b c)))
+ (define (flmod a n)
+   (fl- a (fl* n (flfloor (fl/ a n)))))
+ (define (flwrap v c hrng)
+   (cond
+    [(infinite? hrng)
+     v]
+    [else
+     (fl+ c (fl- (flmod v (fl* 2.0 hrng)) hrng))]))
  (define (pixel-ref bs w h bx by i)
    (bytes-ref bs (fx+ (fx* (fx* 4 w) by) (fx+ (fx* 4 bx) i))))
  (define (pixel-set! bs w h bx by i v)
@@ -139,7 +147,7 @@
     ;; this code.
     (define (geometry-shader s)
       (match-define (sprite-data dx dy mx my theta a.0 spr-idx pal-idx layer r g b) s)
-      (match-define (layer-data Lcx Lcy Lmx Lmy Ltheta
+      (match-define (layer-data Lcx Lcy Lhw Lhh Lmx Lmy Ltheta
                                 _ _ fov)
                     (or (vector-ref layer-config layer)
                         (error 'geometry-shader
@@ -324,7 +332,7 @@
           [layer (in-naturals)])
       (match lc
         [#f (void)]
-        [(layer-data Lcx Lcy Lmx Lmy Ltheta
+        [(layer-data Lcx Lcy Lhw Lhh Lmx Lmy Ltheta
                      mode7-coeff horizon fov)
          (define (compute-pz ay-horiz)
            (Lagrange
@@ -341,20 +349,26 @@
            (define py (fx->fl ay))
            (define ay-horiz (fl- horizon py))
            (define pz (compute-pz ay-horiz))
-           (define-syntax-rule (define-ex ex px ax hwidth.0)
-             (begin
-               ;; Y' = ((Y - Yc) * (F/Z)) + Yc
-               (define ix
-                 (flround (fl+ (fl* (fl- px hwidth.0) (fl/ fov pz))
-                               hwidth.0)))
-               (define ex (if (integer? ix) (fl->fx ix) -1))))
            (unless (fl<= pz 0.0)
-             (define-ex ey py ay hheight.0)
+             (define-syntax-rule (define-ex ex px ax hwidth.0 Lcx Lhw)
+               (begin
+                 ;; Y' = ((Y - Yc) * (F/Z)) + Yc
+                 (define rx (fl+ (fl* (fl- px hwidth.0) (fl/ fov pz))
+                                 hwidth.0))
+                 (define ex
+                   (cond
+                    [(or (infinite? rx) (nan? rx))
+                     -1]
+                    [else
+                     (define wx (flwrap rx Lcx Lhw))
+                     (define ix (flround wx))
+                     (fl->fx ix)]))))
+             (define-ex ey py ay hheight.0 Lcy Lhh)
              (when (and (fx<= 0 ey) (fx< ey height))
                (for ([ax (in-range width)])
                  (define px (fx->fl ax))
                  (pixel-set! combined-bs width height ax ay 0 255)
-                 (define-ex ex px ax hwidth.0)
+                 (define-ex ex px ax hwidth.0 Lcx Lhw)
                  (when (and (fx<= 0 ex) (fx< ex width))
                    (define na (pixel-ref layer-bs width height ex ey 0))
                    (define na.0 (fl/ (fx->fl na) 255.0))
