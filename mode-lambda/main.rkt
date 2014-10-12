@@ -196,15 +196,17 @@
   (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
                       pal-size pal-bs pal->idx))
 
+;; xxx keywords and options
 (define (sprite layer dx dy r g b a spr-idx pal-idx mx my theta)
   (make-sprite-data dx dy mx my theta a spr-idx pal-idx layer r g b))
 
-(define (layer cx cy hw hh mx my theta mode7-coeff horizon fov)
-  (make-layer-data cx cy hw hh mx my theta mode7-coeff horizon fov))
+;; xxx keywords and options
+(define (layer cx cy hw hh wrap-x? wrap-y? mx my theta mode7-coeff horizon fov)
+  (make-layer-data cx cy hw hh mx my theta mode7-coeff horizon fov wrap-x? wrap-y?))
 
-;; xxx get torus/wrapping by specifying that the layer's W/H isn't the
-;; screen W/H, then in Pass-Two transform the coords and read a
-;; wrapped pixel.
+;; xxx get wrap-around by detecting when triangles go over a
+;; boundary... potentially by generating more triangles (ugh!):
+;; http://www.wildbunny.co.uk/blog/2012/04/13/implementing-a-wrap-around-world/
 
 (define (sprite-attributes? x)
   (match x
@@ -280,7 +282,7 @@
        sprite-data?)]
   [layer
    (-> flonum? flonum? flonum? flonum? 
-       flonum? flonum?
+       boolean? boolean? flonum? flonum?
        flonum?
        flonum? flonum? flonum?
        layer-data?)]))

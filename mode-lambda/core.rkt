@@ -23,10 +23,12 @@
    [theta _float]
    [mode7-coeff _float]
    [horizon _float]
-   [fov _float]))
+   [fov _float]
+   [wrap-x? _bool]
+   [wrap-y? _bool]))
 
 (define default-layer
-  (make-layer-data 0.0 0.0 0.0 0.0 1.0 1.0 0.0 0.0 0.0 0.0))
+  (make-layer-data 0.0 0.0 0.0 0.0 1.0 1.0 0.0 0.0 0.0 1.0 #f #f))
 
 ;; Mode7 Docs:
 ;; - http://www.coranac.com/tonc/text/mode7.htm

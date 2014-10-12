@@ -180,12 +180,12 @@
              (sprite 7
                      (fl+ 4.0 (fx->fl (fx* 8 x)))
                      (fl+ 4.0 (fx->fl (fx* 8 y)))
-                     0 0 0 0.5
+                     0 0 0 0.25
                      (vector-ref block-styles 1)
                      (palette-idx csd 'med0)
                      1.0 1.0 0.0))))
        (values (list* block-sprites background-sprites foreground-sprites)
-               (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)) 
+               (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
                               +inf.0 +inf.0
                               1.0 1.0 0.0
                               2.0 0.0 (fl* 8.0 (fl/ (fx->fl W) (fx->fl H))))
@@ -207,6 +207,33 @@
                 1.0 1.0 0.0)
         (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
                        (fl/ (fx->fl W) 8.0) (fl/ (fx->fl H) 8.0)
+                       0.5 0.5 0.0
+                       0.0 0.0 1.0)
+                #f #f #f #f #f #f #f))]
+      ["wrapping"
+       (define (star@ x y r g b)
+         (sprite 0 x y
+                 r g b 1.0
+                 (sprite-idx csd 'star) 0
+                 0.5 0.5 0.0))
+       (values
+        (list (star@ 0.0 0.0 255 255 255)
+              (star@ (fl- (fl* 1.0 (fl/ (fx->fl W) 4.0)) (fl* 4.0 (fx->fl W)))
+                     (fl* 1.0 (fl/ (fx->fl H) 4.0))
+                     128 0 255)
+              (star@ (fl* 1.0 (fl/ (fx->fl W) 2.0))
+                     (fl* 1.0 (fl/ (fx->fl H) 2.0))
+                     255 0 255)
+              (star@ (fl+ (fl* 3.0 (fl/ (fx->fl W) 4.0)) (fl* 4.0 (fx->fl W)))
+                     (fl* 3.0 (fl/ (fx->fl H) 4.0))
+                     255 0 128)
+              (star@ 0.0 (fl* (fl/ 1.0 4.0) (fx->fl H)) 255 0 0)
+              (star@ (fx->fl W) (fl* (fl/ 3.0 4.0) (fx->fl H)) 0 255 0)
+              (star@ (fl* (fl/ 1.0 4.0) (fx->fl W)) 0.0 255 255 0)
+              (star@ (fl* (fl/ 3.0 4.0) (fx->fl W)) (fx->fl H) 0 0 255))
+        (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
+                       (fx->fl (/ W 2)) (fx->fl (/ H 2))
+                       #t #t
                        0.5 0.5 0.0
                        0.0 0.0 1.0)
                 #f #f #f #f #f #f #f))]))
