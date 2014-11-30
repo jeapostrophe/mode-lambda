@@ -59,7 +59,7 @@
       (define n (string->symbol (format fmt i)))
       (add-palette! sd n (color->palette c))
       n))
-  (define cw-slots (* 3 4 7))
+  (define cw-slots (* 3 7))
   (define ps
     (append (list (add-palette! sd 'grayscale (color->palette GRAY))
                   'grayscale)

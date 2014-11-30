@@ -7,4 +7,4 @@ XXX implement OpenGL backend
 XXX ensure that layers can be used effectively for minimap
 XXX make animated gif
 XXX make opencl backend
-xxx make simple canvas interop for demos (before making super-bang)
+xxx make chaos/gui/mode-lambda
