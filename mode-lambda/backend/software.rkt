@@ -434,6 +434,24 @@
 
     combined-bs))
 
+(require mode-lambda/backend/lib)
+(define gui-mode 'draw)
+(define draw/dc/c
+  (backend/c ()
+             (-> exact-nonnegative-integer?
+                 exact-nonnegative-integer?
+                 any/c
+                 any)))
+(define (stage-draw/dc csd width height)
+  (define render (stage-render csd width height))
+  (λ (layer-config sprite-tree)
+    (define bs (render layer-config sprite-tree))
+    (define bm (argb-bytes->bitmap width height bs))
+    (λ (w h dc)
+      (draw-bitmap! w width h height bm dc))))
+
 (provide
  (contract-out
-  [stage-render (stage-backend/c render/c)]))
+  [gui-mode symbol?]
+  [stage-render (stage-backend/c render/c)]
+  [stage-draw/dc (stage-backend/c draw/dc/c)]))

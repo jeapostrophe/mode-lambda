@@ -88,8 +88,10 @@
 (define-syntax-rule (backend/c (addl-input ...) output)
   (-> layer-vector/c tree/c addl-input ... output))
 
-(define draw!/c (backend/c () void?))
-(define render/c (backend/c () bytes?))
+(define draw!/c
+  (backend/c () void?))
+(define render/c
+  (backend/c () bytes?))
 
 (define (stage-backend/c output/c)
   (-> compiled-sprite-db?

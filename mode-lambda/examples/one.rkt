@@ -11,7 +11,9 @@
          file/gunzip
          gfx/color
          mode-lambda
-         mode-lambda/backend/software)
+         lux
+         lux/chaos/gui
+         lux/chaos/gui/key)
 
 (define (random-byte) (random 256))
 
@@ -34,7 +36,15 @@
                           1)))))
     R))
 
-(define (go mode)
+;; SNES
+(define W 256)
+(define H 224)
+;; GB-SNES
+(set! W (* 26 16))
+(set! H (* 26 9))
+(define cw-slots (* 3 7))
+
+(define (prepare-renderi stage-draw/dc)
   (define p (build-path here "edb"))
   (define sprs (build-path p "monochrome"))
   (unless (directory-exists? sprs)
@@ -46,12 +56,6 @@
     (untar in-bytes
            #:dest p))
 
-  ;; SNES
-  (define W 256)
-  (define H 224)
-  ;; GB-SNES
-  (set! W (* 26 16))
-  (set! H (* 26 9))
   (define sd (make-sprite-db))
   (define (add-cw! CW fmt)
     (for/list ([c (in-list CW)]
@@ -59,7 +63,6 @@
       (define n (string->symbol (format fmt i)))
       (add-palette! sd n (color->palette c))
       n))
-  (define cw-slots (* 3 7))
   (define ps
     (append (list (add-palette! sd 'grayscale (color->palette GRAY))
                   'grayscale)
@@ -90,19 +93,24 @@
        (define n (string->symbol (regexp-replace #rx".png$" (path->string f) "")))
        (add-sprite!/file sd n (build-path sprs f))
        n)))
+
+  (define original-csd (compile-sprite-db sd))
+  (define csd-p (build-path here "csd"))
+  (save-csd! original-csd csd-p)
+  (define csd (load-csd csd-p))
+  (define render (stage-draw/dc csd W H))
+  (vector ns csd render))
+
+(define (go renderi mode)
+  (match-define (vector ns csd render) renderi)
   (define (random-vector-ref l)
     (vector-ref l (random (vector-length l))))
   (define (random-list-ref l)
     (list-ref l (random (length l))))
   (define (random-spr)
     (random-list-ref ns))
-  (define original-csd (compile-sprite-db sd))
-  (define csd-p (build-path here "csd"))
-  (save-csd! original-csd csd-p)
-  (define csd (load-csd csd-p))
   (define (random-spr-idx)
     (sprite-idx csd (random-spr)))
-  (define render (stage-render csd W H))
   (define-values
     (s lc)
     (match mode
@@ -217,20 +225,52 @@
                        #:wrap-x? #t #:wrap-y? #t
                        #:mx 0.5 #:my 0.5)
                 #f #f #f #f #f #f #f))]))
-  (define last-bs
-    (time
-     (for/fold ([bs #f]) ([i (in-range 4)])
-       (render lc s))))
-  (let ()
-    (local-require racket/draw
-                   racket/class)
-    (define root-bm
-      (make-bitmap W H))
-    (send root-bm set-argb-pixels 0 0 W H last-bs)
-    (send root-bm save-file (build-path here "lambda.png") 'png 100 #:unscaled? #t)))
+  (render lc s))
+
+(struct one
+  (renderi mode rt)
+  #:methods gen:word
+  [(define (word-fps w)
+     30.0)
+   (define (word-label s ft)
+     (lux-standard-label "Mode-λ" ft))
+   (define (word-output w)
+     (one-rt w))
+   (define (word-event w e)
+     (define closed? #f)
+     (cond
+      [(or (eq? e 'close)
+           (and (key-event? e)
+                (eq? 'escape (key-event-code e))))
+       #f]
+      [(key-event? e)
+       (define old (one-mode w))
+       (define new
+         (match (key-event-code e)
+           [#\r "rand"]
+           [#\g "grid"]
+           [#\b "blocks"]
+           [#\t "tile"]
+           [#\w "wrapping"]
+           [_ old]))
+       (if (equal? old new)
+           w
+           (update-rt
+            (struct-copy one w
+                         [mode new])))]
+      [else
+       w]))
+   (define (word-tick w)
+     w)])
+
+(define (update-rt w)
+  (struct-copy one w
+               [rt (go (one-renderi w) 
+                       (one-mode w))]))
 
 (module+ main
-  (require racket/cmdline)
-  (command-line
-   #:args modes
-   (for-each go modes)))
+  (require mode-lambda/backend/software)
+  (call-with-chaos
+   (make-gui #:mode gui-mode)
+   (λ ()
+     (fiat-lux (update-rt (one (prepare-renderi stage-draw/dc) "blocks" #f))))))
