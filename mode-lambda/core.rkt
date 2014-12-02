@@ -68,7 +68,10 @@
    [layer _byte]
    [r _byte]
    [g _byte]
-   [b _byte]))
+   [b _byte]
+   ;; xxx these are shorts for padding
+   [horiz _short]
+   [vert _short]))
 
 (define (tree-for f t)
   (match t
@@ -78,6 +81,14 @@
      (tree-for f d)]
     [_
      (f t)]))
+
+(define (tree-fold f ret t)
+  (match t
+    [(or #f (? void?) '()) ret]
+    [(cons a d)
+     (tree-fold f (tree-fold f ret a) d)]
+    [_
+     (f ret t)]))
 
 (define tree/c
   any/c)

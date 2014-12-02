@@ -157,7 +157,8 @@
     ;; create more vertex data: 4 wraps * 2 triangles * 3 verts * 1
     ;; sprite
     (define (geometry-shader s)
-      (match-define (sprite-data dx dy mx my theta a.0 spr-idx pal-idx layer r g b) s)
+      (match-define (sprite-data dx dy mx my theta a.0 spr-idx pal-idx layer 
+                                 r g b _ _) s)
       (match-define (layer-data Lcx Lcy Lhw Lhh Lmx Lmy Ltheta
                                 _ _ fov wrap-x? wrap-y?)
                     (or (vector-ref layer-config layer)
@@ -436,12 +437,6 @@
 
 (require mode-lambda/backend/lib)
 (define gui-mode 'draw)
-(define draw/dc/c
-  (backend/c ()
-             (-> exact-nonnegative-integer?
-                 exact-nonnegative-integer?
-                 any/c
-                 any)))
 (define (stage-draw/dc csd width height)
   (define render (stage-render csd width height))
   (λ (layer-config sprite-tree)

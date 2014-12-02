@@ -127,11 +127,10 @@
                 #f #f #f #f #f #f #f))]
       ["grid"
        (values
-        (for*/list ([x (in-range W)]
-                    [y (in-range W)])
+        (for*/list ([x (in-range (quotient W 10))]
+                    [y (in-range (quotient W 10))])
           (sprite (exact->inexact (* 16 x)) (exact->inexact (* 16 y))
-                  (random-spr-idx)
-                  #:r 255))
+                  (random-spr-idx)))
         (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)))
                 #f #f #f #f #f #f #f))]
       ["blocks"
@@ -144,6 +143,7 @@
        (define color-schemes
          (for/vector ([c (in-vector scheme)])
            (palette-idx csd (string->symbol (format "hi~a" c)))))
+       (printf "color-schemes: ~v\n" color-schemes)
        (define block-sprites
          (for*/list ([c (in-range (quotient (quotient W 8) 4))]
                      [r (in-range (quotient (quotient H 8) 4))])
@@ -269,7 +269,8 @@
                        (one-mode w))]))
 
 (module+ main
-  (require mode-lambda/backend/software)
+  ;;(require mode-lambda/backend/software)
+  (require mode-lambda/backend/opengl)
   (call-with-chaos
    (make-gui #:mode gui-mode)
    (λ ()

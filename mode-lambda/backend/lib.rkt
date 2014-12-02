@@ -1,5 +1,7 @@
 #lang racket/base
-(require racket/class)
+(require mode-lambda/core
+         racket/contract/base
+         racket/class)
 
 (define (argb-bytes->bitmap w h bs)
   (local-require racket/draw)
@@ -21,6 +23,13 @@
   (define y (/ (/ (- h SH) 2) scale))
   (send dc set-scale scale scale)
   (send dc draw-bitmap bm x y))
+
+(define draw/dc/c
+  (backend/c ()
+             (-> exact-nonnegative-integer?
+                 exact-nonnegative-integer?
+                 any/c
+                 any)))
 
 (provide
  ;; xxx

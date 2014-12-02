@@ -206,7 +206,7 @@
                 #:mx [mx 1.0]
                 #:my [my 1.0]
                 #:theta [theta 0.0])
-  (make-sprite-data dx dy mx my theta a spr-idx pal-idx layer r g b))
+  (make-sprite-data dx dy mx my theta a spr-idx pal-idx layer r g b 0 0))
 
 (define (layer cx cy
                #:hw [hw +inf.0]
