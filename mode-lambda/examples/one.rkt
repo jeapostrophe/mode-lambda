@@ -270,7 +270,7 @@
 
 (module+ main
   ;;(require mode-lambda/backend/software)
-  (require mode-lambda/backend/opengl)
+  (require mode-lambda/backend/gl)
   (call-with-chaos
    (make-gui #:mode gui-mode)
    (λ ()
