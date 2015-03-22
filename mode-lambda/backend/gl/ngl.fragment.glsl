@@ -11,47 +11,35 @@ in vec2 TexCoord;
 in float Palette;
 out vec4 out_Color;
 
-float blurry_mess ( float v ) {
-  return v;
-}
-
-float works_for_menu ( float v ) {
-  return ceil(v)+0.5;
-}
-
-float works_for_tennis_bg ( float v ) {
-  return round(v)+0.5;
-}
-
-// XXX This is strange, because before I changed menu's resolution,
-// floor was broken on it.
-float works_for_tennis_bg_and_menu ( float v ) {
-  return floor(v)+0.5;
-}
-
 float clampit ( float v ) {
-  //return works_for_menu(v);
-  return works_for_tennis_bg_and_menu(v);
+  return floor(v)+0.5;
 }
  
 void main(void)
 {
+  vec4 PixelColor;  
+  
   ivec2 TexCoord_uv = ivec2(clampit(TexCoord.x), clampit(TexCoord.y));
   vec4 SpriteColor = texelFetch(SpriteAtlasTex, TexCoord_uv, 0);
 
-  float PaletteOffset = SpriteColor.g * 255;
+  if ( Palette == 0.0 ) {
+    PixelColor = SpriteColor;
+  } else {
+    float PaletteOffset = SpriteColor.g * 255;
+    ivec2 PalCoord_uv = ivec2( PaletteOffset, Palette );
+    PixelColor = texelFetch(PaletteAtlasTex, PalCoord_uv, 0 );
+  }
   
-  ivec2 PalCoord_uv = ivec2( PaletteOffset, Palette );
-  vec4 PaletteColor = texelFetch(PaletteAtlasTex, PalCoord_uv, 0 );
+  // Colors are not pre-multiplied
+  PixelColor.rgb = PixelColor.a * PixelColor.rgb;
   
-  // Palette is not pre-multiplied
-  PaletteColor.rgb = PaletteColor.a * PaletteColor.rgb;
+  //out_Color.a = PixelColor.a * Color.a;
+  //out_Color.r = PixelColor.r + Color.r;
+  //out_Color.g = PixelColor.g + Color.g;
+  //out_Color.b = PixelColor.b + Color.b;
+  out_Color = PixelColor + Color;
   
-  // XXX Do proper blending, allow color to set the alpha, etcs
-  out_Color = Color + PaletteColor;
-
   if ( out_Color.a == 0.0 ) {
     discard;
   }
-
 }

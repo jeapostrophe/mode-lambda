@@ -346,9 +346,9 @@
    ['int32 (values #t GL_INT)]
    ['float (values #f GL_FLOAT)]))
 
-;; xxx simplify this
+;; xxx simplify this & update to match software
 (define-shader-source VertexShader "gl/ngl.vertex.glsl")
-;; xxx simplify this
+;; xxx simplify this & update to match software
 (define-shader-source FragmentShader "gl/ngl.fragment.glsl")
 
 (define DrawnMult 6)
