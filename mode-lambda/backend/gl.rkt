@@ -15,9 +15,7 @@
          racket/list
          racket/match
          racket/runtime-path
-         (except-in opengl
-                    bitmap->texture
-                    load-texture)
+         opengl
          (only-in math/base
                   sum)
          (only-in ffi/unsafe
@@ -277,41 +275,7 @@
       (bytes-set! pixels (+ 1 offset) (quotient (* alpha green) 255))
       (bytes-set! pixels (+ 2 offset) (quotient (* alpha blue) 255))
       (bytes-set! pixels (+ 3 offset) alpha))))
-
-(define (bitmap->texture bm)
-  (let* ((w (send bm get-width))
-         (h (send bm get-height))
-         (pixels (make-bytes (* w h 4)))
-         (texture (u32vector-ref (glGenTextures 1) 0)))
-
-    (define (load-texture-data)
-      (printf "loading texture data for ~v\n" bm)
-      (glTexImage2D GL_TEXTURE_2D 0 GL_RGBA8 w h 0 GL_RGBA GL_UNSIGNED_BYTE pixels))
-
-    (send bm get-argb-pixels 0 0 w h pixels)
-    ;; massage data.
-    (argb->rgba! pixels)
-
-    (glBindTexture GL_TEXTURE_2D texture)
-    (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_S GL_CLAMP_TO_EDGE)
-    (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_T GL_CLAMP_TO_EDGE)
-    (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MAG_FILTER GL_LINEAR)
-    (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MIN_FILTER GL_LINEAR)
-    (load-texture-data)
-
-    texture))
-
-;; Directly load a file from disk as texture.
-(define (load-texture filename)
-  (bitmap->texture (read-bitmap filename)))
 ;; </COPIED>
-
-;; xxx remove file, just use bytes
-(define (load-texture-bs bs)
-  (define filename (make-temporary-file "~a.png"))
-  (display-to-file bs filename #:exists 'replace)
-  (begin0 (load-texture filename)
-    (delete-file filename)))
 
 (define-cstruct _sprite-info
   ([x _float]     ;; 0
@@ -479,9 +443,21 @@
                   sprite-atlas-size sprite-atlas-size 0                  
                   GL_RED GL_UNSIGNED_BYTE
                   sprite-atlas-bytes))
-
-  (define PaletteAtlasId
-    (load-texture-bs palette-atlas-bs))
+  
+  (define PaletteAtlasId (u32vector-ref (glGenTextures 1) 0))
+  (glBindTexture GL_TEXTURE_2D PaletteAtlasId)
+  (2D-defaults)
+  (let ()
+    (printf "loading palette atlas texture\n")
+    (argb->rgba! palette-atlas-bs)
+    (glTexImage2D GL_TEXTURE_2D
+                  0 GL_RGBA
+                  PALETTE-DEPTH 
+                  (/ (bytes-length palette-atlas-bs)
+                     (* 4 PALETTE-DEPTH))
+                  0                  
+                  GL_RGBA GL_UNSIGNED_BYTE
+                  palette-atlas-bs))
 
   (define SpriteIndexId (u32vector-ref (glGenTextures 1) 0))
   (glBindTexture GL_TEXTURE_2D SpriteIndexId)
@@ -799,45 +775,11 @@
       (values atlas-bin
               index-bin)))
 
-  ;; Make the palette
-  (define (load-palette csd pal-idx)
-    (define pn
-      (for/or ([(n idx) (in-hash pal->idx)]
-               #:when (= idx pal-idx))
-        n))
-    (palette pn
-             ;; xxx really PALETTE-DEPTH not 10
-             (for/vector ([i (in-range 10)])
-               (for/vector ([j (in-range 4)])
-                 (pixel-ref pal-bs PALETTE-DEPTH #f
-                            i pal-idx j)))))
-
-  (define palette-atlas
-    (let ()
-      ;; xxx remove file, just grab bytes
-      (define pal-p (make-temporary-file))
-      (define palettes (build-list (sub1 pal-size) add1))
-      (define palette-depth 16)
-      (define pal-bm
-        (make-object bitmap% palette-depth (length palettes) #f #t))
-      (define pal-bm-dc (new bitmap-dc% [bitmap pal-bm]))
-
-      (for ([pn (in-list palettes)]
-            [y (in-naturals)])
-        (define p (load-palette csd pn))
-        (for ([c (in-vector (palette-color%s p))]
-              [x (in-naturals)])
-          (send pal-bm-dc set-pixel x y c)))
-
-      (send pal-bm save-file pal-p 'png 100)
-      (begin0 (file->bytes pal-p)
-        (delete-file pal-p))))
-
   ;; Make index
   (values new-sprite-index
           texture-atlas
           texture-index
-          palette-atlas))
+          pal-bs))
 
 (define (convert-sprites csd old->new sprite-tree)
   (define idx->w*h*tx*ty (compiled-sprite-db-idx->w*h*tx*ty csd))
