@@ -47,36 +47,13 @@
 (module+ test
   (require rackunit))
 
-(define-syntax-rule (log* e ...) (begin (log e) ...))
-(define-syntax-rule (log e) (begin (printf "~v\n" `e) e))
-
 (define-shader-source fragment-source "gl/crt.fragment.glsl")
 (define-shader-source vertex-source "gl/crt.vertex.glsl")
 
-;; This width and height is based on the SNES, which was 256x239. The
-;; smallest 16:9 rectangle that this fits in is 432x243, which is
-;; crt-scale 27, but this makes it so that we have an odd number in
-;; various places. So, we'll use crt-scale 28, or 448x252. This makes
-;; the GBIES basically a "widescreen" SNES.
-;;
-;; But, it is good to have the resolution always divisible by 8, 16,
-;; and 32, which are common sprite sizes. (Just 16 would probably be
-;; okay, but that is smaller than the SNES in height.)
-;;
-;; But, the small SNES size was 256x224, which is very close to scale
-;; 25 or scale 26, which would be nice and pure
 (define crt-scale 32)
 (define crt-width (* crt-scale 16))
 (define crt-height (* crt-scale 9))
 
-;; FBO stuff based on: http://www.songho.ca/opengl/gl_fbo.html
-
-;; shader stuff based on
-;; :bsnes_v085-source/bsnes/ruby/video/opengl.hpp
-
-;; We want to find how to scale the CRT to the real screen, but it is
-;; important to only use powers of two in the decimals and only up to
-;; 2^5
 (define (quotient* x y)
   (define-values (q r) (quotient/remainder x y))
   (define (recur r i max-i)
@@ -92,51 +69,6 @@
        [else
         (+ d (recur (- r dy) (add1 i) max-i))])]))
   (+ q (recur r 1 5)))
-(module+ test
-  (define-syntax-rule (check-1q name x y e-r)
-    (begin
-      (define a-r (quotient* x y))
-      (check-= a-r e-r 0
-               (format "~a: ~a vs ~a"
-                       name
-                       (exact->inexact a-r)
-                       (exact->inexact e-r)))))
-  (define-syntax-rule (check-q* name (w h) (e-ws e-hs))
-    (begin
-      (check-1q (format "~a width(~a)" name w) w crt-width e-ws)
-      (check-1q (format "~a height(~a)" name h) h crt-height e-hs)))
-
-  (define ws 1)
-  (define hs 1)
-
-  (check-q* "PS Vita"
-            (960 544)
-            ((+ 1 1/2 1/4 1/8)
-             (+ 1 1/2 1/4 1/8)))
-  (check-q* "iPhone 4"
-            (960 640)
-            ((+ 1 1/2 1/4 1/8)
-             (+ 2 1/8 1/16)))
-  (check-q* "Normal laptop"
-            (1024 640)
-            (2
-             (+ 2 1/8 1/16)))
-  (check-q* "iPhone 5"
-            (1136 640)
-            ((+ 2 1/8 1/16)
-             (+ 2 1/8 1/16)))
-  (check-q* "720p"
-            (1280 720)
-            ((+ 2 1/2)
-             (+ 2 1/2)))
-  (check-q* "1080p"
-            (1920 1080)
-            ((+ 3 1/2 1/4)
-             (+ 3 1/2 1/4)))
-  (check-q* "MacBook Pro Retina, Arch"
-            (1440 900)
-            ((+ 2 1/2 1/4 1/16)
-             (+ 3 1/8))))
 
 (define (make-draw-on-crt)
   (eprintf "You are using OpenGL ~a\n"
@@ -443,17 +375,6 @@
                     mx my theta
                     pal spr
                     0 0))
-
-(module+ test
-  (define vert-size (ctype-sizeof _sprite-info))
-  (eprintf "One vert is ~a bytes\n" vert-size)
-  (eprintf "One sprite is ~a verts\n" DrawnMult)
-  (eprintf "One sprite is ~a bytes\n" (* DrawnMult vert-size))
-  (eprintf "One sprite @ 60 FPS is ~a bytes per second\n" (* 60 DrawnMult vert-size))
-  (eprintf "Intel HD Graphics 4000 would give ~a sprites at 60 FPS (considering only memory)\n"
-           (real->decimal-string
-            (/ (* 25.6 1024 1024 1024)
-               (* 60 DrawnMult vert-size)))))
 
 (define ctype-name->bytes
   (match-lambda
@@ -798,96 +719,10 @@
          racket/list
          racket/match
          racket/runtime-path)
-(module+ test
-  (require rackunit))
-
-;; Library Code
-
-(define (directory-list* d)
-  (sort
-   (map path->string
-        (directory-list d))
-   string-ci<=?))
-(define (all-from root suffix)
-  (define suffix-re
-    (regexp (format "\\.~a$" (regexp-quote suffix))))
-  (define root-re
-    (regexp (format "^~a/" (regexp-quote (path->string root)))))
-  (map (λ (p)
-         (regexp-replace root-re
-                         (regexp-replace suffix-re
-                                         (path->string p)
-                                         "")
-                         ""))
-       (find-files (λ (p) (regexp-match suffix-re (path->string p)))
-                   root)))
-
-(struct db (pth))
-(define-runtime-path default-db-pth "default-db")
-(define (load-db db-pth)
-  (unless (directory-exists? db-pth)
-    (copy-directory/files default-db-pth db-pth))
-  (db db-pth))
-(define (db-palettes a-db)
-  (match-define (db db-path) a-db)
-  (all-from (build-path db-path "palettes") "pal"))
-(define (db-sprites a-db)
-  (match-define (db db-path) a-db)
-  (all-from (build-path db-path "sprites") "spr"))
-
-(define (load-last a-db)
-  (match-define (db db-path) a-db)
-  (define last-path (build-path db-path "last.rktd"))
-  (define last-sprite
-    (if (file-exists? last-path)
-      (file->value last-path)
-      #f))
-  (unless (file-exists?
-           (build-path db-path "sprites" (format "~a.spr" last-sprite)))
-    (set! last-sprite #f))
-  (unless last-sprite
-    (set! last-sprite (first (db-sprites a-db))))
-  last-sprite)
-
-(define (last-save! a-db last-sprite)
-  (match-define (db db-path) a-db)
-  (define last-path (build-path db-path "last.rktd"))
-  (write-to-file last-sprite last-path
-                 #:exists 'replace))
 
 (struct sprite (name width height
                      [images #:mutable]
                      [palettes #:mutable]))
-(define (load-sprite a-db sprite-name)
-  (match-define (db db-path) a-db)
-  (define sprite-dir
-    (build-path db-path "sprites" (format "~a.spr" sprite-name)))
-  (match-define (cons w h)
-                (file->value (build-path sprite-dir "meta")))
-  (define how-many-images
-    (count (λ (p) (regexp-match #rx".img$" p))
-           (directory-list* sprite-dir)))
-  (define images
-    (for/vector ([i (in-range how-many-images)])
-      (file->bytes
-       (build-path sprite-dir (format "~a.img" i)))))
-  (define palettes (file->value (build-path sprite-dir "palettes")))
-  (sprite sprite-name w h images palettes))
-(define (sprite-save! a-db a-sprite)
-  (match-define (db db-path) a-db)
-  (match-define (sprite sprite-name w h images palettes) a-sprite)
-  (define sprite-dir
-    (build-path db-path "sprites" (format "~a.spr" sprite-name)))
-  (make-directory* sprite-dir)
-  (write-to-file (cons w h) (build-path sprite-dir "meta")
-                 #:exists 'replace)
-  (for ([i (in-naturals)]
-        [iv (in-vector images)])
-    (display-to-file iv
-                     (build-path sprite-dir (format "~a.img" i))
-                     #:exists 'replace))
-  (write-to-file palettes (build-path sprite-dir "palettes")
-                 #:exists 'replace))
 
 (struct palette (name colors))
 (define (palette-color->color% c)
@@ -896,21 +731,6 @@
 (define (palette-color%s p)
   (for/vector ([c (in-vector (palette-colors p))])
     (palette-color->color% c)))
-(define (load-palette a-db pn)
-  (match-define (db db-path) a-db)
-  (palette pn
-           (file->value
-            (build-path db-path "palettes"
-                        (format "~a.pal" pn)) )))
-(define (palette-save! a-db p)
-  (match-define (db db-path) a-db)
-  (match-define (palette pn cvs) p)
-  (define ppath
-    (build-path db-path "palettes"
-                (format "~a.pal" pn)))
-  (make-directory* (path-only ppath))
-  (write-to-file cvs ppath
-                 #:exists 'replace))
 
 ;; Old copied stuff from GB (apse/compile.rkt)
 
@@ -945,7 +765,7 @@
       (define sprites
         (map (λ (i)
                (match-define (vector w h tx ty) (vector-ref idx->w*h*tx*ty i))
-               (define (img x y) 
+               (define (img x y)
                  (pixel-ref atlas-bs atlas-size #f (+ tx x) (+ ty y) 2))
                (sprite i
                        w h
@@ -965,11 +785,6 @@
               (λ (s*i) (sprite-height (vector-ref s*i 0)))
               images))
       (define how-many-places (add1 (length places)))
-      
-      (printf "sprites (~v) images (~v) places (~v)\n"
-              (length sprites)
-              (length images)
-              (length places))
 
       (define atlas-bin
         (make-bytes (* tex-size tex-size)))
@@ -994,54 +809,48 @@
         (define ps (hash-ref sprite->img-placements s))
         (vector-set! ps i (vector pi ax ay)))
 
-      (begin0
-          (append
-           (list ";; sprite info")
-           (list `(define-sprite-atlas ,how-many-places ,tex-size))
-           (list ";; sprites")
-           (for/list ([(e vs) (in-hash sprite->img-placements)])
-             (match e
-               ['none
-                `(define-sprite none 0 0 (0))]
-               [(? sprite? s)
-                (define w (sprite-width s))
-                (define h (sprite-height s))
-                (define pis
-                  (for/list ([v (in-vector vs)]
-                             [i (in-naturals)]
-                             [img (in-vector (sprite-images s))])
-                    (match-define (vector pi ax ay) v)
+      (for ([(e vs) (in-hash sprite->img-placements)])
+        (match e
+          ['none
+           (void)]
+          [(? sprite? s)
+           (define w (sprite-width s))
+           (define h (sprite-height s))
+           (define pis
+             (for/list ([v (in-vector vs)]
+                        [i (in-naturals)]
+                        [img (in-vector (sprite-images s))])
+               (match-define (vector pi ax ay) v)
 
-                    (for* ([x (in-range w)]
-                           [y (in-range h)])
-                      (define palette-val
-                        (img x y))
+               (for* ([x (in-range w)]
+                      [y (in-range h)])
+                 (define palette-val
+                   (img x y))
 
-                      (bytes-set! atlas-bin
-                                  (+ (* tex-size (+ ay y)) (+ ax x))
-                                  palette-val))
+                 (bytes-set! atlas-bin
+                             (+ (* tex-size (+ ay y)) (+ ax x))
+                             palette-val))
 
-                    (for ([v (in-list (list ax ay w h))]
-                          [o (in-naturals)])
-                      (real->floating-point-bytes
-                       v index-bytes-per-value
-                       (system-big-endian?) index-bin
-                       (+ (* index-values
-                             index-bytes-per-value
-                             pi)
-                          (* index-bytes-per-value o))))
+               (for ([v (in-list (list ax ay w h))]
+                     [o (in-naturals)])
+                 (real->floating-point-bytes
+                  v index-bytes-per-value
+                  (system-big-endian?) index-bin
+                  (+ (* index-values
+                        index-bytes-per-value
+                        pi)
+                     (* index-bytes-per-value o))))
 
-                    pi))
+               pi))
 
-                (hash-set! old->new-ht (sprite-name s) (first pis))
-                `(define-sprite ,(sprite-name s) ,w ,h ,pis)])))
+           (hash-set! old->new-ht (sprite-name s) (first pis))]))
 
-        (display-to-file (gzip-bytes atlas-bin)
-                         #:exists 'replace
-                         atlas-p)
-        (display-to-file (gzip-bytes index-bin)
-                         #:exists 'replace
-                         idx-bin-p))))
+      (display-to-file (gzip-bytes atlas-bin)
+                       #:exists 'replace
+                       atlas-p)
+      (display-to-file (gzip-bytes index-bin)
+                       #:exists 'replace
+                       idx-bin-p)))
 
   ;; Make the palette
   (define (load-palette csd pal-idx)
@@ -1056,30 +865,21 @@
                  (pixel-ref pal-bs PALETTE-DEPTH #f
                             i pal-idx j)))))
 
-  (define palette-indexes
-    (let ()
-      (define palettes (build-list (sub1 pal-size) add1))
-      (define palette-depth 16)
-      (define pal-bm
-        (make-object bitmap% palette-depth (length palettes) #f #t))
-      (define pal-bm-dc (new bitmap-dc% [bitmap pal-bm]))
+  (let ()
+    (define palettes (build-list (sub1 pal-size) add1))
+    (define palette-depth 16)
+    (define pal-bm
+      (make-object bitmap% palette-depth (length palettes) #f #t))
+    (define pal-bm-dc (new bitmap-dc% [bitmap pal-bm]))
 
-      (begin0
-          (append
-           (list ";; palette info")
-           (list `(define-palette-atlas
-                   ,(length palettes)
-                   ,palette-depth))
-           (list ";; palettes")
-           (for/list ([pn (in-list palettes)]
-                      [y (in-naturals)])
-             (define p (load-palette csd pn))
-             (for ([c (in-vector (palette-color%s p))]
-                   [x (in-naturals)])
-               (send pal-bm-dc set-pixel x y c))
-             `(define-palette ,(palette-name p) ,y)))
+    (for ([pn (in-list palettes)]
+          [y (in-naturals)])
+      (define p (load-palette csd pn))
+      (for ([c (in-vector (palette-color%s p))]
+            [x (in-naturals)])
+        (send pal-bm-dc set-pixel x y c)))
 
-        (send pal-bm save-file pal-p 'png 100))))
+    (send pal-bm save-file pal-p 'png 100))
 
   ;; Make index
   old->new)
