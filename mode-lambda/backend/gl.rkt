@@ -353,12 +353,13 @@
 
 (define DrawnMult 6)
 
-(define (make-draw sprite-atlas-bytes
-                   sprite-index-data
-                   palette-atlas-bs
-                   width height)
-  (define SpriteData-count
-    0)
+(define (make-draw csd width height)
+  (match-define
+   (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
+                       pal-size pal-bs pal->idx)
+   csd)
+
+  (define SpriteData-count 0)
   (define SpriteData #f)
 
   (define (install-object! i o)
@@ -368,9 +369,6 @@
         (set-sprite-info-vert! o Vert)
         (cvector-set! SpriteData (+ (* i 6) j) o)
         ...))
-    ;; I once thought I could use a degenerative triangle strip, but
-    ;; that adds 2 additional vertices on all but the first and last
-    ;; triangles, which would save me exactly 2 vertices total.
     (point-install! -1 +1 0)
     (point-install! +1 +1 1 4)
     (point-install! -1 -1 2 3)
@@ -392,23 +390,15 @@
 
   (define DrawType GL_TRIANGLES)
   (define AttributeCount 6)
-
-  (define *initialize-count*
-    (* 2 512))
+  (define *initialize-count* (* 2 512))
 
   (define (install-objects! t)
-    (tree-fold
-     (λ (offset o)
-       (install-object! offset o)
-       (add1 offset))
-     0
-     t))
+    (tree-fold (λ (offset o)
+                 (install-object! offset o)
+                 (add1 offset))
+               0 t))
   (define (count-objects t)
-    (tree-fold
-     (λ (count o)
-       (add1 count))
-     0
-     t))
+    (tree-fold (λ (count o) (add1 count)) 0 t))
 
   (define (2D-defaults)
     (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_S GL_CLAMP_TO_EDGE)
@@ -420,13 +410,11 @@
   (glBindTexture GL_TEXTURE_2D SpriteAtlasId)
   (2D-defaults)
   (let ()
-    (define sprite-atlas-size (sqrt (/ (bytes-length sprite-atlas-bytes) 4)))
-    (printf "loading sprite atlas texture\n")
+    (define sprite-atlas-bytes (bytes-copy atlas-bs))
     (argb->rgba! sprite-atlas-bytes)
-    ;; xxx this needs to be updated for full color
     (glTexImage2D GL_TEXTURE_2D
                   0 GL_RGBA
-                  sprite-atlas-size sprite-atlas-size 0
+                  atlas-size atlas-size 0
                   GL_RGBA GL_UNSIGNED_BYTE
                   sprite-atlas-bytes))
 
@@ -434,13 +422,12 @@
   (glBindTexture GL_TEXTURE_2D PaletteAtlasId)
   (2D-defaults)
   (let ()
-    (printf "loading palette atlas texture\n")
+    (define palette-atlas-bs (bytes-copy pal-bs))
     (argb->rgba! palette-atlas-bs)
     (glTexImage2D GL_TEXTURE_2D
                   0 GL_RGBA
                   PALETTE-DEPTH
-                  (/ (bytes-length palette-atlas-bs)
-                     (* 4 PALETTE-DEPTH))
+                  pal-size
                   0
                   GL_RGBA GL_UNSIGNED_BYTE
                   palette-atlas-bs))
@@ -449,21 +436,38 @@
   (glBindTexture GL_TEXTURE_2D SpriteIndexId)
   (2D-defaults)
   (let ()
-    (define sprite-index-bytes 4)
-    (define sprite-index-count (/ (bytes-length sprite-index-data)
-                                  (* 4 sprite-index-bytes)))
-    (define sic-width (num->pow2 sprite-index-count))
+    (define sprite-index-count
+      (vector-length idx->w*h*tx*ty))
+
+    (define index-values 4)
+    (define index-bytes-per-value 4)
+    (define index-bin
+      (make-bytes (* index-values index-bytes-per-value
+                     sprite-index-count)))
+
+    (for ([vec (in-vector idx->w*h*tx*ty)]
+          [i (in-naturals)])
+      (match-define (vector w h tx ty) vec)
+
+      (for ([v (in-list (list tx ty w h))]
+            [o (in-naturals)])
+        (real->floating-point-bytes
+         v index-bytes-per-value
+         (system-big-endian?) index-bin
+         (+ (* index-values
+               index-bytes-per-value
+               i)
+            (* index-bytes-per-value o)))))
+
+    (define sic-width
+      (num->pow2 sprite-index-count))
     (define effective-sprite-index-count
       (expt 2 sic-width))
-    (printf "loading sprite index texture: ~v\n"
-            (vector sprite-index-count
-                    sic-width
-                    effective-sprite-index-count))
     (glTexImage2D GL_TEXTURE_2D
                   0 GL_RGBA32F
                   1 effective-sprite-index-count 0
                   GL_RGBA GL_FLOAT
-                  sprite-index-data))
+                  index-bin))
 
   (glLinkProgram ProgramId)
   (print-shader-log glGetProgramInfoLog 'Program ProgramId)
@@ -641,57 +645,7 @@
 
   draw)
 
-;; Old copied stuff from GB (apse/compile.rkt)
-
-(define (pixel-ref bs w h bx by i)
-  (bytes-ref bs (+ (* (* 4 w) by) (+ (* 4 bx) i))))
-
-(define (compile-static-stuff csd)
-  (match-define
-   (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
-                       pal-size pal-bs pal->idx)
-   csd)
-
-  (define-values
-    (texture-atlas
-     texture-index)
-    (let ()
-      (define atlas-bin
-        (make-bytes (* atlas-size atlas-size 4)))
-
-      (define index-values 4)
-      (define index-bytes-per-value 4)
-      (define index-bin
-        (make-bytes (* index-values index-bytes-per-value
-                       (vector-length idx->w*h*tx*ty))))
-
-      (for/list ([vec (in-vector idx->w*h*tx*ty)]
-                 [i (in-naturals)])
-        (match-define (vector w h tx ty) vec)
-
-        (for* ([x (in-range w)]
-               [y (in-range h)])
-          (bytes-set! atlas-bin
-                      (+ (* atlas-size 4 (+ ty y)) (* 4 (+ tx x)) 1)
-                      (pixel-ref atlas-bs atlas-size #f (+ tx x) (+ ty y) 2)))
-
-        (for ([v (in-list (list tx ty w h))]
-              [o (in-naturals)])
-          (real->floating-point-bytes
-           v index-bytes-per-value
-           (system-big-endian?) index-bin
-           (+ (* index-values
-                 index-bytes-per-value
-                 i)
-              (* index-bytes-per-value o)))))
-
-      (values atlas-bin
-              index-bin)))
-
-  ;; Make index
-  (values texture-atlas
-          texture-index
-          pal-bs))
+;; Middle layer
 
 (define (convert-sprites csd sprite-tree)
   (define idx->w*h*tx*ty (compiled-sprite-db-idx->w*h*tx*ty csd))
@@ -711,9 +665,6 @@
 ;; New Interface
 
 (define (stage-draw/dc csd width height)
-  ;; xxx don't do this, just use what csd contains
-  (define-values (texture-atlas texture-index palette-atlas)
-    (compile-static-stuff csd))
   (define draw-on-crt-b (box #f))
   (define draw-sprites-b (box #f))
   (λ (layer-config sprite-tree)
@@ -728,13 +679,11 @@
       (send glctx call-as-current
             (λ ()
               (unless (unbox draw-on-crt-b)
-                (set-box! draw-on-crt-b (make-draw-on-crt width height)))
+                (set-box! draw-on-crt-b
+                          (make-draw-on-crt width height)))
               (unless (unbox draw-sprites-b)
-                (set-box!
-                 draw-sprites-b
-                 (make-draw
-                  texture-atlas texture-index palette-atlas
-                  width height)))
+                (set-box! draw-sprites-b
+                          (make-draw csd width height)))
               (when last-sprites
                 ((unbox draw-on-crt-b)
                  w h
