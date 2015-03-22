@@ -347,14 +347,6 @@
    ['int32 (values #t GL_INT)]
    ['float (values #f GL_FLOAT)]))
 
-(define (make-draw . args)
-  (cond
-   [(gl-version-at-least? (list 3 3))
-    (apply make-draw/330 args)]
-   [else
-    (error 'ngl "Your version of OpenGL ~a is too old to support NGL"
-           (gl-version))]))
-
 ;; xxx simplify this
 (define-shader-source VertexShader "gl/ngl.vertex.glsl")
 ;; xxx simplify this
@@ -362,10 +354,10 @@
 
 (define DrawnMult 6)
 
-(define (make-draw/330 sprite-atlas-bytes
-                       sprite-index-data
-                       palette-atlas-bs
-                       width height)
+(define (make-draw sprite-atlas-bytes
+                   sprite-index-data
+                   palette-atlas-bs
+                   width height)
   (define SpriteData-count
     0)
   (define SpriteData #f)
@@ -654,20 +646,6 @@
 
   draw)
 
-;; Old copied stuff from GB (apse/db)
-
-(struct sprite (name width height
-                     [images #:mutable]
-                     [palettes #:mutable]))
-
-(struct palette (name colors))
-(define (palette-color->color% c)
-  (match-define (vector a r g b) c)
-  (make-object color% r g b (/ a 255)))
-(define (palette-color%s p)
-  (for/vector ([c (in-vector (palette-colors p))])
-    (palette-color->color% c)))
-
 ;; Old copied stuff from GB (apse/compile.rkt)
 
 (define (pixel-ref bs w h bx by i)
@@ -695,18 +673,12 @@
       (for/list ([vec (in-vector idx->w*h*tx*ty)]
                  [i (in-naturals)])
         (match-define (vector w h tx ty) vec)
-        
-        (define (img x y)
-          (pixel-ref atlas-bs atlas-size #f (+ tx x) (+ ty y) 2))        
 
         (for* ([x (in-range w)]
                [y (in-range h)])
-          (define palette-val
-            (img x y))
-
           (bytes-set! atlas-bin
                       (+ (* atlas-size (+ ty y)) (+ tx x))
-                      palette-val))
+                      (pixel-ref atlas-bs atlas-size #f (+ tx x) (+ ty y) 2)))
 
         (for ([v (in-list (list tx ty w h))]
               [o (in-naturals)])
