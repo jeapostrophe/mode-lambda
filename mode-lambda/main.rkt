@@ -105,6 +105,10 @@
            (define start (+ (* 4 PALETTE-DEPTH idx) (* 4 i)))
            (values (subbytes pal-bs start (+ start 4)) i)))
        (define from-sprite (make-bytes 4))
+       (define o-alpha 0)
+       (define   o-red 1)
+       (define o-green 2)
+       (define  o-blue 3)
        (define to-atlas (bytes 255 0 0 0))
        (for* ([bx (in-range w)]
               [by (in-range h)])
@@ -120,8 +124,8 @@
                               spr (bytes->list from-sprite) pal
                               (map bytes->list (hash-keys lookup)))
                        0)))
-         (bytes-set! to-atlas 2 which)
-         (bytes-set! to-atlas 3
+         (bytes-set! to-atlas o-green which)
+         (bytes-set! to-atlas o-blue
                      (inexact->exact (floor (* 255 (/ which PALETTE-DEPTH)))))
          (bytes-copy! atlas-bs
                       (+ (* 4 atlas-size (+ ty by))

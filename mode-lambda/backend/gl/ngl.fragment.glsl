@@ -43,6 +43,9 @@ void main(void)
   ivec2 PalCoord_uv = ivec2( PaletteOffset, Palette );
   vec4 PaletteColor = texelFetch(PaletteAtlasTex, PalCoord_uv, 0 );
   
+  // Palette is not pre-multiplied
+  PaletteColor.rgb = PaletteColor.a * PaletteColor.rgb;
+  
   // XXX Do proper blending, allow color to set the alpha, etcs
   out_Color = Color + PaletteColor;
 
