@@ -343,6 +343,12 @@
   (bitmap->texture (read-bitmap filename)))
 ;; </COPIED>
 
+(define (load-texture-bs bs)
+  (define filename (make-temporary-file "~a.png"))
+  (display-to-file bs filename #:exists 'replace)
+  (begin0 (load-texture filename)
+    (delete-file filename)))
+
 (define-cstruct _sprite-info
   ([x _float]     ;; 0
    [y _float]     ;; 1
@@ -427,9 +433,9 @@
 
 (define DrawnMult 6)
 
-(define (make-draw/330 sprite-atlas-path
-                       sprite-index-path
-                       palette-atlas-path
+(define (make-draw/330 sprite-atlas-bytes
+                       sprite-index-data
+                       palette-atlas-bs
                        width height)
   (define SpriteData-count
     0)
@@ -499,7 +505,6 @@
   (glBindTexture GL_TEXTURE_2D SpriteAtlasId)
   (2D-defaults)
   (let ()
-    (define sprite-atlas-bytes (gunzip-bytes (file->bytes sprite-atlas-path)))
     (define sprite-atlas-size (sqrt (bytes-length sprite-atlas-bytes)))
     (printf "loading sprite atlas texture\n")
     (glTexImage2D GL_TEXTURE_2D
@@ -509,14 +514,12 @@
                   sprite-atlas-bytes))
 
   (define PaletteAtlasId
-    (load-texture palette-atlas-path))
+    (load-texture-bs palette-atlas-bs))
 
   (define SpriteIndexId (u32vector-ref (glGenTextures 1) 0))
   (glBindTexture GL_TEXTURE_2D SpriteIndexId)
   (2D-defaults)
   (let ()
-    (define sprite-index-data
-      (gunzip-bytes (file->bytes sprite-index-path)))
     (define sprite-index-bytes 4)
     (define sprite-index-count (/ (bytes-length sprite-index-data)
                                   (* 4 sprite-index-bytes)))
@@ -749,18 +752,20 @@
 (define (pixel-ref bs w h bx by i)
   (bytes-ref bs (+ (* (* 4 w) by) (+ (* 4 bx) i))))
 
-(define (compile-static-stuff csd atlas-p pal-p idx-bin-p)
+(define (compile-static-stuff csd)
   (match-define
    (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
                        pal-size pal-bs pal->idx)
    csd)
   ;; Make the atlas
   (define old->new-ht (make-hasheq))
-  (define (old->new idx)
+  (define (new-sprite-index idx)
     (hash-ref old->new-ht idx
               (λ ()
                 (error 'old->new "~v" idx))))
-  (define atlas-indexes
+  (define-values
+    (texture-atlas
+     texture-index)
     (let ()
       (define sprites
         (map (λ (i)
@@ -845,12 +850,8 @@
 
            (hash-set! old->new-ht (sprite-name s) (first pis))]))
 
-      (display-to-file (gzip-bytes atlas-bin)
-                       #:exists 'replace
-                       atlas-p)
-      (display-to-file (gzip-bytes index-bin)
-                       #:exists 'replace
-                       idx-bin-p)))
+      (values atlas-bin
+              index-bin)))
 
   ;; Make the palette
   (define (load-palette csd pal-idx)
@@ -865,24 +866,31 @@
                  (pixel-ref pal-bs PALETTE-DEPTH #f
                             i pal-idx j)))))
 
-  (let ()
-    (define palettes (build-list (sub1 pal-size) add1))
-    (define palette-depth 16)
-    (define pal-bm
-      (make-object bitmap% palette-depth (length palettes) #f #t))
-    (define pal-bm-dc (new bitmap-dc% [bitmap pal-bm]))
+  (define palette-atlas
+    (let ()
+      (define pal-p (make-temporary-file))
+      (define palettes (build-list (sub1 pal-size) add1))
+      (define palette-depth 16)
+      (define pal-bm
+        (make-object bitmap% palette-depth (length palettes) #f #t))
+      (define pal-bm-dc (new bitmap-dc% [bitmap pal-bm]))
 
-    (for ([pn (in-list palettes)]
-          [y (in-naturals)])
-      (define p (load-palette csd pn))
-      (for ([c (in-vector (palette-color%s p))]
-            [x (in-naturals)])
-        (send pal-bm-dc set-pixel x y c)))
+      (for ([pn (in-list palettes)]
+            [y (in-naturals)])
+        (define p (load-palette csd pn))
+        (for ([c (in-vector (palette-color%s p))]
+              [x (in-naturals)])
+          (send pal-bm-dc set-pixel x y c)))
 
-    (send pal-bm save-file pal-p 'png 100))
+      (send pal-bm save-file pal-p 'png 100)
+      (begin0 (file->bytes pal-p)
+        (delete-file pal-p))))
 
   ;; Make index
-  old->new)
+  (values new-sprite-index
+          texture-atlas
+          texture-index
+          palette-atlas))
 
 (define (convert-sprites csd old->new sprite-tree)
   (define idx->w*h*tx*ty (compiled-sprite-db-idx->w*h*tx*ty csd))
@@ -907,11 +915,9 @@
          mode-lambda/backend/lib)
 
 (define (stage-draw/dc csd width height)
-  (define texture-atlas-path (make-temporary-file "~a.bin.gz"))
-  (define texture-index-path (make-temporary-file "~a.idx.bin.gz"))
-  (define palette-atlas-path (make-temporary-file "~a.png"))
-  (define new-sprite-index
-    (compile-static-stuff csd texture-atlas-path palette-atlas-path texture-index-path))
+  (define-values
+    (new-sprite-index texture-atlas texture-index palette-atlas)
+    (compile-static-stuff csd))
   (define draw-on-crt-b (box #f))
   (define draw-sprites-b (box #f))
   (λ (layer-config sprite-tree)
@@ -930,9 +936,7 @@
                 (set-box!
                  draw-sprites-b
                  (make-draw
-                  texture-atlas-path
-                  texture-index-path
-                  palette-atlas-path
+                  texture-atlas texture-index palette-atlas
                   crt-width
                   crt-height)))
               (when last-sprites
