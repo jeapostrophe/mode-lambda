@@ -257,8 +257,7 @@
 (define debug? #f)
 
 ;; COPIED FROM opengl/main
-;; Convert argb -> rgba, and convert to pre-multiplied alpha.
-;; (Non-premultiplied alpha gives blending artifacts and is evil.)
+;; Convert argb -> rgba
 ;; Modern wisdom is not to convert to rgba but rather use
 ;; GL_BGRA with GL_UNSIGNED_INT_8_8_8_8_REV. But that turns out not
 ;; to work on some implementations, even ones which advertise
@@ -398,23 +397,18 @@
     (* 2 512))
 
   (define (install-objects! t)
-    (let loop ([offset 0] [t t])
-      (match t
-        [(list)
-         offset]
-        [(cons b a)
-         (loop (loop offset b) a)]
-        [o
-         (install-object! offset o)
-         (add1 offset)])))
+    (tree-fold
+     (λ (offset o)
+       (install-object! offset o)
+       (add1 offset))
+     0
+     t))
   (define (count-objects t)
-    (match t
-      [(list)
-       0]
-      [(cons b a)
-       (+ (count-objects b) (count-objects a))]
-      [o
-       1]))
+    (tree-fold
+     (λ (count o)
+       (add1 count))
+     0
+     t))
 
   (define (2D-defaults)
     (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_S GL_CLAMP_TO_EDGE)
