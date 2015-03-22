@@ -5,7 +5,6 @@
          ffi/vector
          mode-lambda/backend/lib
          mode-lambda/core
-         mode-lambda/korf-bin
          racket/class
          racket/contract
          racket/draw
@@ -440,10 +439,10 @@
     ;; xxx this needs to be updated for full color
     (glTexImage2D GL_TEXTURE_2D
                   0 GL_RGBA
-                  sprite-atlas-size sprite-atlas-size 0                  
+                  sprite-atlas-size sprite-atlas-size 0
                   GL_RED GL_UNSIGNED_BYTE
                   sprite-atlas-bytes))
-  
+
   (define PaletteAtlasId (u32vector-ref (glGenTextures 1) 0))
   (glBindTexture GL_TEXTURE_2D PaletteAtlasId)
   (2D-defaults)
@@ -452,10 +451,10 @@
     (argb->rgba! palette-atlas-bs)
     (glTexImage2D GL_TEXTURE_2D
                   0 GL_RGBA
-                  PALETTE-DEPTH 
+                  PALETTE-DEPTH
                   (/ (bytes-length palette-atlas-bs)
                      (* 4 PALETTE-DEPTH))
-                  0                  
+                  0
                   GL_RGBA GL_UNSIGNED_BYTE
                   palette-atlas-bs))
 
@@ -679,109 +678,55 @@
    (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
                        pal-size pal-bs pal->idx)
    csd)
-  ;; Make the atlas
-  (define old->new-ht (make-hasheq))
-  (define (new-sprite-index idx)
-    (hash-ref old->new-ht idx
-              (λ ()
-                (error 'old->new "~v" idx))))
+
   (define-values
     (texture-atlas
      texture-index)
     (let ()
-      (define sprites
-        (map (λ (i)
-               (match-define (vector w h tx ty) (vector-ref idx->w*h*tx*ty i))
-               (define (img x y)
-                 (pixel-ref atlas-bs atlas-size #f (+ tx x) (+ ty y) 2))
-               (sprite i
-                       w h
-                       (vector img)
-                       empty))
-             (build-list (sub1 (vector-length idx->w*h*tx*ty)) add1)))
-      (define images
-        (flatten
-         (for/list ([s (in-list sprites)])
-           (for/list ([img (in-vector (sprite-images s))]
-                      [i (in-naturals)])
-             (vector s i img)))))
-
-      (define-values
-        (tex-size places)
-        (pack (λ (s*i) (sprite-width (vector-ref s*i 0)))
-              (λ (s*i) (sprite-height (vector-ref s*i 0)))
-              images))
-      (define how-many-places (add1 (length places)))
-
       (define atlas-bin
-        (make-bytes (* tex-size tex-size)))
+        (make-bytes (* atlas-size atlas-size)))
 
       (define index-values 4)
       (define index-bytes-per-value 4)
       (define index-bin
         (make-bytes (* index-values index-bytes-per-value
-                       how-many-places)))
+                       (vector-length idx->w*h*tx*ty))))
 
-      (define sprite->img-placements
-        (hash-set
-         (for/hasheq
-             ([s (in-list sprites)])
-           (values s
-                   (make-vector
-                    (vector-length (sprite-images s)) 0)))
-         'none #f))
-      (for ([pl (in-list places)]
-            [pi (in-naturals 1)])
-        (match-define (placement ax ay (vector s i img)) pl)
-        (define ps (hash-ref sprite->img-placements s))
-        (vector-set! ps i (vector pi ax ay)))
+      (for/list ([vec (in-vector idx->w*h*tx*ty)]
+                 [i (in-naturals)])
+        (match-define (vector w h tx ty) vec)
+        
+        (define (img x y)
+          (pixel-ref atlas-bs atlas-size #f (+ tx x) (+ ty y) 2))        
 
-      (for ([(e vs) (in-hash sprite->img-placements)])
-        (match e
-          ['none
-           (void)]
-          [(? sprite? s)
-           (define w (sprite-width s))
-           (define h (sprite-height s))
-           (define pis
-             (for/list ([v (in-vector vs)]
-                        [i (in-naturals)]
-                        [img (in-vector (sprite-images s))])
-               (match-define (vector pi ax ay) v)
+        (for* ([x (in-range w)]
+               [y (in-range h)])
+          (define palette-val
+            (img x y))
 
-               (for* ([x (in-range w)]
-                      [y (in-range h)])
-                 (define palette-val
-                   (img x y))
+          (bytes-set! atlas-bin
+                      (+ (* atlas-size (+ ty y)) (+ tx x))
+                      palette-val))
 
-                 (bytes-set! atlas-bin
-                             (+ (* tex-size (+ ay y)) (+ ax x))
-                             palette-val))
-
-               (for ([v (in-list (list ax ay w h))]
-                     [o (in-naturals)])
-                 (real->floating-point-bytes
-                  v index-bytes-per-value
-                  (system-big-endian?) index-bin
-                  (+ (* index-values
-                        index-bytes-per-value
-                        pi)
-                     (* index-bytes-per-value o))))
-
-               pi))
-
-           (hash-set! old->new-ht (sprite-name s) (first pis))]))
+        (for ([v (in-list (list tx ty w h))]
+              [o (in-naturals)])
+          (real->floating-point-bytes
+           v index-bytes-per-value
+           (system-big-endian?) index-bin
+           (+ (* index-values
+                 index-bytes-per-value
+                 i)
+              (* index-bytes-per-value o)))))
 
       (values atlas-bin
               index-bin)))
 
   ;; Make index
-  (values new-sprite-index
-          texture-atlas
+  (values texture-atlas
           texture-index
           pal-bs))
 
-(define (convert-sprites csd old->new sprite-tree)
+(define (convert-sprites csd sprite-tree)
   (define idx->w*h*tx*ty (compiled-sprite-db-idx->w*h*tx*ty csd))
   (define (convert-sprite t)
     (match-define
@@ -791,9 +736,7 @@
     (define a (inexact->exact (round (* a.0 255))))
     (define hw (* 0.5 w))
     (define hh (* 0.5 h))
-    (define spr (old->new spr-idx))
-    (define pal pal-idx)
-    (create-sprite-info dx dy hw hh r g b a spr pal mx my theta))
+    (create-sprite-info dx dy hw hh r g b a spr-idx pal-idx mx my theta))
   (define (f acc t)
     (cons (convert-sprite t) acc))
   (tree-fold f empty sprite-tree))
@@ -802,15 +745,14 @@
 
 (define (stage-draw/dc csd width height)
   ;; xxx don't do this, just use what csd contains
-  (define-values
-    (new-sprite-index texture-atlas texture-index palette-atlas)
+  (define-values (texture-atlas texture-index palette-atlas)
     (compile-static-stuff csd))
   (define draw-on-crt-b (box #f))
   (define draw-sprites-b (box #f))
   (λ (layer-config sprite-tree)
     (define last-sprites
       ;; xxx don't convert
-      (convert-sprites csd new-sprite-index sprite-tree))
+      (convert-sprites csd sprite-tree))
     ;; xxx implement layer-config
     (λ (w h dc)
       (define glctx (send dc get-gl-context))
