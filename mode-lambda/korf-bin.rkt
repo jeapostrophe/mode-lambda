@@ -171,8 +171,10 @@
   (define total-area
     (apply + (map e-area l)))
   (define optimal-pow2
-    (num->pow2
-     (sqrt total-area)))
+    (if (zero? total-area)
+        0
+        (num->pow2
+         (sqrt total-area))))
 
   (define l/sorted
     (sort l > #:key e-area))

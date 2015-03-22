@@ -68,9 +68,6 @@
 (define crt-scale 32)
 (define crt-width (* crt-scale 16))
 (define crt-height (* crt-scale 9))
-;; XXX what text terminal dimensions does this give?
-
-;; xxx 400x240 is what shovel knight does
 
 ;; FBO stuff based on: http://www.songho.ca/opengl/gl_fbo.html
 
@@ -155,6 +152,7 @@
   (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MAG_FILTER GL_NEAREST)
   (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_S GL_CLAMP_TO_EDGE)
   (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_T GL_CLAMP_TO_EDGE)
+  (printf "crt texture prep\n")
   (glTexImage2D
    GL_TEXTURE_2D 0 GL_RGBA8 texture-width texture-height 0
    GL_RGBA GL_UNSIGNED_BYTE
@@ -227,8 +225,6 @@
   (define (new-draw-on-crt actual-screen-width actual-screen-height do-the-drawing)
     ;; Init
 
-    ;; xxx save the old actual-screen-width actual-screen-height and
-    ;; only run this if they change
     (define scale
       (* 1.
          (min (quotient* actual-screen-width crt-width)
@@ -246,7 +242,6 @@
     (glUniform2fv
      (glGetUniformLocation shader_program "rubyOutputSize")
      1
-     ;; xxx this might have to be without actual-
      (f32vector (* 1. actual-screen-width) (* 1. actual-screen-height)))
     (glUseProgram 0)
     (glBindVertexArray VaoId)
@@ -355,16 +350,17 @@
                     load-texture))
 
 (define (num->pow2 n)
-  (inexact->exact
-   (ceiling
-    (/ (log n)
-       (log 2)))))
+  (integer-length n))
+(module+ test
+  (check-equal? (num->pow2 1) 1)
+  (check-equal? (num->pow2 2) 2)
+  (check-equal? (num->pow2 3) 2)
+  (check-equal? (num->pow2 4) 3)
+  (check-equal? (num->pow2 5) 3)
+  (check-equal? (num->pow2 10) 4)
+  (check-equal? (num->pow2 557) 10))
 
 (define debug? #f)
-
-(define sprite-tree/c
-  ;; XXX really a tree of sprite-info?, but that's expensive to check
-  any/c)
 
 ;; COPIED FROM opengl/main
 ;; Convert argb -> rgba, and convert to pre-multiplied alpha.
@@ -393,6 +389,7 @@
          (texture (u32vector-ref (glGenTextures 1) 0)))
 
     (define (load-texture-data)
+      (printf "loading texture data for ~v\n" bm)
       (glTexImage2D GL_TEXTURE_2D 0 GL_RGBA8 w h 0 GL_RGBA GL_UNSIGNED_BYTE pixels))
 
     (send bm get-argb-pixels 0 0 w h pixels)
@@ -415,7 +412,6 @@
 ;; </COPIED>
 
 (define-cstruct _sprite-info
-  ;; xxx why are x/y so big?
   ([x _float]     ;; 0
    [y _float]     ;; 1
    [hw _float]    ;; 2
@@ -584,6 +580,7 @@
   (let ()
     (define sprite-atlas-bytes (gunzip-bytes (file->bytes sprite-atlas-path)))
     (define sprite-atlas-size (sqrt (bytes-length sprite-atlas-bytes)))
+    (printf "loading sprite atlas texture\n")
     (glTexImage2D GL_TEXTURE_2D
                   0 GL_R8
                   sprite-atlas-size sprite-atlas-size 0
@@ -602,8 +599,13 @@
     (define sprite-index-bytes 4)
     (define sprite-index-count (/ (bytes-length sprite-index-data)
                                   (* 4 sprite-index-bytes)))
+    (define sic-width (num->pow2 sprite-index-count))
     (define effective-sprite-index-count
-      (expt 2 (num->pow2 sprite-index-count)))
+      (expt 2 sic-width))
+    (printf "loading sprite index texture: ~v\n"
+            (vector sprite-index-count
+                    sic-width
+                    effective-sprite-index-count))
     (glTexImage2D GL_TEXTURE_2D
                   0 GL_RGBA32F
                   1 effective-sprite-index-count 0
@@ -670,7 +672,6 @@
       (define-vertex-attrib-array AttribId AttribStart AttribEnd)
       ...))
 
-  ;; XXX I can't use either the attributes or the fields :(
   (define-vertex-attrib-array*
     [0  0  3] ;; x--hh
     [1  4  7] ;; r--a
@@ -787,7 +788,131 @@
 
   draw)
 
-;; Old copied stuff from GB (compile.rkt)
+;; Old copied stuff from GB (apse/db)
+
+(require racket/contract
+         racket/draw
+         racket/path
+         racket/class
+         racket/file
+         racket/list
+         racket/match
+         racket/runtime-path)
+(module+ test
+  (require rackunit))
+
+;; Library Code
+
+(define (directory-list* d)
+  (sort
+   (map path->string
+        (directory-list d))
+   string-ci<=?))
+(define (all-from root suffix)
+  (define suffix-re
+    (regexp (format "\\.~a$" (regexp-quote suffix))))
+  (define root-re
+    (regexp (format "^~a/" (regexp-quote (path->string root)))))
+  (map (λ (p)
+         (regexp-replace root-re
+                         (regexp-replace suffix-re
+                                         (path->string p)
+                                         "")
+                         ""))
+       (find-files (λ (p) (regexp-match suffix-re (path->string p)))
+                   root)))
+
+(struct db (pth))
+(define-runtime-path default-db-pth "default-db")
+(define (load-db db-pth)
+  (unless (directory-exists? db-pth)
+    (copy-directory/files default-db-pth db-pth))
+  (db db-pth))
+(define (db-palettes a-db)
+  (match-define (db db-path) a-db)
+  (all-from (build-path db-path "palettes") "pal"))
+(define (db-sprites a-db)
+  (match-define (db db-path) a-db)
+  (all-from (build-path db-path "sprites") "spr"))
+
+(define (load-last a-db)
+  (match-define (db db-path) a-db)
+  (define last-path (build-path db-path "last.rktd"))
+  (define last-sprite
+    (if (file-exists? last-path)
+      (file->value last-path)
+      #f))
+  (unless (file-exists?
+           (build-path db-path "sprites" (format "~a.spr" last-sprite)))
+    (set! last-sprite #f))
+  (unless last-sprite
+    (set! last-sprite (first (db-sprites a-db))))
+  last-sprite)
+
+(define (last-save! a-db last-sprite)
+  (match-define (db db-path) a-db)
+  (define last-path (build-path db-path "last.rktd"))
+  (write-to-file last-sprite last-path
+                 #:exists 'replace))
+
+(struct sprite (name width height
+                     [images #:mutable]
+                     [palettes #:mutable]))
+(define (load-sprite a-db sprite-name)
+  (match-define (db db-path) a-db)
+  (define sprite-dir
+    (build-path db-path "sprites" (format "~a.spr" sprite-name)))
+  (match-define (cons w h)
+                (file->value (build-path sprite-dir "meta")))
+  (define how-many-images
+    (count (λ (p) (regexp-match #rx".img$" p))
+           (directory-list* sprite-dir)))
+  (define images
+    (for/vector ([i (in-range how-many-images)])
+      (file->bytes
+       (build-path sprite-dir (format "~a.img" i)))))
+  (define palettes (file->value (build-path sprite-dir "palettes")))
+  (sprite sprite-name w h images palettes))
+(define (sprite-save! a-db a-sprite)
+  (match-define (db db-path) a-db)
+  (match-define (sprite sprite-name w h images palettes) a-sprite)
+  (define sprite-dir
+    (build-path db-path "sprites" (format "~a.spr" sprite-name)))
+  (make-directory* sprite-dir)
+  (write-to-file (cons w h) (build-path sprite-dir "meta")
+                 #:exists 'replace)
+  (for ([i (in-naturals)]
+        [iv (in-vector images)])
+    (display-to-file iv
+                     (build-path sprite-dir (format "~a.img" i))
+                     #:exists 'replace))
+  (write-to-file palettes (build-path sprite-dir "palettes")
+                 #:exists 'replace))
+
+(struct palette (name colors))
+(define (palette-color->color% c)
+  (match-define (vector a r g b) c)
+  (make-object color% r g b (/ a 255)))
+(define (palette-color%s p)
+  (for/vector ([c (in-vector (palette-colors p))])
+    (palette-color->color% c)))
+(define (load-palette a-db pn)
+  (match-define (db db-path) a-db)
+  (palette pn
+           (file->value
+            (build-path db-path "palettes"
+                        (format "~a.pal" pn)) )))
+(define (palette-save! a-db p)
+  (match-define (db db-path) a-db)
+  (match-define (palette pn cvs) p)
+  (define ppath
+    (build-path db-path "palettes"
+                (format "~a.pal" pn)))
+  (make-directory* (path-only ppath))
+  (write-to-file cvs ppath
+                 #:exists 'replace))
+
+;; Old copied stuff from GB (apse/compile.rkt)
 
 (require racket/path
          racket/class
@@ -797,16 +922,36 @@
          racket/draw
          racket/function
          racket/list
-         gb/lib/korf-bin
+         mode-lambda/korf-bin
          gb/lib/fstree
-         tools/apse/lib
-         tools/apse/db)
+         tools/apse/lib)
 
-(define (compile-static-stuff db atlas-p pal-p idx-p idx-bin-p)
+(define (pixel-ref bs w h bx by i)
+  (bytes-ref bs (+ (* (* 4 w) by) (+ (* 4 bx) i))))
+
+(define (compile-static-stuff csd atlas-p pal-p idx-bin-p)
+  (match-define
+   (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
+                       pal-size pal-bs pal->idx)
+   csd)
   ;; Make the atlas
+  (define old->new-ht (make-hasheq))
+  (define (old->new idx)
+    (hash-ref old->new-ht idx
+              (λ ()
+                (error 'old->new "~v" idx))))
   (define atlas-indexes
     (let ()
-      (define sprites (map (curry load-sprite db) (db-sprites db)))
+      (define sprites
+        (map (λ (i)
+               (match-define (vector w h tx ty) (vector-ref idx->w*h*tx*ty i))
+               (define (img x y) 
+                 (pixel-ref atlas-bs atlas-size #f (+ tx x) (+ ty y) 2))
+               (sprite i
+                       w h
+                       (vector img)
+                       empty))
+             (build-list (sub1 (vector-length idx->w*h*tx*ty)) add1)))
       (define images
         (flatten
          (for/list ([s (in-list sprites)])
@@ -820,6 +965,11 @@
               (λ (s*i) (sprite-height (vector-ref s*i 0)))
               images))
       (define how-many-places (add1 (length places)))
+      
+      (printf "sprites (~v) images (~v) places (~v)\n"
+              (length sprites)
+              (length images)
+              (length places))
 
       (define atlas-bin
         (make-bytes (* tex-size tex-size)))
@@ -833,10 +983,10 @@
       (define sprite->img-placements
         (hash-set
          (for/hasheq
-          ([s (in-list sprites)])
-          (values s
-                  (make-vector
-                   (vector-length (sprite-images s)) 0)))
+             ([s (in-list sprites)])
+           (values s
+                   (make-vector
+                    (vector-length (sprite-images s)) 0)))
          'none #f))
       (for ([pl (in-list places)]
             [pi (in-naturals 1)])
@@ -845,92 +995,111 @@
         (vector-set! ps i (vector pi ax ay)))
 
       (begin0
-        (append
-         (list ";; sprite info")
-         (list `(define-sprite-atlas ,how-many-places ,tex-size))
-         (list ";; sprites")
-         (for/list ([(e vs) (in-hash sprite->img-placements)])
-           (match e
-             ['none
-              `(define-sprite none 0 0 (0))]
-             [(? sprite? s)
-              (define w (sprite-width s))
-              (define h (sprite-height s))
-              (define pis
-                (for/list ([v (in-vector vs)]
-                           [i (in-naturals)]
-                           [img (in-vector (sprite-images s))])
-                  (match-define (vector pi ax ay) v)
+          (append
+           (list ";; sprite info")
+           (list `(define-sprite-atlas ,how-many-places ,tex-size))
+           (list ";; sprites")
+           (for/list ([(e vs) (in-hash sprite->img-placements)])
+             (match e
+               ['none
+                `(define-sprite none 0 0 (0))]
+               [(? sprite? s)
+                (define w (sprite-width s))
+                (define h (sprite-height s))
+                (define pis
+                  (for/list ([v (in-vector vs)]
+                             [i (in-naturals)]
+                             [img (in-vector (sprite-images s))])
+                    (match-define (vector pi ax ay) v)
 
-                  (for* ([x (in-range w)]
-                         [y (in-range h)])
-                    (define palette-val
-                      (bytes-ref img
-                                 (byte-xy-offset w h x y)))
+                    (for* ([x (in-range w)]
+                           [y (in-range h)])
+                      (define palette-val
+                        (img x y))
 
-                    (bytes-set! atlas-bin
-                                (+ (* tex-size (+ ay y)) (+ ax x))
-                                palette-val))
+                      (bytes-set! atlas-bin
+                                  (+ (* tex-size (+ ay y)) (+ ax x))
+                                  palette-val))
 
-                  (for ([v (in-list (list ax ay w h))]
-                        [o (in-naturals)])
-                    (real->floating-point-bytes
-                     v index-bytes-per-value
-                     (system-big-endian?) index-bin
-                     (+ (* index-values
-                           index-bytes-per-value
-                           pi)
-                        (* index-bytes-per-value o))))
+                    (for ([v (in-list (list ax ay w h))]
+                          [o (in-naturals)])
+                      (real->floating-point-bytes
+                       v index-bytes-per-value
+                       (system-big-endian?) index-bin
+                       (+ (* index-values
+                             index-bytes-per-value
+                             pi)
+                          (* index-bytes-per-value o))))
 
-                  pi))
+                    pi))
 
-              `(define-sprite ,(sprite-name s) ,w ,h ,pis)])))
+                (hash-set! old->new-ht (sprite-name s) (first pis))
+                `(define-sprite ,(sprite-name s) ,w ,h ,pis)])))
 
         (display-to-file (gzip-bytes atlas-bin)
                          #:exists 'replace
                          atlas-p)
         (display-to-file (gzip-bytes index-bin)
                          #:exists 'replace
-                         idx-bin-p))))  
+                         idx-bin-p))))
 
   ;; Make the palette
+  (define (load-palette csd pal-idx)
+    (define pn
+      (for/or ([(n idx) (in-hash pal->idx)]
+               #:when (= idx pal-idx))
+        n))
+    (palette pn
+             ;; xxx really PALETTE-DEPTH not 10
+             (for/vector ([i (in-range 10)])
+               (for/vector ([j (in-range 4)])
+                 (pixel-ref pal-bs PALETTE-DEPTH #f
+                            i pal-idx j)))))
+
   (define palette-indexes
     (let ()
-      (define palettes (db-palettes db))
+      (define palettes (build-list (sub1 pal-size) add1))
       (define palette-depth 16)
       (define pal-bm
         (make-object bitmap% palette-depth (length palettes) #f #t))
       (define pal-bm-dc (new bitmap-dc% [bitmap pal-bm]))
 
       (begin0
-        (append
-         (list ";; palette info")
-         (list `(define-palette-atlas
-                  ,(length palettes)
-                  ,palette-depth))
-         (list ";; palettes")
-         (for/list ([pn (in-list palettes)]
-                    [y (in-naturals)])
-           (define p (load-palette db pn))
-           (for ([c (in-vector (palette-color%s p))]
-                 [x (in-naturals)])
-             (send pal-bm-dc set-pixel x y c))
-           `(define-palette ,(palette-name p) ,y)))
+          (append
+           (list ";; palette info")
+           (list `(define-palette-atlas
+                   ,(length palettes)
+                   ,palette-depth))
+           (list ";; palettes")
+           (for/list ([pn (in-list palettes)]
+                      [y (in-naturals)])
+             (define p (load-palette csd pn))
+             (for ([c (in-vector (palette-color%s p))]
+                   [x (in-naturals)])
+               (send pal-bm-dc set-pixel x y c))
+             `(define-palette ,(palette-name p) ,y)))
 
         (send pal-bm save-file pal-p 'png 100))))
 
   ;; Make index
-  (let ()
-    (with-output-to-file idx-p
-      #:exists 'replace
-      (λ ()
-        (printf "#lang racket/base\n")
-        (pretty-display
-         `(require gb/graphics/texture-atlas-lib))
-        (newline)
-        (for-each displayln atlas-indexes)
-        (newline)
-        (for-each pretty-display palette-indexes)))))
+  old->new)
+
+(define (convert-sprites csd old->new sprite-tree)
+  (define idx->w*h*tx*ty (compiled-sprite-db-idx->w*h*tx*ty csd))
+  (define (convert-sprite t)
+    (match-define
+     (sprite-data dx dy mx my theta a.0 spr-idx pal-idx layer r g b horiz vert)
+     t)
+    (match-define (vector w h tx ty) (vector-ref idx->w*h*tx*ty spr-idx))
+    (define a (inexact->exact (round (* a.0 255))))
+    (define hw (* 0.5 w))
+    (define hh (* 0.5 h))
+    (define spr (old->new spr-idx))
+    (define pal pal-idx)
+    (create-sprite-info dx dy hw hh r g b a spr pal mx my theta))
+  (define (f acc t)
+    (cons (convert-sprite t) acc))
+  (tree-fold f empty sprite-tree))
 
 ;; New Interface
 (require racket/contract
@@ -941,15 +1110,13 @@
   (define texture-atlas-path (make-temporary-file "~a.bin.gz"))
   (define texture-index-path (make-temporary-file "~a.idx.bin.gz"))
   (define palette-atlas-path (make-temporary-file "~a.png"))
-  ;; xxx turn csd into t-a-p, t-i-p, and p-a-p
   (define new-sprite-index
     (compile-static-stuff csd texture-atlas-path palette-atlas-path texture-index-path))
-  ;; xxx
-  (define last-sprites #f)
   (define draw-on-crt-b (box #f))
   (define draw-sprites-b (box #f))
   (λ (layer-config sprite-tree)
-    ;; xxx turn sprite-tree into last-sprites
+    (define last-sprites
+      (convert-sprites csd new-sprite-index sprite-tree))
     (λ (w h dc)
       (local-require racket/class)
       (define glctx (send dc get-gl-context))
