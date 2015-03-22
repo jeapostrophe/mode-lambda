@@ -475,7 +475,7 @@
     (printf "loading sprite atlas texture\n")
     ;; xxx this needs to be updated for full color
     (glTexImage2D GL_TEXTURE_2D
-                  0 GL_R8
+                  0 GL_RGBA
                   sprite-atlas-size sprite-atlas-size 0                  
                   GL_RED GL_UNSIGNED_BYTE
                   sprite-atlas-bytes))

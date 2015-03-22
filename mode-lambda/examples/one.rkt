@@ -180,7 +180,7 @@
                      #:a 0.25
                      #:layer 7
                      #:pal-idx (palette-idx csd 'med0)))))
-       (values (list* block-sprites background-sprites foreground-sprites)
+       (values (list* block-sprites #;background-sprites #;foreground-sprites)
                (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
                               #:mode7 2.0
                               #:horizon 0.0
