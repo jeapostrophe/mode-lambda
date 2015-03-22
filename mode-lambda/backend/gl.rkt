@@ -420,13 +420,14 @@
   (glBindTexture GL_TEXTURE_2D SpriteAtlasId)
   (2D-defaults)
   (let ()
-    (define sprite-atlas-size (sqrt (bytes-length sprite-atlas-bytes)))
+    (define sprite-atlas-size (sqrt (/ (bytes-length sprite-atlas-bytes) 4)))
     (printf "loading sprite atlas texture\n")
+    (argb->rgba! sprite-atlas-bytes)
     ;; xxx this needs to be updated for full color
     (glTexImage2D GL_TEXTURE_2D
                   0 GL_RGBA
                   sprite-atlas-size sprite-atlas-size 0
-                  GL_RED GL_UNSIGNED_BYTE
+                  GL_RGBA GL_UNSIGNED_BYTE
                   sprite-atlas-bytes))
 
   (define PaletteAtlasId (u32vector-ref (glGenTextures 1) 0))
@@ -656,7 +657,7 @@
      texture-index)
     (let ()
       (define atlas-bin
-        (make-bytes (* atlas-size atlas-size)))
+        (make-bytes (* atlas-size atlas-size 4)))
 
       (define index-values 4)
       (define index-bytes-per-value 4)
@@ -671,7 +672,7 @@
         (for* ([x (in-range w)]
                [y (in-range h)])
           (bytes-set! atlas-bin
-                      (+ (* atlas-size (+ ty y)) (+ tx x))
+                      (+ (* atlas-size 4 (+ ty y)) (* 4 (+ tx x)) 1)
                       (pixel-ref atlas-bs atlas-size #f (+ tx x) (+ ty y) 2)))
 
         (for ([v (in-list (list tx ty w h))]
