@@ -1,13 +1,38 @@
 #lang racket/base
 
-;; Old Code from GB (gl-util.rkt)
-
-(require racket/runtime-path
-         racket/file
+(require ffi/cvector
+         ffi/unsafe/cvector
          ffi/vector
+         mode-lambda/backend/lib
+         mode-lambda/core
+         mode-lambda/korf-bin
+         racket/class
+         racket/contract
+         racket/draw
+         racket/gui/base
+         racket/file
+         racket/function
+         racket/list
+         racket/match
+         racket/runtime-path
          (except-in opengl
                     bitmap->texture
-                    load-texture))
+                    load-texture)
+         (only-in math/base
+                  sum)
+         (only-in ffi/unsafe
+                  ctype-sizeof
+                  ctype->layout
+                  define-cstruct
+                  _float
+                  _sint32
+                  _uint32
+                  _sint16
+                  _uint16
+                  _sint8
+                  _uint8))
+
+;; Old Code from GB (gl-util.rkt)
 
 (define-syntax-rule (define-shader-source id path)
   (begin (define-runtime-path id-path path)
@@ -36,23 +61,10 @@
 
 ;; Old Code from GB (crt.rkt)
 
-(require ffi/vector
-         ffi/cvector
-         ffi/unsafe/cvector
-         (only-in ffi/unsafe)
-         racket/match
-         (except-in opengl
-                    bitmap->texture
-                    load-texture))
-(module+ test
-  (require rackunit))
-
+;; xxx simplify this
 (define-shader-source fragment-source "gl/crt.fragment.glsl")
+;; xxx simplify this
 (define-shader-source vertex-source "gl/crt.vertex.glsl")
-
-(define crt-scale 32)
-(define crt-width (* crt-scale 16))
-(define crt-height (* crt-scale 9))
 
 (define (quotient* x y)
   (define-values (q r) (quotient/remainder x y))
@@ -70,7 +82,7 @@
         (+ d (recur (- r dy) (add1 i) max-i))])]))
   (+ q (recur r 1 5)))
 
-(define (make-draw-on-crt)
+(define (make-draw-on-crt crt-width crt-height)
   (eprintf "You are using OpenGL ~a\n"
            (gl-version))
 
@@ -240,57 +252,10 @@
 
   new-draw-on-crt)
 
-;; Old Code from GB (gzip)
-
-(require file/gzip
-         file/gunzip)
-
-(define (gzip-bytes bs)
-  (define out (open-output-bytes))
-  (gzip-through-ports (open-input-bytes bs) out #f 0)
-  (get-output-bytes out))
-
-(define (gunzip-bytes bs)
-  (define out (open-output-bytes))
-  (gunzip-through-ports (open-input-bytes bs) out)
-  (get-output-bytes out))
-
 ;; Old Code from GB (ngl.rkt)
-
-(require racket/match
-         ffi/vector
-         racket/file
-         racket/list
-         ffi/cvector
-         (only-in ffi/unsafe
-                  ctype-sizeof
-                  ctype->layout
-                  define-cstruct
-                  _float
-                  _sint32
-                  _uint32
-                  _sint16
-                  _uint16
-                  _sint8
-                  _uint8)
-         ffi/unsafe/cvector
-         racket/function
-         (only-in math/base sum)
-         racket/contract
-         (except-in opengl
-                    bitmap->texture
-                    load-texture))
 
 (define (num->pow2 n)
   (integer-length n))
-(module+ test
-  (check-equal? (num->pow2 1) 1)
-  (check-equal? (num->pow2 2) 2)
-  (check-equal? (num->pow2 3) 2)
-  (check-equal? (num->pow2 4) 3)
-  (check-equal? (num->pow2 5) 3)
-  (check-equal? (num->pow2 10) 4)
-  (check-equal? (num->pow2 557) 10))
 
 (define debug? #f)
 
@@ -314,7 +279,6 @@
       (bytes-set! pixels (+ 3 offset) alpha))))
 
 (define (bitmap->texture bm)
-  (local-require racket/class)
   (let* ((w (send bm get-width))
          (h (send bm get-height))
          (pixels (make-bytes (* w h 4)))
@@ -339,10 +303,10 @@
 
 ;; Directly load a file from disk as texture.
 (define (load-texture filename)
-  (local-require racket/gui/base)
   (bitmap->texture (read-bitmap filename)))
 ;; </COPIED>
 
+;; xxx remove file, just use bytes
 (define (load-texture-bs bs)
   (define filename (make-temporary-file "~a.png"))
   (display-to-file bs filename #:exists 'replace)
@@ -428,7 +392,9 @@
     (error 'ngl "Your version of OpenGL ~a is too old to support NGL"
            (gl-version))]))
 
+;; xxx simplify this
 (define-shader-source VertexShader "gl/ngl.vertex.glsl")
+;; xxx simplify this
 (define-shader-source FragmentShader "gl/ngl.fragment.glsl")
 
 (define DrawnMult 6)
@@ -507,9 +473,10 @@
   (let ()
     (define sprite-atlas-size (sqrt (bytes-length sprite-atlas-bytes)))
     (printf "loading sprite atlas texture\n")
+    ;; xxx this needs to be updated for full color
     (glTexImage2D GL_TEXTURE_2D
                   0 GL_R8
-                  sprite-atlas-size sprite-atlas-size 0
+                  sprite-atlas-size sprite-atlas-size 0                  
                   GL_RED GL_UNSIGNED_BYTE
                   sprite-atlas-bytes))
 
@@ -714,15 +681,6 @@
 
 ;; Old copied stuff from GB (apse/db)
 
-(require racket/contract
-         racket/draw
-         racket/path
-         racket/class
-         racket/file
-         racket/list
-         racket/match
-         racket/runtime-path)
-
 (struct sprite (name width height
                      [images #:mutable]
                      [palettes #:mutable]))
@@ -736,18 +694,6 @@
     (palette-color->color% c)))
 
 ;; Old copied stuff from GB (apse/compile.rkt)
-
-(require racket/path
-         racket/class
-         racket/file
-         racket/pretty
-         racket/match
-         racket/draw
-         racket/function
-         racket/list
-         mode-lambda/korf-bin
-         gb/lib/fstree
-         tools/apse/lib)
 
 (define (pixel-ref bs w h bx by i)
   (bytes-ref bs (+ (* (* 4 w) by) (+ (* 4 bx) i))))
@@ -868,6 +814,7 @@
 
   (define palette-atlas
     (let ()
+      ;; xxx remove file, just grab bytes
       (define pal-p (make-temporary-file))
       (define palettes (build-list (sub1 pal-size) add1))
       (define palette-depth 16)
@@ -910,11 +857,9 @@
   (tree-fold f empty sprite-tree))
 
 ;; New Interface
-(require racket/contract
-         mode-lambda/core
-         mode-lambda/backend/lib)
 
 (define (stage-draw/dc csd width height)
+  ;; xxx don't do this, just use what csd contains
   (define-values
     (new-sprite-index texture-atlas texture-index palette-atlas)
     (compile-static-stuff csd))
@@ -922,23 +867,23 @@
   (define draw-sprites-b (box #f))
   (λ (layer-config sprite-tree)
     (define last-sprites
+      ;; xxx don't convert
       (convert-sprites csd new-sprite-index sprite-tree))
+    ;; xxx implement layer-config
     (λ (w h dc)
-      (local-require racket/class)
       (define glctx (send dc get-gl-context))
       (unless glctx
         (error 'draw "Could not initialize OpenGL!"))
       (send glctx call-as-current
             (λ ()
               (unless (unbox draw-on-crt-b)
-                (set-box! draw-on-crt-b (make-draw-on-crt)))
+                (set-box! draw-on-crt-b (make-draw-on-crt width height)))
               (unless (unbox draw-sprites-b)
                 (set-box!
                  draw-sprites-b
                  (make-draw
                   texture-atlas texture-index palette-atlas
-                  crt-width
-                  crt-height)))
+                  width height)))
               (when last-sprites
                 ((unbox draw-on-crt-b)
                  w h
