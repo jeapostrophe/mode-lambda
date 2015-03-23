@@ -680,7 +680,10 @@
             (λ ()
               (unless (unbox draw-on-crt-b)
                 (set-box! draw-on-crt-b
-                          (make-draw-on-crt width height)))
+                          (make-draw-on-crt width height))
+                ;; xxx make this an option
+                (set-box! draw-on-crt-b
+                          (λ (w h t) (t))))
               (unless (unbox draw-sprites-b)
                 (set-box! draw-sprites-b
                           (make-draw csd width height)))

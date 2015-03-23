@@ -29,14 +29,15 @@ void main(void)
     ivec2 PalCoord_uv = ivec2( PaletteOffset, Palette );
     PixelColor = texelFetch(PaletteAtlasTex, PalCoord_uv, 0 );
   }
-  
+
+  // XXX I don't do this in the software one
   // Colors are not pre-multiplied
   PixelColor.rgb = PixelColor.a * PixelColor.rgb;
-  
+
+  // XXX This doesn't work
   //out_Color.a = PixelColor.a * Color.a;
-  //out_Color.r = PixelColor.r + Color.r;
-  //out_Color.g = PixelColor.g + Color.g;
-  //out_Color.b = PixelColor.b + Color.b;
+  //out_Color.rgb = PixelColor.rgb + Color.rgb;
+
   out_Color = PixelColor + Color;
   
   if ( out_Color.a == 0.0 ) {
