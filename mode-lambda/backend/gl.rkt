@@ -415,7 +415,7 @@
           [i (in-naturals)])
       (match-define (vector w h tx ty) vec)
 
-      (for ([v (in-list (list tx ty w h))]
+      (for ([v (in-list (list w h tx ty))]
             [o (in-naturals)])
         (real->floating-point-bytes
          v index-bytes-per-value

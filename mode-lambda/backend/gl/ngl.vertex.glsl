@@ -61,10 +61,10 @@ void main(void)
   vec4 in_TexCoord =
     texelFetch(SpriteIndexTex, ivec2(0, spr), 0);
 
-  float tx = in_TexCoord.x;
-  float ty = in_TexCoord.y;
-  float w = in_TexCoord.z;
-  float h = in_TexCoord.w;
+  float w = in_TexCoord.x;
+  float h = in_TexCoord.y;
+  float tx = in_TexCoord.z;
+  float ty = in_TexCoord.w;
 
   float hw = w / 2.0;
   float hh = h / 2.0;
