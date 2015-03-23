@@ -278,15 +278,13 @@
 (define-cstruct _sprite-info
   ([x _float]     ;; 0
    [y _float]     ;; 1
-   [hw _float]    ;; 2
-   [hh _float]    ;; 3
-   [r _uint8]     ;; 4
-   [g _uint8]     ;; 5
-   [b _uint8]     ;; 6
-   [a _uint8]     ;; 7
-   [mx _float]    ;; 8
-   [my _float]    ;; 9
-   [theta _float] ;; 10
+   [r _uint8]     ;; 2
+   [g _uint8]     ;; 3
+   [b _uint8]     ;; 4
+   [a _uint8]     ;; 5
+   [mx _float]    ;; 6
+   [my _float]    ;; 7
+   [theta _float] ;; 8
 
    ;; This is a hack because we need to ensure we are aligned for
    ;; OpenGL, so we're ignoring _palette and _sprite-index. At this
@@ -295,14 +293,14 @@
    ;; problem. (BTW, because of normal alignment, if we change pal to
    ;; just be a byte, it will still take up the same amount of space
    ;; total.)
-   [pal _uint16]   ;; 11
-   [spr _uint16]   ;; 12
+   [pal _uint16]   ;; 9
+   [spr _uint16]   ;; 10
 
-   [horiz _sint8]  ;; 13
-   [vert _sint8])) ;; 14
+   [horiz _sint8]  ;; 11
+   [vert _sint8])) ;; 12
 
-(define (create-sprite-info x y hw hh r g b a spr pal mx my theta)
-  (make-sprite-info x y hw hh
+(define (create-sprite-info x y r g b a spr pal mx my theta)
+  (make-sprite-info x y
                     r g b a
                     mx my theta
                     pal spr
@@ -530,12 +528,12 @@
       ...))
 
   (define-vertex-attrib-array*
-    [0  0  3] ;; x--hh
-    [1  4  7] ;; r--a
-    [2 12 12] ;; spr
-    [3  8 10] ;; mx--theta
-    [4 13 14] ;; horiz--vert
-    [5 11 11]) ;; pal
+    [0  0  1] ;; x--y
+    [1  2  5] ;; r--a
+    [2 10 10] ;; spr
+    [3  6  8] ;; mx--theta
+    [4 11 12] ;; horiz--vert
+    [5  9  9]) ;; pal
 
   (glBindBuffer GL_ARRAY_BUFFER 0)
 
@@ -655,9 +653,7 @@
      t)
     (match-define (vector w h tx ty) (vector-ref idx->w*h*tx*ty spr-idx))
     (define a (inexact->exact (round (* a.0 255))))
-    (define hw (* 0.5 w))
-    (define hh (* 0.5 h))
-    (create-sprite-info dx dy hw hh r g b a spr-idx pal-idx mx my theta))
+    (create-sprite-info dx dy r g b a spr-idx pal-idx mx my theta))
   (define (f acc t)
     (cons (convert-sprite t) acc))
   (tree-fold f empty sprite-tree))

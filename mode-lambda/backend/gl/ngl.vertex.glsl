@@ -2,7 +2,7 @@
 
 uniform sampler2D SpriteIndexTex;
 
-in vec4 in_Position;
+in vec2 in_Position;
 in uvec4 in_iColor;
 in uint in_iTexIndex;
 in vec3 in_Transforms;
@@ -47,8 +47,6 @@ void main(void)
 {
   float dx = in_Position.x;
   float dy = in_Position.y;
-  float hw = in_Position.z;
-  float hh = in_Position.w;
   uint r = in_iColor.r;
   uint g = in_iColor.g;
   uint b = in_iColor.b;
@@ -64,10 +62,13 @@ void main(void)
   vec4 in_TexCoord =
     texelFetch(SpriteIndexTex, ivec2(0, spr), 0);
 
-  float w = in_TexCoord.x;
-  float h = in_TexCoord.y;
-  float tx = in_TexCoord.z;
-  float ty = in_TexCoord.w;
+  float tx = in_TexCoord.x;
+  float ty = in_TexCoord.y;
+  float w = in_TexCoord.z;
+  float h = in_TexCoord.w;
+
+  float hw = w / 2.0;
+  float hh = h / 2.0;
 
   Color = vec4(r, g, b, a) / 255.0;
   gl_Position =
@@ -80,8 +81,8 @@ void main(void)
               0.0, ViewportHeight,
               1.0, -1.0);
   TexCoord =
-    vec2(w + ((horiz + 1.0)/+2.0) * tx,
-         h + ((vert - 1.0)/-2.0) * ty);
+    vec2(tx + ((horiz + 1.0)/+2.0) * w,
+         ty + ((vert - 1.0)/-2.0) * h);
   ;
   Palette = pal;
 }
