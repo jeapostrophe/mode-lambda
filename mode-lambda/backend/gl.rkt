@@ -313,9 +313,10 @@
    ['int32 (values #t GL_INT)]
    ['float (values #f GL_FLOAT)]))
 
-;; xxx simplify this & update to match software
+;; xxx everything about layers is ignored
 (define-shader-source VertexShader "gl/ngl.vertex.glsl")
-;; xxx simplify this & update to match software
+;; xxx direct bitmaps are broken
+;; xxx color tinting is broken
 (define-shader-source FragmentShader "gl/ngl.fragment.glsl")
 
 (define DrawnMult 6)
@@ -372,36 +373,25 @@
     (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MAG_FILTER GL_LINEAR)
     (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MIN_FILTER GL_LINEAR))
 
-  (define SpriteAtlasId (u32vector-ref (glGenTextures 1) 0))
-  (glBindTexture GL_TEXTURE_2D SpriteAtlasId)
-  (2D-defaults)
-  (let ()
-    (define sprite-atlas-bytes (bytes-copy atlas-bs))
-    (argb->rgba! sprite-atlas-bytes)
+  (define (make-texture/bytes w h bs)
+    (define Id (u32vector-ref (glGenTextures 1) 0))
+    (glBindTexture GL_TEXTURE_2D Id)
+    (2D-defaults)
+    (define the-copy (bytes-copy bs))
+    (argb->rgba! the-copy)
     (glTexImage2D GL_TEXTURE_2D
                   0 GL_RGBA
-                  atlas-size atlas-size 0
+                  w h 0
                   GL_RGBA GL_UNSIGNED_BYTE
-                  sprite-atlas-bytes))
+                  the-copy)
+    Id)
 
-  (define PaletteAtlasId (u32vector-ref (glGenTextures 1) 0))
-  (glBindTexture GL_TEXTURE_2D PaletteAtlasId)
-  (2D-defaults)
-  (let ()
-    (define palette-atlas-bs (bytes-copy pal-bs))
-    (argb->rgba! palette-atlas-bs)
-    (glTexImage2D GL_TEXTURE_2D
-                  0 GL_RGBA
-                  PALETTE-DEPTH
-                  pal-size
-                  0
-                  GL_RGBA GL_UNSIGNED_BYTE
-                  palette-atlas-bs))
-
+  (define SpriteAtlasId (make-texture/bytes atlas-size atlas-size atlas-bs))
+  (define PaletteAtlasId (make-texture/bytes PALETTE-DEPTH pal-size pal-bs))
   (define SpriteIndexId (u32vector-ref (glGenTextures 1) 0))
-  (glBindTexture GL_TEXTURE_2D SpriteIndexId)
-  (2D-defaults)
   (let ()
+    (glBindTexture GL_TEXTURE_2D SpriteIndexId)
+    (2D-defaults)
     (define sprite-index-count
       (vector-length idx->w*h*tx*ty))
 
@@ -449,9 +439,7 @@
                 height)
   (glUseProgram 0)
 
-  ;; Create VBOs
-  (define VaoId
-    (u32vector-ref (glGenVertexArrays 1) 0))
+  (define VaoId (u32vector-ref (glGenVertexArrays 1) 0))
   (glBindVertexArray VaoId)
 
   (define (glVertexAttribIPointer* index size type normalized stride pointer)
@@ -576,9 +564,11 @@
     (glUseProgram ProgramId)
 
     (glEnable GL_DEPTH_TEST)
+    ;; xxx This is supposed to be a BLACK background, but isn't
     (glClearColor 1.0 1.0 1.0 0.0)
 
     (glEnable GL_BLEND)
+    ;; xxx I'm not confident in this formula
     (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
 
     (glClear (bitwise-ior GL_DEPTH_BUFFER_BIT GL_COLOR_BUFFER_BIT))
@@ -611,10 +601,11 @@
 ;; New Interface
 
 (define (stage-draw/dc csd width height)
+  ;; xxx remove these boxes and hide them in the make-* interface
   (define draw-on-crt-b (box #f))
   (define draw-sprites-b (box #f))
+  ;; xxx add a static tree (for level geometry/etc)
   (λ (layer-config sprite-tree)
-    ;; xxx implement layer-config
     (λ (w h dc)
       (define glctx (send dc get-gl-context))
       (unless glctx
@@ -623,10 +614,9 @@
             (λ ()
               (unless (unbox draw-on-crt-b)
                 (set-box! draw-on-crt-b
-                          (make-draw-on-crt width height))
-                ;; xxx make this an option
-                (set-box! draw-on-crt-b
-                          (λ (w h t) (t))))
+                          (match 'crt
+                            ['off (λ (w h t) (t))]
+                            ['crt (make-draw-on-crt width height)])))
               (unless (unbox draw-sprites-b)
                 (set-box! draw-sprites-b
                           (make-draw csd width height)))

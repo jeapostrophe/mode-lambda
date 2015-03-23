@@ -6,7 +6,6 @@ XXX add crt effect
 XXX implement OpenGL backend
 XXX ensure that layers can be used effectively for minimap
 XXX make animated gif
-XXX make opencl backend
 XXX make chaos/gui/mode-lambda
 XXX rotation about a different origin
 XXX parents for localized rotation? (skeletal animation)
