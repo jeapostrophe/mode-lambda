@@ -59,6 +59,8 @@
 
 (define-shader-source crt-fragment "gl/crt.fragment.glsl")
 (define-shader-source crt-vert "gl/crt.vertex.glsl")
+(define-shader-source std-fragment "gl/std.fragment.glsl")
+(define-shader-source std-vert "gl/std.vertex.glsl")
 
 (define (quotient* x y)
   (define-values (q r) (quotient/remainder x y))
@@ -76,7 +78,7 @@
         (+ d (recur (- r dy) (add1 i) max-i))])]))
   (+ q (recur r 1 5)))
 
-(define (make-draw-on-crt crt-width crt-height)
+(define (make-draw-on-crt crt-width crt-height mode)
   (eprintf "You are using OpenGL ~a\n"
            (gl-version))
 
@@ -129,12 +131,16 @@
 
   (define shader_program (glCreateProgram))
   (glBindAttribLocation shader_program 0 "iTexCoordPos")
-
+  
+  (define-values (the-fragment the-vert)
+    (match mode
+      ['crt (values crt-fragment crt-vert)]
+      ['std (values std-fragment std-vert)]))
+  
   (define&compile-shader fragment_shader GL_FRAGMENT_SHADER
-    shader_program crt-fragment)
-
+    shader_program the-fragment)
   (define&compile-shader vertex_shader GL_VERTEX_SHADER
-    shader_program crt-vert)
+    shader_program the-vert)
 
   (glLinkProgram shader_program)
   (print-shader-log glGetProgramInfoLog 'Program shader_program)
@@ -609,9 +615,7 @@
             (λ ()
               (unless (unbox draw-on-crt-b)
                 (set-box! draw-on-crt-b
-                          (match 'crt
-                            ['off (λ (w h t) (t))]
-                            ['crt (make-draw-on-crt width height)])))
+                          (make-draw-on-crt width height 'std)))
               (unless (unbox draw-sprites-b)
                 (set-box! draw-sprites-b
                           (make-draw csd width height)))

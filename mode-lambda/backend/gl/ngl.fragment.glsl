@@ -12,6 +12,7 @@ in float Palette;
 out vec4 out_Color;
 
 float clampit ( float v ) {
+  // xxx I think this might be causing the tops to be trimmed off
   return floor(v)+0.5;
 }
  
