@@ -2,12 +2,11 @@
 
 uniform sampler2D SpriteIndexTex;
 
-in vec2 in_Position;
-in uvec4 in_iColor;
-in uint in_iTexIndex;
-in vec3 in_Transforms;
-in ivec2 in_iVertexSpecification;
-in uint in_iPalette;
+in vec2 in_DX_DY;
+in vec4 in_MX_MY_THETA_A;
+in uvec2 in_SPR_PAL;
+in uvec4 in_LAYER_R_G_B;
+in ivec2 in_HORIZ_VERT;
 
 uniform uint ViewportWidth;
 uniform uint ViewportHeight;
@@ -45,20 +44,20 @@ mat4 glTranslate( float x, float y, float z ) {
 
 void main(void)
 {
-  float dx = in_Position.x;
-  float dy = in_Position.y;
-  uint r = in_iColor.r;
-  uint g = in_iColor.g;
-  uint b = in_iColor.b;
-  uint a = in_iColor.a;
-  float mx = in_Transforms.x;
-  float my = in_Transforms.y;
-  float theta = in_Transforms.z;
-  uint pal = in_iPalette;
-  uint spr = in_iTexIndex;
-  int horiz = in_iVertexSpecification.x;
-  int vert = in_iVertexSpecification.y;
-  
+  float dx = in_DX_DY.x;
+  float dy = in_DX_DY.y;
+  uint r = in_LAYER_R_G_B.y;
+  uint g = in_LAYER_R_G_B.z;
+  uint b = in_LAYER_R_G_B.w;
+  float a = in_MX_MY_THETA_A.w;
+  float mx = in_MX_MY_THETA_A.x;
+  float my = in_MX_MY_THETA_A.y;
+  float theta = in_MX_MY_THETA_A.z;
+  uint pal = in_SPR_PAL.y;
+  uint spr = in_SPR_PAL.x;
+  int horiz = in_HORIZ_VERT.x;
+  int vert = in_HORIZ_VERT.y;
+
   vec4 in_TexCoord =
     texelFetch(SpriteIndexTex, ivec2(0, spr), 0);
 
@@ -70,11 +69,9 @@ void main(void)
   float hw = w / 2.0;
   float hh = h / 2.0;
 
-  Color = vec4(r, g, b, a) / 255.0;
+  Color = vec4(r / 255.0, g / 255.0, b / 255.0, a);
   gl_Position =
-    vec4(horiz * hw * mx,
-         vert * hh * my,
-         0.0, 1.0)
+      vec4(horiz * hw * mx, vert * hh * my, 0.0, 1.0)
     * glRotate(theta, 0.0, 0.0, 1.0)
     * glTranslate(dx, dy, 0.0)
     * glOrtho(0.0, ViewportWidth,

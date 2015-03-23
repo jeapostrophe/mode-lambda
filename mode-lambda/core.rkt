@@ -57,21 +57,22 @@
 ;; a cylinder and we want the absolute value of the distance
 
 (define-cstruct _sprite-data
-  ([dx _float]
-   [dy _float]
-   [mx _float]
-   [my _float]
-   [theta _float]
-   [a _float]
-   [spr-idx _ushort]
-   [pal-idx _ushort]
-   [layer _byte]
-   [r _byte]
-   [g _byte]
-   [b _byte]
-   ;; xxx these are shorts for padding
-   [horiz _short]
-   [vert _short]))
+  ([dx _float]       ;; 0
+   [dy _float]       ;; 1
+   [mx _float]       ;; 2
+   [my _float]       ;; 3
+   [theta _float]    ;; 4
+   [a _float]        ;; 5
+   [spr-idx _ushort] ;; 6
+   [pal-idx _ushort] ;; 7
+   [layer _byte]     ;; 8
+   [r _byte]         ;; 9
+   [g _byte]         ;; 10
+   [b _byte]         ;; 11
+   ;; These are shorts for padding
+   [horiz _short]    ;; 12
+   [vert _short]     ;; 13
+   ))
 
 (define (tree-for f t)
   (match t

@@ -275,37 +275,6 @@
       (bytes-set! pixels (+ 3 offset) alpha))))
 ;; </COPIED>
 
-(define-cstruct _sprite-info
-  ([x _float]     ;; 0
-   [y _float]     ;; 1
-   [r _uint8]     ;; 2
-   [g _uint8]     ;; 3
-   [b _uint8]     ;; 4
-   [a _uint8]     ;; 5
-   [mx _float]    ;; 6
-   [my _float]    ;; 7
-   [theta _float] ;; 8
-
-   ;; This is a hack because we need to ensure we are aligned for
-   ;; OpenGL, so we're ignoring _palette and _sprite-index. At this
-   ;; moment, pal is "too" large and spr is just right. When we have
-   ;; more than 65k palettes or 65k sprites, there will be a
-   ;; problem. (BTW, because of normal alignment, if we change pal to
-   ;; just be a byte, it will still take up the same amount of space
-   ;; total.)
-   [pal _uint16]   ;; 9
-   [spr _uint16]   ;; 10
-
-   [horiz _sint8]  ;; 11
-   [vert _sint8])) ;; 12
-
-(define (create-sprite-info x y r g b a spr pal mx my theta)
-  (make-sprite-info x y
-                    r g b a
-                    mx my theta
-                    pal spr
-                    0 0))
-
 (define ctype-name->bytes
   (match-lambda
    ['uint8 1]
@@ -363,8 +332,8 @@
   (define (install-object! i o)
     (define-syntax-rule (point-install! Horiz Vert j ...)
       (begin
-        (set-sprite-info-horiz! o Horiz)
-        (set-sprite-info-vert! o Vert)
+        (set-sprite-data-horiz! o Horiz)
+        (set-sprite-data-vert! o Vert)
         (cvector-set! SpriteData (+ (* i 6) j) o)
         ...))
     (point-install! -1 +1 0)
@@ -374,12 +343,11 @@
 
   ;; Create Shaders
   (define ProgramId (glCreateProgram))
-  (glBindAttribLocation ProgramId 0 "in_Position")
-  (glBindAttribLocation ProgramId 1 "in_iColor")
-  (glBindAttribLocation ProgramId 2 "in_iTexIndex")
-  (glBindAttribLocation ProgramId 3 "in_Transforms")
-  (glBindAttribLocation ProgramId 4 "in_iVertexSpecification")
-  (glBindAttribLocation ProgramId 5 "in_iPalette")
+  (glBindAttribLocation ProgramId 0 "in_DX_DY")
+  (glBindAttribLocation ProgramId 1 "in_MX_MY_THETA_A")
+  (glBindAttribLocation ProgramId 2 "in_SPR_PAL")
+  (glBindAttribLocation ProgramId 3 "in_LAYER_R_G_B")
+  (glBindAttribLocation ProgramId 4 "in_HORIZ_VERT")
 
   (define&compile-shader VertexShaderId GL_VERTEX_SHADER
     ProgramId VertexShader)
@@ -387,7 +355,7 @@
     ProgramId FragmentShader)
 
   (define DrawType GL_TRIANGLES)
-  (define AttributeCount 6)
+  (define AttributeCount 5)
   (define *initialize-count* (* 2 512))
 
   (define (install-objects! t)
@@ -496,9 +464,9 @@
       Index SpriteData-start SpriteData-end)
     (begin
       (define-values (int? type)
-        (ctype->gltype (ctype-range-type _sprite-info SpriteData-start SpriteData-end)))
+        (ctype->gltype (ctype-range-type _sprite-data SpriteData-start SpriteData-end)))
       (define byte-offset
-        (ctype-offset _sprite-info SpriteData-start))
+        (ctype-offset _sprite-data SpriteData-start))
       (define HowMany
         (add1 (- SpriteData-end SpriteData-start)))
       (when debug?
@@ -506,12 +474,12 @@
                  `(glVertexAttribPointer
                    ,Index ,HowMany ,type
                    #f
-                   ,(ctype-sizeof _sprite-info)
+                   ,(ctype-sizeof _sprite-data)
                    ,byte-offset)))
       ((if int? glVertexAttribIPointer* glVertexAttribPointer)
        Index HowMany type
        #f
-       (ctype-sizeof _sprite-info)
+       (ctype-sizeof _sprite-data)
        byte-offset)
       (glEnableVertexAttribArray Index)))
 
@@ -528,12 +496,11 @@
       ...))
 
   (define-vertex-attrib-array*
-    [0  0  1] ;; x--y
-    [1  2  5] ;; r--a
-    [2 10 10] ;; spr
-    [3  6  8] ;; mx--theta
-    [4 11 12] ;; horiz--vert
-    [5  9  9]) ;; pal
+    [0  0  1]
+    [1  2  5]
+    [2  6  7]
+    [3  8 11]
+    [4 12 13])
 
   (glBindBuffer GL_ARRAY_BUFFER 0)
 
@@ -573,7 +540,7 @@
       (glBufferData GL_ARRAY_BUFFER
                     (* SpriteData-count
                        DrawnMult
-                       (ctype-sizeof _sprite-info))
+                       (ctype-sizeof _sprite-data))
                     #f
                     GL_STREAM_DRAW))
 
@@ -584,7 +551,7 @@
             0
             (* SpriteData-count
                DrawnMult
-               (ctype-sizeof _sprite-info))
+               (ctype-sizeof _sprite-data))
             (bitwise-ior
              ;; We are overriding everything (this would be wrong if
              ;; we did the caching "optimization" I imagine)
@@ -598,7 +565,7 @@
 
              ;; We are writing
              GL_MAP_WRITE_BIT))
-           _sprite-info
+           _sprite-data
            (* SpriteData-count
               DrawnMult)))
 
@@ -643,30 +610,12 @@
 
   draw)
 
-;; Middle layer
-
-(define (convert-sprites csd sprite-tree)
-  (define idx->w*h*tx*ty (compiled-sprite-db-idx->w*h*tx*ty csd))
-  (define (convert-sprite t)
-    (match-define
-     (sprite-data dx dy mx my theta a.0 spr-idx pal-idx layer r g b horiz vert)
-     t)
-    (match-define (vector w h tx ty) (vector-ref idx->w*h*tx*ty spr-idx))
-    (define a (inexact->exact (round (* a.0 255))))
-    (create-sprite-info dx dy r g b a spr-idx pal-idx mx my theta))
-  (define (f acc t)
-    (cons (convert-sprite t) acc))
-  (tree-fold f empty sprite-tree))
-
 ;; New Interface
 
 (define (stage-draw/dc csd width height)
   (define draw-on-crt-b (box #f))
   (define draw-sprites-b (box #f))
   (λ (layer-config sprite-tree)
-    (define last-sprites
-      ;; xxx don't convert
-      (convert-sprites csd sprite-tree))
     ;; xxx implement layer-config
     (λ (w h dc)
       (define glctx (send dc get-gl-context))
@@ -683,11 +632,10 @@
               (unless (unbox draw-sprites-b)
                 (set-box! draw-sprites-b
                           (make-draw csd width height)))
-              (when last-sprites
-                ((unbox draw-on-crt-b)
-                 w h
-                 (λ () ((unbox draw-sprites-b)
-                        last-sprites))))
+              ((unbox draw-on-crt-b)
+               w h
+               (λ () ((unbox draw-sprites-b)
+                      sprite-tree)))
               (send glctx swap-buffers))))))
 
 (define gui-mode 'gl-core)
