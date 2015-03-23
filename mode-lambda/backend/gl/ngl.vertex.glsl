@@ -45,22 +45,43 @@ mat4 glTranslate( float x, float y, float z ) {
 
 void main(void)
 {
+  float dx = in_Position.x;
+  float dy = in_Position.y;
+  float hw = in_Position.z;
+  float hh = in_Position.w;
+  uint r = in_iColor.r;
+  uint g = in_iColor.g;
+  uint b = in_iColor.b;
+  uint a = in_iColor.a;
+  float mx = in_Transforms.x;
+  float my = in_Transforms.y;
+  float theta = in_Transforms.z;
+  uint pal = in_iPalette;
+  uint spr = in_iTexIndex;
+  int horiz = in_iVertexSpecification.x;
+  int vert = in_iVertexSpecification.y;
+  
   vec4 in_TexCoord =
-    texelFetch(SpriteIndexTex, ivec2(0, in_iTexIndex), 0);
+    texelFetch(SpriteIndexTex, ivec2(0, spr), 0);
 
-  Color = vec4(in_iColor.r, in_iColor.g, in_iColor.b, in_iColor.a) / 255.0;
+  float w = in_TexCoord.x;
+  float h = in_TexCoord.y;
+  float tx = in_TexCoord.z;
+  float ty = in_TexCoord.w;
+
+  Color = vec4(r, g, b, a) / 255.0;
   gl_Position =
-    vec4(in_iVertexSpecification.x * in_Position.z * in_Transforms.x,
-         in_iVertexSpecification.y * in_Position.w * in_Transforms.y,
+    vec4(horiz * hw * mx,
+         vert * hh * my,
          0.0, 1.0)
-    * glRotate(in_Transforms.z, 0.0, 0.0, 1.0)
-    * glTranslate(in_Position.x, in_Position.y, 0.0)
+    * glRotate(theta, 0.0, 0.0, 1.0)
+    * glTranslate(dx, dy, 0.0)
     * glOrtho(0.0, ViewportWidth,
               0.0, ViewportHeight,
               1.0, -1.0);
   TexCoord =
-    vec2(in_TexCoord.x + ((in_iVertexSpecification.x + 1.0)/+2.0) * in_TexCoord.z,
-         in_TexCoord.y + ((in_iVertexSpecification.y - 1.0)/-2.0) * in_TexCoord.w);
+    vec2(w + ((horiz + 1.0)/+2.0) * tx,
+         h + ((vert - 1.0)/-2.0) * ty);
   ;
-  Palette = in_iPalette;
+  Palette = pal;
 }
