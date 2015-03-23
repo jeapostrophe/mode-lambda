@@ -46,8 +46,7 @@
     (exit 1)))
 
 (define-syntax-rule
-  (define&compile-shader VertexShaderId
-    GL_VERTEX_SHADER
+  (define&compile-shader VertexShaderId GL_VERTEX_SHADER
     ProgramId VertexShader)
   (begin (define VertexShaderId (glCreateShader GL_VERTEX_SHADER))
          (glShaderSource VertexShaderId 1 (vector VertexShader)
@@ -58,10 +57,8 @@
 
 ;; Old Code from GB (crt.rkt)
 
-;; xxx simplify this
-(define-shader-source fragment-source "gl/crt.fragment.glsl")
-;; xxx simplify this
-(define-shader-source vertex-source "gl/crt.vertex.glsl")
+(define-shader-source crt-fragment "gl/crt.fragment.glsl")
+(define-shader-source crt-vert "gl/crt.vertex.glsl")
 
 (define (quotient* x y)
   (define-values (q r) (quotient/remainder x y))
@@ -133,13 +130,11 @@
   (define shader_program (glCreateProgram))
   (glBindAttribLocation shader_program 0 "iTexCoordPos")
 
-  (define&compile-shader fragment_shader
-    GL_FRAGMENT_SHADER
-    shader_program fragment-source)
+  (define&compile-shader fragment_shader GL_FRAGMENT_SHADER
+    shader_program crt-fragment)
 
-  (define&compile-shader vertex_shader
-    GL_VERTEX_SHADER
-    shader_program vertex-source)
+  (define&compile-shader vertex_shader GL_VERTEX_SHADER
+    shader_program crt-vert)
 
   (glLinkProgram shader_program)
   (print-shader-log glGetProgramInfoLog 'Program shader_program)
@@ -314,10 +309,10 @@
    ['float (values #f GL_FLOAT)]))
 
 ;; xxx everything about layers is ignored
-(define-shader-source VertexShader "gl/ngl.vertex.glsl")
+(define-shader-source ngl-vert "gl/ngl.vertex.glsl")
 ;; xxx direct bitmaps are broken
 ;; xxx color tinting is broken
-(define-shader-source FragmentShader "gl/ngl.fragment.glsl")
+(define-shader-source ngl-fragment "gl/ngl.fragment.glsl")
 
 (define DrawnMult 6)
 
@@ -351,9 +346,9 @@
   (glBindAttribLocation ProgramId 4 "in_HORIZ_VERT")
 
   (define&compile-shader VertexShaderId GL_VERTEX_SHADER
-    ProgramId VertexShader)
+    ProgramId ngl-vert)
   (define&compile-shader FragmentShaderId GL_FRAGMENT_SHADER
-    ProgramId FragmentShader)
+    ProgramId ngl-fragment)
 
   (define DrawType GL_TRIANGLES)
   (define AttributeCount 5)
