@@ -234,7 +234,7 @@
     (glBindVertexArray VaoId)
     (glEnableVertexAttribArray 0)
     (glUseProgram shader_program)
-    (glClearColor 0. 0. 0. 0.)
+    (glClearColor 0.0 0.0 0.0 0.0)
     (glClear (bitwise-ior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
     (glViewport 0 0 actual-screen-width actual-screen-height)
     (glActiveTexture GL_TEXTURE0)
