@@ -508,6 +508,8 @@
 
     (glBindBuffer GL_ARRAY_BUFFER VboId)
 
+    ;; xxx can i optimize this by copying into a different (or the
+    ;; same) c buffer and then do a big memcpy?
     (define early-count (count-objects objects))
     (when debug?
       (printf "early count is ~a\n" early-count))

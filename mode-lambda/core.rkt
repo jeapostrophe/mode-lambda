@@ -94,9 +94,11 @@
 (define tree/c
   any/c)
 
+;; XXX move this 8 into a global variable
 (define layer-vector/c
   (apply vector/c (make-list 8 (or/c false/c layer-data?))))
 
+;; XXX Add two trees for a static component for the GL version
 (define-syntax-rule (backend/c (addl-input ...) output)
   (-> layer-vector/c tree/c addl-input ... output))
 
