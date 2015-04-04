@@ -435,16 +435,11 @@
   (print-shader-log glGetProgramInfoLog 'Program ProgramId)
 
   (glUseProgram ProgramId)
-  (glUniform1i (glGetUniformLocation ProgramId "SpriteAtlasTex")
-               0)
-  (glUniform1i (glGetUniformLocation ProgramId "PaletteAtlasTex")
-               1)
-  (glUniform1i (glGetUniformLocation ProgramId "SpriteIndexTex")
-               2)
-  (glUniform1ui (glGetUniformLocation ProgramId "ViewportWidth")
-                width)
-  (glUniform1ui (glGetUniformLocation ProgramId "ViewportHeight")
-                height)
+  (glUniform1i (glGetUniformLocation ProgramId "SpriteAtlasTex") 0)
+  (glUniform1i (glGetUniformLocation ProgramId "PaletteAtlasTex") 1)
+  (glUniform1i (glGetUniformLocation ProgramId "SpriteIndexTex") 2)
+  (glUniform1ui (glGetUniformLocation ProgramId "ViewportWidth") width)
+  (glUniform1ui (glGetUniformLocation ProgramId "ViewportHeight") height)
   (glUseProgram 0)
 
   (define VaoId (u32vector-ref (glGenVertexArrays 1) 0))
@@ -477,9 +472,7 @@
        byte-offset)
       (glEnableVertexAttribArray Index)))
 
-  (define VboId
-    (u32vector-ref (glGenBuffers 1) 0))
-
+  (define VboId (u32vector-ref (glGenBuffers 1) 0))
   (glBindBuffer GL_ARRAY_BUFFER VboId)
 
   (define-syntax-rule
@@ -500,7 +493,10 @@
 
   (glBindVertexArray 0)
 
-  (define (draw objects)
+  (define (draw static-st dynamic-st)
+    ;; xxx optimize static
+    (define objects (cons static-st dynamic-st))
+    
     (glBindVertexArray VaoId)
 
     (for ([i (in-range AttributeCount)])
@@ -515,8 +511,6 @@
 
     (glBindBuffer GL_ARRAY_BUFFER VboId)
 
-    ;; xxx can i optimize this by copying into a different (or the
-    ;; same) c buffer and then do a big memcpy?
     (define early-count (count-objects objects))
     (when debug?
       (printf "early count is ~a\n" early-count))
@@ -574,7 +568,7 @@
     (glUseProgram ProgramId)
 
     (glEnable GL_DEPTH_TEST)
-    (glClearColor 0.0 0.0 0.0 0.0)
+    (glClearColor 0.0 0.0 0.0 1.0)
 
     (glEnable GL_BLEND)
     (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
@@ -618,8 +612,6 @@
      (λ ()
        (make-draw csd width height))))
   (λ (layer-config static-st dynamic-st)
-    ;; xxx send this through
-    (define sprite-tree (cons static-st dynamic-st))
     (λ (w h dc)
       (define glctx (send dc get-gl-context))
       (unless glctx
@@ -627,7 +619,7 @@
       (send glctx call-as-current
             (λ ()
               ((draw-on-crt) w h
-               (λ () ((draw-sprites) sprite-tree)))
+               (λ () ((draw-sprites) static-st dynamic-st)))
               (send glctx swap-buffers))))))
 
 (define gui-mode 'gl-core)
