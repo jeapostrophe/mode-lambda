@@ -1,5 +1,6 @@
 #lang racket/base
-;; xxx improve based on https://github.com/Steve132/uraster ?
+;; improve based on https://github.com/Steve132/uraster or just assume
+;; the GL will be used and this is for reference?
 (require (for-syntax racket/base
                      (only-in srfi/1 iota))
          data/2d-hash

@@ -29,6 +29,15 @@
                   _sint8
                   _uint8))
 
+(define (make-delayed-until-gl-is-around t)
+  (define c #f)
+  (define r #f)
+  (λ ()
+    (unless c
+      (set! c #t)
+      (set! r (t)))
+    r))
+
 ;; Old Code from GB (gl-util.rkt)
 
 (define-syntax-rule (define-shader-source id path)
@@ -131,12 +140,12 @@
 
   (define shader_program (glCreateProgram))
   (glBindAttribLocation shader_program 0 "iTexCoordPos")
-  
+
   (define-values (the-fragment the-vert)
     (match mode
       ['crt (values crt-fragment crt-vert)]
       ['std (values std-fragment std-vert)]))
-  
+
   (define&compile-shader fragment_shader GL_FRAGMENT_SHADER
     shader_program the-fragment)
   (define&compile-shader vertex_shader GL_VERTEX_SHADER
@@ -490,7 +499,7 @@
   (glBindBuffer GL_ARRAY_BUFFER 0)
 
   (glBindVertexArray 0)
-  
+
   (define (draw objects)
     (glBindVertexArray VaoId)
 
@@ -549,7 +558,7 @@
              ;; operations (but it doesn't seem to improve performance
              ;; by having this option)
              ;; GL_MAP_UNSYNCHRONIZED_BIT
-             
+
              ;; We are writing
              GL_MAP_WRITE_BIT))
            _sprite-data
@@ -600,9 +609,14 @@
 ;; New Interface
 
 (define (stage-draw/dc csd width height)
-  ;; xxx remove these boxes and hide them in the make-* interface
-  (define draw-on-crt-b (box #f))
-  (define draw-sprites-b (box #f))
+  (define draw-on-crt
+    (make-delayed-until-gl-is-around
+     (λ ()
+       (make-draw-on-crt width height 'std))))
+  (define draw-sprites
+    (make-delayed-until-gl-is-around
+     (λ ()
+       (make-draw csd width height))))
   ;; xxx add a static tree (for level geometry/etc)
   (λ (layer-config sprite-tree)
     (λ (w h dc)
@@ -611,16 +625,8 @@
         (error 'draw "Could not initialize OpenGL!"))
       (send glctx call-as-current
             (λ ()
-              (unless (unbox draw-on-crt-b)
-                (set-box! draw-on-crt-b
-                          (make-draw-on-crt width height 'std)))
-              (unless (unbox draw-sprites-b)
-                (set-box! draw-sprites-b
-                          (make-draw csd width height)))
-              ((unbox draw-on-crt-b)
-               w h
-               (λ () ((unbox draw-sprites-b)
-                      sprite-tree)))
+              ((draw-on-crt) w h
+               (λ () ((draw-sprites) sprite-tree)))
               (send glctx swap-buffers))))))
 
 (define gui-mode 'gl-core)
