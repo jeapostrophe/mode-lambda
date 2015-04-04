@@ -581,8 +581,7 @@
     (glUseProgram ProgramId)
 
     (glEnable GL_DEPTH_TEST)
-    ;; xxx This is supposed to be a BLACK background, but isn't
-    (glClearColor 1.0 1.0 1.0 0.0)
+    (glClearColor 0.0 0.0 0.0 0.0)
 
     (glEnable GL_BLEND)
     ;; xxx I'm not confident in this formula
