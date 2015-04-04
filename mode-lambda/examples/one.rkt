@@ -112,10 +112,11 @@
   (define (random-spr-idx)
     (sprite-idx csd (random-spr)))
   (define-values
-    (s lc)
+    (s d lc)
     (match mode
       ["rand"
        (values
+        '()
         (for/list ([i (in-range (* 2 W))])
           (sprite (* W (random)) (* H (random))
                   #:r (random-byte) #:g (random-byte) #:b (random-byte)
@@ -127,6 +128,7 @@
                 #f #f #f #f #f #f #f))]
       ["grid"
        (values
+        '()
         (for*/list ([x (in-range (quotient W 10))]
                     [y (in-range (quotient W 10))])
           (sprite (exact->inexact (* 16 x)) (exact->inexact (* 16 y))
@@ -180,7 +182,9 @@
                      #:a 0.25
                      #:layer 7
                      #:pal-idx (palette-idx csd 'med0)))))
-       (values (list* block-sprites #;background-sprites #;foreground-sprites)
+       (values '()
+               ;; xxx re-enable these and put in bg in s part
+               (list* block-sprites #;background-sprites #;foreground-sprites)
                (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
                               #:mode7 2.0
                               #:horizon 0.0
@@ -193,6 +197,7 @@
                               #:mx 2.0 #:my 2.0)))]
       ["tile"
        (values
+        '()
         (sprite (fx->fl (/ W 2)) (fx->fl (/ H 2))
                 (sprite-idx csd 'star)
                 #:r 255 #:g 255 #:b 255)
@@ -206,6 +211,7 @@
                  #:r r #:g g #:b b
                  #:mx 0.5 #:my 0.5))
        (values
+        '()
         (list (star@ 0.0 0.0 255 255 255)
               (star@ (fl- (fl* 1.0 (fl/ (fx->fl W) 4.0)) (fl* 4.0 (fx->fl W)))
                      (fl* 1.0 (fl/ (fx->fl H) 4.0))
@@ -225,8 +231,7 @@
                        #:wrap-x? #t #:wrap-y? #t
                        #:mx 0.5 #:my 0.5)
                 #f #f #f #f #f #f #f))]))
-  ;; xxx test the static side
-  (render lc '() s))
+  (render lc s d))
 
 (struct one
   (renderi mode rt)
@@ -266,7 +271,7 @@
 
 (define (update-rt w)
   (struct-copy one w
-               [rt (go (one-renderi w) 
+               [rt (go (one-renderi w)
                        (one-mode w))]))
 
 (module+ main
