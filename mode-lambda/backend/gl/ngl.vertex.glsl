@@ -38,6 +38,24 @@ in ivec2 in_HORIZ_VERT;
 uniform uint ViewportWidth;
 uniform uint ViewportHeight;
 
+#define LAYERS 8
+
+uniform LayerConfigBlock
+{
+  float cx;
+  float cy;
+  float hw;
+  float hh;
+  float mx;
+  float my;
+  float theta;
+  float mode7coeff;
+  float horizon;
+  float fov;
+  uint wrapxp;
+  uint wrapyp;
+} LayerConfig[LAYERS];
+
 out vec4 Color;
 out vec2 TexCoord;
 out float Palette;
@@ -65,6 +83,8 @@ void main(void)
   float  h = in_TexCoord.y;
   float tx = in_TexCoord.z;
   float ty = in_TexCoord.w;
+
+  // xxx use LayerConfig
 
   Color = vec4(r / 255.0, g / 255.0, b / 255.0, a);
   gl_Position =

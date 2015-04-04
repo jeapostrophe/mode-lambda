@@ -38,6 +38,11 @@
       (set! r (t)))
     r))
 
+(define (cvector-set*! vec k . vs)
+  (for ([v (in-list vs)]
+        [i (in-naturals)])
+    (cvector-set! vec (+ k i) v)))
+
 ;; Old Code from GB (gl-util.rkt)
 
 (define-syntax-rule (define-shader-source id path)
@@ -204,6 +209,8 @@
     (glVertexAttribPointer 0 DataSize GL_FLOAT #f 0 0)
     (glEnableVertexAttribArray 0)
 
+    ;; xxx this should really just be called once when VboId was made
+    ;; with the stream_draw setting
     (glBufferData GL_ARRAY_BUFFER (* DataCount DataWidth DataSize) #f GL_STATIC_DRAW)
 
     (define DataVec
@@ -216,11 +223,7 @@
        _float
        (* DataWidth
           DataSize
-          DataCount)))
-    (define (cvector-set*! vec k . vs)
-      (for ([v (in-list vs)]
-            [i (in-naturals)])
-        (cvector-set! vec (+ k i) v)))
+          DataCount)))    
     (cvector-set*! DataVec 0
                    0.0 0.0 inset-left inset-bottom
                    1.0 0.0 inset-right inset-bottom
@@ -323,7 +326,6 @@
    ['int32 (values #t GL_INT)]
    ['float (values #f GL_FLOAT)]))
 
-;; xxx everything about layers is ignored
 (define-shader-source ngl-vert "gl/ngl.vertex.glsl")
 (define-shader-source ngl-fragment "gl/ngl.fragment.glsl")
 
@@ -438,6 +440,7 @@
   (glUniform1i (glGetUniformLocation ProgramId "SpriteAtlasTex") 0)
   (glUniform1i (glGetUniformLocation ProgramId "PaletteAtlasTex") 1)
   (glUniform1i (glGetUniformLocation ProgramId "SpriteIndexTex") 2)
+  (define LayerConfigBlockIdx (glGetUniformBlockIndex ProgramId "LayerConfigBlock"))
   (glUniform1ui (glGetUniformLocation ProgramId "ViewportWidth") width)
   (glUniform1ui (glGetUniformLocation ProgramId "ViewportHeight") height)
   (glUseProgram 0)
@@ -493,7 +496,9 @@
 
   (glBindVertexArray 0)
 
-  (define (draw static-st dynamic-st)
+  (define (draw layer-config static-st dynamic-st)
+    ;; xxx load layer-config into LayerConfigBlockIdx
+    
     ;; xxx optimize static
     (define objects (cons static-st dynamic-st))
     
@@ -575,10 +580,13 @@
 
     (glClear (bitwise-ior GL_DEPTH_BUFFER_BIT GL_COLOR_BUFFER_BIT))
 
+    ;; xxx draw this onto a 1xLAYERS 2D texture array
     (define drawn-count this-count)
     (glDrawArrays
      DrawType 0
      (* DrawnMult drawn-count))
+
+    ;; xxx do the layer combination pass
 
     (glDisable GL_DEPTH_TEST)
     (glDisable GL_BLEND)
@@ -619,7 +627,7 @@
       (send glctx call-as-current
             (λ ()
               ((draw-on-crt) w h
-               (λ () ((draw-sprites) static-st dynamic-st)))
+               (λ () ((draw-sprites) layer-config static-st dynamic-st)))
               (send glctx swap-buffers))))))
 
 (define gui-mode 'gl-core)
