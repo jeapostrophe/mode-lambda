@@ -584,7 +584,6 @@
     (glClearColor 0.0 0.0 0.0 0.0)
 
     (glEnable GL_BLEND)
-    ;; xxx I'm not confident in this formula
     (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
 
     (glClear (bitwise-ior GL_DEPTH_BUFFER_BIT GL_COLOR_BUFFER_BIT))

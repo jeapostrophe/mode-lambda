@@ -33,15 +33,12 @@ void main(void)
     PixelColor = texelFetch(PaletteAtlasTex, PalCoord_uv, 0 );
   }
 
-  // XXX I don't do this in the software one
-  // Colors are not pre-multiplied
+  // Colors are not pre-multiplied (I don't do this in the software
+  // one and I don't know why OpenGL seems to require it)
   PixelColor.rgb = PixelColor.a * PixelColor.rgb;
 
-  // XXX This doesn't work
-  //out_Color.a = PixelColor.a * Color.a;
-  //out_Color.rgb = PixelColor.rgb + Color.rgb;
-
-  out_Color = PixelColor + Color;
+  out_Color.a = PixelColor.a * Color.a;
+  out_Color.rgb = PixelColor.rgb + Color.rgb;
   
   if ( out_Color.a == 0.0 ) {
     discard;
