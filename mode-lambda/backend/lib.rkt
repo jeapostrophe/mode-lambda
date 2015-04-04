@@ -1,10 +1,10 @@
 #lang racket/base
 (require mode-lambda/core
+         racket/draw
          racket/contract/base
          racket/class)
 
 (define (argb-bytes->bitmap w h bs)
-  (local-require racket/draw)
   (define root-bm (make-bitmap w h))
   (send root-bm set-argb-pixels 0 0 w h bs)
   root-bm)
@@ -32,5 +32,21 @@
                  any)))
 
 (provide
- ;; xxx
- (all-defined-out))
+ (contract-out
+  [argb-bytes->bitmap
+   (-> exact-nonnegative-integer?
+       exact-nonnegative-integer?
+       bytes?
+       (is-a?/c bitmap%))]
+  [save-bitmap!
+   (-> (is-a?/c bitmap%) 
+       path-string?
+       void?)]
+  [draw-bitmap!
+   (-> exact-nonnegative-integer? exact-nonnegative-integer?
+       exact-nonnegative-integer? exact-nonnegative-integer?
+       (is-a?/c bitmap%)
+       (is-a?/c dc<%>)
+       void?)]
+  [draw/dc/c
+   contract?]))
