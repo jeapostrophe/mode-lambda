@@ -123,7 +123,7 @@ void main()
   vec2 iPos = iTexCoordPos.zw;
   vec2 iTexCoord = iTexCoordPos.xy;
 
-  // xxx Do the standard vertex processing.
+  // Do the standard vertex processing.
   mat4 ViewportMatrix = glOrtho(0.0, rubyOutputSize.x,
                                 0.0, rubyOutputSize.y,
                                 1.0, -1.0);
