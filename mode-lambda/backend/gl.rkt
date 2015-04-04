@@ -617,8 +617,9 @@
     (make-delayed-until-gl-is-around
      (λ ()
        (make-draw csd width height))))
-  ;; xxx add a static tree (for level geometry/etc)
-  (λ (layer-config sprite-tree)
+  (λ (layer-config static-st dynamic-st)
+    ;; xxx send this through
+    (define sprite-tree (cons static-st dynamic-st))
     (λ (w h dc)
       (define glctx (send dc get-gl-context))
       (unless glctx

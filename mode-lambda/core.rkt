@@ -97,9 +97,8 @@
 (define layer-vector/c
   (apply vector/c (make-list LAYERS (or/c false/c layer-data?))))
 
-;; XXX Add two trees for a static component for the GL version
 (define-syntax-rule (backend/c (addl-input ...) output)
-  (-> layer-vector/c tree/c addl-input ... output))
+  (-> layer-vector/c tree/c tree/c addl-input ... output))
 
 (define draw!/c
   (backend/c () void?))

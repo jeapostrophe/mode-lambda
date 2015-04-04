@@ -225,7 +225,8 @@
                        #:wrap-x? #t #:wrap-y? #t
                        #:mx 0.5 #:my 0.5)
                 #f #f #f #f #f #f #f))]))
-  (render lc s))
+  ;; xxx test the static side
+  (render lc '() s))
 
 (struct one
   (renderi mode rt)
