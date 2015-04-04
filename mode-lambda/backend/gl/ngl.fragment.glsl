@@ -11,16 +11,18 @@ in vec2 TexCoord;
 in float Palette;
 out vec4 out_Color;
 
-float clampit ( float v ) {
-  // xxx I think this might be causing the tops to be trimmed off
+float clampx ( float v ) {
   return floor(v)+0.5;
+}
+float clampy ( float v ) {
+  return floor(v)-0.5;
 }
  
 void main(void)
 {
   vec4 PixelColor;  
   
-  ivec2 TexCoord_uv = ivec2(clampit(TexCoord.x), clampit(TexCoord.y));
+  ivec2 TexCoord_uv = ivec2(clampx(TexCoord.x), clampy(TexCoord.y));
   vec4 SpriteColor = texelFetch(SpriteAtlasTex, TexCoord_uv, 0);
 
   if ( Palette == 0.0 ) {
