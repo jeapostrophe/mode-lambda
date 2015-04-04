@@ -316,8 +316,6 @@
 
 ;; xxx everything about layers is ignored
 (define-shader-source ngl-vert "gl/ngl.vertex.glsl")
-;; xxx direct bitmaps are broken
-;; xxx color tinting is broken
 (define-shader-source ngl-fragment "gl/ngl.fragment.glsl")
 
 (define DrawnMult 6)
