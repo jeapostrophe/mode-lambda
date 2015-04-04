@@ -491,14 +491,6 @@
 
   (glBindVertexArray 0)
   
-  ;; xxx AZDO: http://www.slideshare.net/CassEveritt/approaching-zero-driver-overhead
-  ;; says to make one giant call to glMultiDrawElementsIndirect
-  ;; - i would change vertex data per frame
-  ;; - i might change the filter mode
-  ;; - i would change the uniforms because of layers
-  ;;
-  ;; use https://www.opengl.org/wiki/Shader_Storage_Buffer_Object for uniform data
-
   (define (draw objects)
     (glBindVertexArray VaoId)
 
@@ -532,7 +524,6 @@
                 (* 2 SpriteData-count)
                 SpriteData-count:new
                 SpriteData-count))
-      ;; XXX AZDO says to use glBufferStorage
       (glBufferData GL_ARRAY_BUFFER
                     (* SpriteData-count
                        DrawnMult
@@ -559,11 +550,6 @@
              ;; by having this option)
              ;; GL_MAP_UNSYNCHRONIZED_BIT
              
-             ;; xxx AZDO recommends
-             ;; GL_MAP_PERSISTENT_BIT (keep mapped while drawing)
-             ;; GL_MAP_COHERENT_BIT (writes automatically visible to GPU)
-             ;; xxx use glFenceSync and glClientWaitSync
-
              ;; We are writing
              GL_MAP_WRITE_BIT))
            _sprite-data
