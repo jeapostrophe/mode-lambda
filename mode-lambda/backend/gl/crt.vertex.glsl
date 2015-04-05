@@ -25,7 +25,6 @@ vec2 sinangle;
 vec2 cosangle;
 
 uniform vec2 rubyInputSize;
-uniform vec2 rubyTextureSize;
 uniform vec2 rubyOutputSize;
 
 out vec2 texCoord;
@@ -141,8 +140,8 @@ void main()
   ilfac = vec2(1.0,floor(rubyInputSize.y/200.0));
 
   // The size of one texel, in texture-coordinates.
-  one = ilfac / rubyTextureSize;
+  one = ilfac / rubyInputSize;
 
   // Resulting X pixel-coordinate of the pixel we're drawing.
-  mod_factor = texCoord.x * rubyTextureSize.x * rubyOutputSize.x / rubyInputSize.x;			
+  mod_factor = texCoord.x * rubyInputSize.x * rubyOutputSize.x / rubyInputSize.x;			
 }

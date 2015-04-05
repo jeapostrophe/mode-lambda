@@ -2,7 +2,6 @@
 
 uniform sampler2D rubyTexture;
 uniform vec2 rubyInputSize;
-uniform vec2 rubyTextureSize;
 
 in vec2 texCoord;
 

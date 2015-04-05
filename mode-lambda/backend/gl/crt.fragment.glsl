@@ -33,7 +33,6 @@
 
 uniform sampler2D rubyTexture;
 uniform vec2 rubyInputSize;
-uniform vec2 rubyTextureSize;
 uniform int rubyFrameCount;
 
 in vec2 texCoord;
@@ -86,14 +85,13 @@ vec2 bkwtrans(vec2 xy)
 
 vec2 transform(vec2 coord)
 {
-  coord *= rubyTextureSize / rubyInputSize;
+  coord *= rubyInputSize / rubyInputSize;
   coord = (coord-vec2(0.5))*aspect*stretch.z+stretch.xy;
-  return (bkwtrans(coord)/overscan/aspect+vec2(0.5)) * rubyInputSize / rubyTextureSize;
+  return (bkwtrans(coord)/overscan/aspect+vec2(0.5)) * rubyInputSize / rubyInputSize;
 }
 
 float corner(vec2 coord)
 {
-  coord *= rubyTextureSize / rubyInputSize;
   coord = (coord - vec2(0.5)) * overscan + vec2(0.5);
   coord = min(coord, vec2(1.0)-coord) * aspect;
   vec2 cdist = vec2(cornersize);
@@ -165,14 +163,14 @@ void main()
   // Of all the pixels that are mapped onto the texel we are
   // currently rendering, which pixel are we currently rendering?
   vec2 ilvec = vec2(0.0,ilfac.y > 1.5 ? mod(float(rubyFrameCount),2.0) : 0.0);
-  vec2 ratio_scale = (xy * rubyTextureSize - vec2(0.5) + ilvec)/ilfac;
+  vec2 ratio_scale = (xy * rubyInputSize - vec2(0.5) + ilvec)/ilfac;
 #ifdef OVERSAMPLE
   float filter = fwidth(ratio_scale.y);
 #endif
   vec2 uv_ratio = fract(ratio_scale);
 
   // Snap to the center of the underlying texel.
-  xy = (floor(ratio_scale)*ilfac + vec2(0.5) - ilvec) / rubyTextureSize;
+  xy = (floor(ratio_scale)*ilfac + vec2(0.5) - ilvec) / rubyInputSize;
 
   // Calculate Lanczos scaling coefficients describing the effect
   // of various neighbour texels in a scanline on the current

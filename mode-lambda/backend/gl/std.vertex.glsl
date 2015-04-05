@@ -3,7 +3,6 @@
 in vec4 iTexCoordPos;
 
 uniform vec2 rubyInputSize;
-uniform vec2 rubyTextureSize;
 uniform vec2 rubyOutputSize;
 
 out vec2 texCoord;

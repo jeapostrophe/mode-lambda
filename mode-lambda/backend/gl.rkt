@@ -161,8 +161,6 @@
   (glUniform1i (glGetUniformLocation shader_program "rubyTexture") 0)
   (glUniform2fv (glGetUniformLocation shader_program "rubyInputSize")
                 1 (f32vector (* 1. crt-width) (* 1. crt-height)))
-  (glUniform2fv (glGetUniformLocation shader_program "rubyTextureSize")
-                1 (f32vector (* 1. crt-width) (* 1. crt-height)))
 
   (glUseProgram 0)
 
@@ -252,8 +250,6 @@
 ;; Old Code from GB (ngl.rkt)
 
 (define num->pow2 integer-length)
-
-(define debug? #f)
 
 ;; COPIED FROM opengl/main
 ;; Convert argb -> rgba
@@ -456,13 +452,6 @@
         (ctype-offset _sprite-data SpriteData-start))
       (define HowMany
         (add1 (- SpriteData-end SpriteData-start)))
-      (when debug?
-        (eprintf "~v\n"
-                 `(glVertexAttribPointer
-                   ,Index ,HowMany ,type
-                   #f
-                   ,(ctype-sizeof _sprite-data)
-                   ,byte-offset)))
       ((if int? glVertexAttribIPointer* glVertexAttribPointer)
        Index HowMany type
        #f
@@ -537,8 +526,6 @@
     (glBindBuffer GL_ARRAY_BUFFER VboId)
 
     (define early-count (count-objects objects))
-    (when debug?
-      (printf "early count is ~a\n" early-count))
     (define SpriteData-count:new (max *initialize-count* early-count))
 
     (unless (>= SpriteData-count SpriteData-count:new)
@@ -546,12 +533,6 @@
       (set! SpriteData-count
             (max (* 2 SpriteData-count)
                  SpriteData-count:new))
-      (when debug?
-        (printf "~a -> max(~a,~a) = ~a\n"
-                SpriteData-count:old
-                (* 2 SpriteData-count)
-                SpriteData-count:new
-                SpriteData-count))
       (glBufferData GL_ARRAY_BUFFER
                     (* SpriteData-count
                        DrawnMult
@@ -635,7 +616,7 @@
   (define draw-on-crt
     (make-delayed-until-gl-is-around
      (λ ()
-       (make-draw-on-crt width height 'std))))
+       (make-draw-on-crt width height 'crt))))
   (define draw-sprites
     (make-delayed-until-gl-is-around
      (λ ()
