@@ -145,7 +145,7 @@
        (define color-schemes
          (for/vector ([c (in-vector scheme)])
            (palette-idx csd (string->symbol (format "hi~a" c)))))
-       (printf "color-schemes: ~v\n" color-schemes)
+       ;;(printf "color-schemes: ~v\n" color-schemes)
        (define block-sprites
          (for*/list ([c (in-range (quotient (quotient W 8) 4))]
                      [r (in-range (quotient (quotient H 8) 4))])
@@ -184,7 +184,7 @@
                      #:pal-idx (palette-idx csd 'med0)))))
        (values '()
                ;; xxx re-enable these and put in bg in s part
-               (list* block-sprites #;background-sprites #;foreground-sprites)
+               (list* block-sprites background-sprites foreground-sprites)
                (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
                               #:mode7 2.0
                               #:horizon 0.0
@@ -241,7 +241,7 @@
   (render lc s d))
 
 (struct one
-  (renderi mode rt)
+  (renderi mode prng-st rt)
   #:methods gen:word
   [(define (word-fps w)
      30.0)
@@ -269,11 +269,19 @@
        (if (equal? old new)
            w
            (struct-copy one w
+                        [prng-st (capture-prng-st)]
                         [mode new]))]
       [else
        w]))
    (define (word-tick w)
-     (update-rt w))])
+     (parameterize ([current-pseudo-random-generator
+                     (vector->pseudo-random-generator
+                      (one-prng-st w))])
+       (update-rt w)))])
+
+(define (capture-prng-st)
+  (pseudo-random-generator->vector
+   (make-pseudo-random-generator)))
 
 (define (update-rt w)
   (struct-copy one w
@@ -286,4 +294,7 @@
   (call-with-chaos
    (make-gui #:mode gui-mode)
    (λ ()
-     (fiat-lux (update-rt (one (prepare-renderi stage-draw/dc) "blocks" #f))))))
+     (fiat-lux (update-rt (one (prepare-renderi stage-draw/dc)
+                               "blocks"
+                               (capture-prng-st)
+                               #f))))))

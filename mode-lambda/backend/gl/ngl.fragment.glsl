@@ -9,14 +9,14 @@ uniform sampler2D PaletteAtlasTex;
 in vec4 Color;
 in vec2 TexCoord;
 in float Palette;
-out vec4 out_Color;
+in float Layer;
 
-float clampx ( float v ) {
-  return floor(v)+0.5;
-}
-float clampy ( float v ) {
-  return floor(v)-0.5;
-}
+#define LAYERS 8
+
+out vec4 out_Color[LAYERS];
+
+float clampx ( float v ) { return floor(v) + 0.5; }
+float clampy ( float v ) { return floor(v) - 0.5; }
  
 void main(void)
 {
@@ -37,10 +37,17 @@ void main(void)
   // one and I don't know why OpenGL seems to require it)
   PixelColor.rgb = PixelColor.a * PixelColor.rgb;
 
-  out_Color.a = PixelColor.a * Color.a;
-  out_Color.rgb = PixelColor.rgb + Color.rgb;
+  vec4 fin_Color;
   
-  if ( out_Color.a == 0.0 ) {
+  fin_Color.a = PixelColor.a * Color.a;
+  fin_Color.rgb = PixelColor.rgb + Color.rgb;
+  
+  if ( fin_Color.a == 0.0 ) {
     discard;
   }
+
+  int iLayer = int(floor(Layer));
+  // xxx remove this hack
+  iLayer = 0;
+  out_Color[iLayer] = fin_Color;
 }

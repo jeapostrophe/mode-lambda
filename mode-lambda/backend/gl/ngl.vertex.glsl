@@ -43,6 +43,7 @@ uniform sampler2D LayerConfigTex;
 out vec4 Color;
 out vec2 TexCoord;
 out float Palette;
+out float Layer;
 
 void main(void)
 {
@@ -112,4 +113,5 @@ void main(void)
     vec2(tx + ((horiz + 1.0)/+2.0) * w,
          ty + (( vert - 1.0)/-2.0) * h);
   Palette = pal;
+  Layer = layer;
 }

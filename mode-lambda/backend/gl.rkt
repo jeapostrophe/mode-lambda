@@ -92,6 +92,12 @@
         (+ d (recur (- r dy) (add1 i) max-i))])]))
   (+ q (recur r 1 5)))
 
+(define (2D-defaults)
+  (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MIN_FILTER GL_LINEAR)
+  (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MAG_FILTER GL_LINEAR)
+  (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_S GL_CLAMP_TO_EDGE)
+  (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_T GL_CLAMP_TO_EDGE))
+
 (define (make-draw-on-crt crt-width crt-height mode)
   (eprintf "You are using OpenGL ~a\n"
            (gl-version))
@@ -100,12 +106,8 @@
   (define texture-height crt-height)
 
   (define myTexture (u32vector-ref (glGenTextures 1) 0))
-
   (glBindTexture GL_TEXTURE_2D myTexture)
-  (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MIN_FILTER GL_NEAREST)
-  (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MAG_FILTER GL_NEAREST)
-  (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_S GL_CLAMP_TO_EDGE)
-  (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_T GL_CLAMP_TO_EDGE)
+  (2D-defaults)
   (printf "crt texture prep\n")
   (glTexImage2D
    GL_TEXTURE_2D 0 GL_RGBA8 texture-width texture-height 0
@@ -161,17 +163,11 @@
 
   (glUseProgram shader_program)
 
-  (glUniform1i
-   (glGetUniformLocation shader_program "rubyTexture")
-   0)
-  (glUniform2fv
-   (glGetUniformLocation shader_program "rubyInputSize")
-   1
-   (f32vector (* 1. crt-width) (* 1. crt-height)))
-  (glUniform2fv
-   (glGetUniformLocation shader_program "rubyTextureSize")
-   1
-   (f32vector (* 1. texture-width) (* 1. texture-height)))
+  (glUniform1i (glGetUniformLocation shader_program "rubyTexture") 0)
+  (glUniform2fv (glGetUniformLocation shader_program "rubyInputSize")
+                1 (f32vector (* 1. crt-width) (* 1. crt-height)))
+  (glUniform2fv (glGetUniformLocation shader_program "rubyTextureSize")
+                1 (f32vector (* 1. texture-width) (* 1. texture-height)))
 
   (glUseProgram 0)
 
@@ -237,7 +233,6 @@
     (glBindBuffer GL_ARRAY_BUFFER 0)
     (glBindVertexArray 0)
 
-    ;; Draw
     (glBindFramebuffer GL_FRAMEBUFFER myFBO)
     (glViewport 0 0 crt-width crt-height)
     (do-the-drawing)
@@ -379,10 +374,7 @@
   (define (make-2dtexture)
     (define Id (u32vector-ref (glGenTextures 1) 0))
     (glBindTexture GL_TEXTURE_2D Id)
-    (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_S GL_CLAMP_TO_EDGE)
-    (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_T GL_CLAMP_TO_EDGE)
-    (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MAG_FILTER GL_LINEAR)
-    (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MIN_FILTER GL_LINEAR)
+    (2D-defaults)
     Id)
 
   (define (load-texture/bytes w h bs)
@@ -439,6 +431,10 @@
      index-values effective-sprite-index-count index-bin))
 
   (define LayerConfigId (make-2dtexture))
+  
+  (define LayersId (u32vector-ref (glGenTextures 1) 0))
+  (glBindTexture GL_TEXTURE_2D_ARRAY LayersId)
+  (glTexStorage3D GL_TEXTURE_2D_ARRAY 1 GL_RGBA8 width height LAYERS)
 
   (glLinkProgram ProgramId)
   (print-shader-log glGetProgramInfoLog 'Program ProgramId)
@@ -458,7 +454,6 @@
 
   (define (glVertexAttribIPointer* index size type normalized stride pointer)
     (glVertexAttribIPointer index size type stride pointer))
-
   (define-syntax-rule
     (define-vertex-attrib-array
       Index SpriteData-start SpriteData-end)
@@ -483,15 +478,15 @@
        byte-offset)
       (glEnableVertexAttribArray Index)))
 
-  (define VboId (u32vector-ref (glGenBuffers 1) 0))
-  (glBindBuffer GL_ARRAY_BUFFER VboId)
-
   (define-syntax-rule
     (define-vertex-attrib-array*
       [AttribId AttribStart AttribEnd] ...)
     (begin
       (define-vertex-attrib-array AttribId AttribStart AttribEnd)
       ...))
+
+  (define VboId (u32vector-ref (glGenBuffers 1) 0))
+  (glBindBuffer GL_ARRAY_BUFFER VboId)
 
   (define-vertex-attrib-array*
     [0  0  1]
@@ -501,7 +496,6 @@
     [4 12 13])
 
   (glBindBuffer GL_ARRAY_BUFFER 0)
-
   (glBindVertexArray 0)
 
   (define last-layer-config #f)
@@ -610,6 +604,7 @@
     (glClearColor 0.0 0.0 0.0 1.0)
 
     (glEnable GL_BLEND)
+    ;; xxx blending is still wrong (but may not matter when i implement layers myself)
     (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
 
     (glClear (bitwise-ior GL_DEPTH_BUFFER_BIT GL_COLOR_BUFFER_BIT))
