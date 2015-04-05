@@ -138,7 +138,7 @@ void main()
   // -------------------------------
   //  |      |      |      |      |
   //  |  01  |  11  |  21  |  31  | <-- current scanline
-  //  |      | @    |      |      |
+  //  |      | !    |      |      |
   // -------------------------------
   //  |      |      |      |      |
   //  |  02  |  12  |  22  |  32  | <-- next scanline
@@ -147,7 +147,7 @@ void main()
   //  |      |      |      |      |
   //
   // Each character-cell represents a pixel on the output
-  // surface, "@" represents the current pixel (always somewhere
+  // surface, "!" represents the current pixel (always somewhere
   // in the bottom half of the current scan-line, or the top-half
   // of the next scanline). The grid of lines represents the
   // edges of the texels of the underlying texture.

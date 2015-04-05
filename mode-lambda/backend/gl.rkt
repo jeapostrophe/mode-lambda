@@ -1,33 +1,22 @@
 #lang racket/base
-
 (require ffi/cvector
          ffi/unsafe/cvector
          ffi/vector
          mode-lambda/backend/lib
          mode-lambda/core
-         racket/class
          racket/contract
-         racket/draw
-         racket/gui/base
-         racket/file
-         racket/function
          racket/list
          racket/match
-         racket/runtime-path
+         web-server/templates
          opengl
          (only-in math/base
                   sum)
          (only-in ffi/unsafe
                   ctype-sizeof
                   ctype->layout
-                  define-cstruct
-                  _float
-                  _sint32
-                  _uint32
-                  _sint16
-                  _uint16
-                  _sint8
-                  _uint8))
+                  _float))
+
+(define-syntax-rule (glsl-include p) (include-template p))
 
 (define (make-delayed-until-gl-is-around t)
   (define c #f)
@@ -46,8 +35,7 @@
 ;; Old Code from GB (gl-util.rkt)
 
 (define-syntax-rule (define-shader-source id path)
-  (begin (define-runtime-path id-path path)
-         (define id (file->string id-path))))
+  (define id (include-template path)))
 
 (define (print-shader-log glGetShaderInfoLog shader-name shader-id)
   (define-values (infoLen infoLog)
@@ -70,27 +58,6 @@
          (glAttachShader ProgramId VertexShaderId)))
 
 ;; Old Code from GB (crt.rkt)
-
-(define-shader-source crt-fragment "gl/crt.fragment.glsl")
-(define-shader-source crt-vert "gl/crt.vertex.glsl")
-(define-shader-source std-fragment "gl/std.fragment.glsl")
-(define-shader-source std-vert "gl/std.vertex.glsl")
-
-(define (quotient* x y)
-  (define-values (q r) (quotient/remainder x y))
-  (define (recur r i max-i)
-    (cond
-     [(= i max-i)
-      0]
-     [else
-      (define d (expt 2 (* -1 i)))
-      (define dy (* d y))
-      (cond
-       [(> dy r)
-        (recur r (add1 i) max-i)]
-       [else
-        (+ d (recur (- r dy) (add1 i) max-i))])]))
-  (+ q (recur r 1 5)))
 
 (define (2D-defaults)
   (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MIN_FILTER GL_LINEAR)
@@ -141,7 +108,13 @@
   (glBindFramebuffer GL_FRAMEBUFFER 0)
 
   (define shader_program (glCreateProgram))
-  (glBindAttribLocation shader_program 0 "iTexCoordPos")
+
+  (define EFFECT_VERTS 6)
+  
+  (define-shader-source crt-fragment "gl/crt.fragment.glsl")
+  (define-shader-source crt-vert "gl/crt.vertex.glsl")
+  (define-shader-source std-fragment "gl/std.fragment.glsl")
+  (define-shader-source std-vert "gl/std.vertex.glsl")
 
   (define-values (the-fragment the-vert)
     (match mode
@@ -164,86 +137,31 @@
 
   (glUseProgram 0)
 
-  (define VaoId (u32vector-ref (glGenVertexArrays 1) 0))
-  (define VboId (u32vector-ref (glGenBuffers 1) 0))
-
-  (define DataWidth 4)
-  (define DataSize (ctype-sizeof _float))
-  (define DataCount 6)
-  (glBindBuffer GL_ARRAY_BUFFER VboId)
-  (glBufferData GL_ARRAY_BUFFER (* DataCount DataWidth DataSize) #f GL_DYNAMIC_DRAW)
+  (define vao (u32vector-ref (glGenVertexArrays 1) 0))
 
   (define (new-draw-on-crt actual-screen-width actual-screen-height do-the-drawing)
-    ;; Init
-
-    (define scale
-      (* 1.
-         (min (quotient* actual-screen-width crt-width)
-              (quotient* actual-screen-height crt-height))))
-
-    (define screen-width (* scale crt-width))
-    (define screen-height (* scale crt-height))
-
-    (define inset-left (/ (- actual-screen-width screen-width) 2.))
-    (define inset-right (+ inset-left screen-width))
-    (define inset-bottom (/ (- actual-screen-height screen-height) 2.))
-    (define inset-top (+ inset-bottom screen-height))
-
     (glUseProgram shader_program)
     (glUniform2fv (glGetUniformLocation shader_program "rubyOutputSize") 1
                   (f32vector (* 1. actual-screen-width) (* 1. actual-screen-height)))
     (glUseProgram 0)
-    (glBindVertexArray VaoId)
-    (glBindBuffer GL_ARRAY_BUFFER VboId)
-
-    (glVertexAttribPointer 0 DataSize GL_FLOAT #f 0 0)
-    (glEnableVertexAttribArray 0)
-
-    (define DataVec
-      (make-cvector*
-       (glMapBufferRange
-        GL_ARRAY_BUFFER
-        0
-        (* DataCount DataSize)
-        GL_MAP_WRITE_BIT)
-       _float
-       (* DataWidth
-          DataSize
-          DataCount)))
-    (cvector-set*! DataVec 0
-                   0.0 0.0 inset-left inset-bottom
-                   1.0 0.0 inset-right inset-bottom
-                   1.0 1.0 inset-right inset-top
-
-                   0.0 1.0 inset-left inset-top
-                   1.0 1.0 inset-right inset-top
-                   0.0 0.0 inset-left inset-bottom)
-    (glUnmapBuffer GL_ARRAY_BUFFER)
-    (set! DataVec #f)
-
-    (glBindBuffer GL_ARRAY_BUFFER 0)
-    (glBindVertexArray 0)
 
     (glBindFramebuffer GL_FRAMEBUFFER myFBO)
     (glViewport 0 0 crt-width crt-height)
     (do-the-drawing)
     (glBindFramebuffer GL_FRAMEBUFFER 0)
 
-    (glBindVertexArray VaoId)
-    (glEnableVertexAttribArray 0)
     (glUseProgram shader_program)
     (glClearColor 0.0 0.0 0.0 0.0)
     (glClear (bitwise-ior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
     (glViewport 0 0 actual-screen-width actual-screen-height)
     (glActiveTexture GL_TEXTURE0)
     (glBindTexture GL_TEXTURE_2D myTexture)
-    (glDrawArrays GL_TRIANGLES 0 DataCount)
-
+    (glBindVertexArray vao)
+    (glDrawArrays GL_TRIANGLES 0 EFFECT_VERTS)
+    (glBindVertexArray 0)
     (glActiveTexture GL_TEXTURE0)
     (glBindTexture GL_TEXTURE_2D 0)
-    (glUseProgram 0)
-    (glDisableVertexAttribArray 0)
-    (glBindVertexArray 0))
+    (glUseProgram 0))
 
   new-draw-on-crt)
 
@@ -308,9 +226,6 @@
    ['int32 (values #t GL_INT)]
    ['float (values #f GL_FLOAT)]))
 
-(define-shader-source ngl-vert "gl/ngl.vertex.glsl")
-(define-shader-source ngl-fragment "gl/ngl.fragment.glsl")
-
 (define DrawnMult 6)
 
 (define (make-draw csd width height)
@@ -341,6 +256,9 @@
   (glBindAttribLocation ProgramId 2 "in_SPR_PAL")
   (glBindAttribLocation ProgramId 3 "in_LAYER_R_G_B")
   (glBindAttribLocation ProgramId 4 "in_HORIZ_VERT")
+
+  (define-shader-source ngl-vert "gl/ngl.vertex.glsl")
+  (define-shader-source ngl-fragment "gl/ngl.fragment.glsl")
 
   (define&compile-shader VertexShaderId GL_VERTEX_SHADER
     ProgramId ngl-vert)
@@ -419,7 +337,7 @@
      index-values effective-sprite-index-count index-bin))
 
   (define LayerConfigId (make-2dtexture))
-  
+
   (define LayersId (u32vector-ref (glGenTextures 1) 0))
   (glBindTexture GL_TEXTURE_2D_ARRAY LayersId)
   (glTexStorage3D GL_TEXTURE_2D_ARRAY 1 GL_RGBA8 width height LAYERS)
@@ -610,7 +528,7 @@
 
   draw)
 
-;; New Interface
+;; New interface
 
 (define (stage-draw/dc csd width height)
   (define draw-on-crt
@@ -623,6 +541,7 @@
        (make-draw csd width height))))
   (λ (layer-config static-st dynamic-st)
     (λ (w h dc)
+      (local-require racket/class)
       (define glctx (send dc get-gl-context))
       (unless glctx
         (error 'draw "Could not initialize OpenGL!"))
