@@ -2,7 +2,8 @@
 (require opengl
          racket/match
          web-server/templates
-         ffi/vector)
+         ffi/vector
+         ffi/unsafe)
 
 (define (make-delayed-until-gl-is-around t)
   (define c #f)
@@ -129,6 +130,46 @@
       (bytes-set! pixels (+ 2 offset) blue)
       (bytes-set! pixels (+ 3 offset) alpha))))
 ;; </COPIED>
+
+(define (ctype->glsl-type _type)
+  (match _type
+    [(== _float) "float"]
+    [(or (== _byte) (== _ushort)) "uint"]
+    [(== _short) "int"]))
+
+(define (ctype->gl-type _type)
+  (match _type
+    [(== _float) GL_FLOAT]
+    [(== _byte) GL_UNSIGNED_BYTE]
+    [(== _ushort) GL_UNSIGNED_SHORT]
+    [(== _short) GL_SHORT]))
+
+(define (cstruct-info->glsl-in fields)
+  (for/list ([f (in-list fields)])
+    (match-define (cons id _type) f)
+    (list "in " (ctype->glsl-type _type) " " id ";\n")))
+
+(define (bind-attribs/cstruct-info ProgramId fields)
+  (for ([i (in-naturals)]
+        [f (in-list fields)])
+    (match-define (cons id _type) f)
+    (glBindAttribLocation ProgramId i (symbol->string id))))
+
+(define (define-attribs/cstruct-info fields)
+  (define total-size (apply + (map (compose1 ctype-sizeof cdr) fields)))
+  (for/fold ([byte-offset 0])
+            ([i (in-naturals)]
+             [f (in-list fields)])
+    (match-define (cons id _type) f)
+    (define int? (not (eq? _type _float)))
+    (define this-size (ctype-sizeof _type))
+    (define gl-type (ctype->gl-type _type))
+    ((if int? glVertexAttribIPointer* glVertexAttribPointer)
+     i 1 gl-type #f total-size byte-offset)
+    (+ byte-offset this-size)))
+
+(define (glVertexAttribIPointer* index size type normalized stride pointer)
+  (glVertexAttribIPointer index size type stride pointer))
 
 (provide
  (all-defined-out))

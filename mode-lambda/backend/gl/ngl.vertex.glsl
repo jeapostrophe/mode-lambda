@@ -3,11 +3,7 @@
 
 uniform sampler2D SpriteIndexTex;
 
-in vec2 in_DX_DY;
-in vec4 in_MX_MY_THETA_A;
-in uvec2 in_SPR_PAL;
-in uvec4 in_LAYER_R_G_B;
-in ivec2 in_HORIZ_VERT;
+@cstruct-info->glsl-in[_sprite-data:info]
 
 uniform uint ViewportWidth;
 uniform uint ViewportHeight;
@@ -21,21 +17,6 @@ out float Layer;
 
 void main(void)
 {
-  float    dx = in_DX_DY.x;
-  float    dy = in_DX_DY.y;
-  uint  layer = in_LAYER_R_G_B.x;
-  uint      r = in_LAYER_R_G_B.y;
-  uint      g = in_LAYER_R_G_B.z;
-  uint      b = in_LAYER_R_G_B.w;
-  float     a = in_MX_MY_THETA_A.w;
-  float    mx = in_MX_MY_THETA_A.x;
-  float    my = in_MX_MY_THETA_A.y;
-  float theta = in_MX_MY_THETA_A.z;
-  uint    pal = in_SPR_PAL.y;
-  uint    spr = in_SPR_PAL.x;
-  int   horiz = in_HORIZ_VERT.x;
-  int    vert = in_HORIZ_VERT.y;
-
   vec4 LC_CX_CY_HW_HH =
     texelFetch(LayerConfigTex, ivec2(0, layer), 0);
   float Lcx = LC_CX_CY_HW_HH.x;
@@ -81,8 +62,7 @@ void main(void)
     * glTranslate(Lcx, Lcy, 0.0)
     * glOrtho(0.0, ViewportWidth,
               0.0, ViewportHeight,
-              1.0, -1.0)
-    ;
+              1.0, -1.0);
   TexCoord =
     vec2(tx + ((horiz + 1.0)/+2.0) * w,
          ty + (( vert - 1.0)/-2.0) * h);

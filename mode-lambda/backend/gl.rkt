@@ -15,40 +15,9 @@
                   sum)
          (only-in ffi/unsafe
                   ctype-sizeof
-                  ctype->layout
                   _float))
 
 (define-syntax-rule (glsl-include p) (include-template p))
-
-(define (cvector-set*! vec k . vs)
-  (for ([v (in-list vs)]
-        [i (in-naturals)])
-    (cvector-set! vec (+ k i) v)))
-
-;; My GL lib
-
-(define (glVertexAttribIPointer* index size type normalized stride pointer)
-  (glVertexAttribIPointer index size type stride pointer))
-(define-syntax-rule
-  (define-vertex-attrib-array
-    Index SpriteData-start SpriteData-end)
-  (begin
-    (define-values (int? type)
-      (ctype->gltype (ctype-range-type _sprite-data SpriteData-start SpriteData-end)))
-    (define byte-offset
-      (ctype-offset _sprite-data SpriteData-start))
-    (define HowMany
-      (add1 (- SpriteData-end SpriteData-start)))
-    ((if int? glVertexAttribIPointer* glVertexAttribPointer)
-     Index HowMany type
-     #f
-     (ctype-sizeof _sprite-data)
-     byte-offset)))
-
-(define-syntax-rule
-  (define-vertex-attrib-array* [AttribId AttribStart AttribEnd] ...)
-  (begin (define-vertex-attrib-array AttribId AttribStart AttribEnd)
-         ...))
 
 ;; Fullscreen
 
@@ -131,46 +100,6 @@
 
 ;; Draw the sprites
 
-;; xxx this whole system is too complicated, just write it down
-;; explicitly or build a special define-cstruct
-(define ctype-name->bytes
-  (match-lambda
-   ['uint8 1]
-   ['int8 1]
-   ['int16 2]
-   ['uint16 2]
-   ['int32 4]
-   ['uint32 4]
-   ['float 4]))
-(define (ctype-offset _type offset)
-  (sum (map ctype-name->bytes (take (ctype->layout _type) offset))))
-
-(define (sublist l s e)
-  (for/list ([x (in-list l)]
-             [i (in-naturals)]
-             #:when (<= s i)
-             #:when (<= i e))
-    x))
-
-(define (list-only l)
-  (define v (first l))
-  (for ([x (in-list (rest l))])
-    (unless (eq? v x) (error 'list-only "List is not uniform: ~e" l)))
-  v)
-
-(define (ctype-range-type _type s e)
-  (list-only (sublist (ctype->layout _type) s e)))
-
-(define ctype->gltype
-  (match-lambda
-   ['uint8 (values #t GL_UNSIGNED_BYTE)]
-   ['int8 (values #t GL_BYTE)]
-   ['uint16 (values #t GL_UNSIGNED_SHORT)]
-   ['int16 (values #t GL_SHORT)]
-   ['uint32 (values #t GL_UNSIGNED_INT)]
-   ['int32 (values #t GL_INT)]
-   ['float (values #f GL_FLOAT)]))
-
 (define DrawnMult 6)
 
 (define LAYER-VALUES 12)
@@ -225,18 +154,8 @@
                        pal-size pal-bs pal->idx)
    csd)
 
-  (define AttributeCount 5)
-
   (define ProgramId (glCreateProgram))
-  (match-define (list in_DX_DY-attrib in_MX_MY_THETA_A-attrib
-                      in_SPR_PAL-attrib in_LAYER_R_G_B-attrib
-                      in_HORIZ_VERT-attrib)
-                (build-list AttributeCount (λ (x) x)))
-  (glBindAttribLocation ProgramId         in_DX_DY-attrib "in_DX_DY")
-  (glBindAttribLocation ProgramId in_MX_MY_THETA_A-attrib "in_MX_MY_THETA_A")
-  (glBindAttribLocation ProgramId       in_SPR_PAL-attrib "in_SPR_PAL")
-  (glBindAttribLocation ProgramId   in_LAYER_R_G_B-attrib "in_LAYER_R_G_B")
-  (glBindAttribLocation ProgramId    in_HORIZ_VERT-attrib "in_HORIZ_VERT")
+  (bind-attribs/cstruct-info ProgramId _sprite-data:info)
 
   (define-shader-source ngl-vert "gl/ngl.vertex.glsl")
   (define-shader-source ngl-fragment "gl/ngl.fragment.glsl")
@@ -284,12 +203,7 @@
   (nest
    ([with-vertexarray (VaoId)]
     [with-arraybuffer (VboId)])
-   (define-vertex-attrib-array*
-     [        in_DX_DY-attrib  0  1]
-     [in_MX_MY_THETA_A-attrib  2  5]
-     [      in_SPR_PAL-attrib  6  7]
-     [  in_LAYER_R_G_B-attrib  8 11]
-     [   in_HORIZ_VERT-attrib 12 13]))
+   (define-attribs/cstruct-info _sprite-data:info))
 
   (define SpriteData-count 0)
   (define *initialize-count* (* 2 512))
@@ -329,7 +243,7 @@
 
     (nest
      ([with-vertexarray (VaoId)]
-      [with-vertex-attributes (AttributeCount)]
+      [with-vertex-attributes ((length _sprite-data:info))]
       [with-texture (GL_TEXTURE0 SpriteAtlasId)]
       [with-texture (GL_TEXTURE1 PaletteAtlasId)]
       [with-texture (GL_TEXTURE2 SpriteIndexId)]

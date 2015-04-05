@@ -56,15 +56,20 @@
 ;; (coeff = 3.0) If Z increases away from horizon, then it is
 ;; a cylinder and we want the absolute value of the distance
 
-(define-cstruct _sprite-data
+(define-syntax-rule (define-cstruct&list struct-id info-id ([field _type] ...))
+  (begin (define-cstruct struct-id ([field _type] ...))
+         (define info-id (list (cons 'field _type) ...))))
+
+(define-cstruct&list 
+  _sprite-data _sprite-data:info
   ([dx _float]       ;; 0
    [dy _float]       ;; 1
    [mx _float]       ;; 2
    [my _float]       ;; 3
    [theta _float]    ;; 4
    [a _float]        ;; 5
-   [spr-idx _ushort] ;; 6
-   [pal-idx _ushort] ;; 7
+   [spr _ushort]     ;; 6
+   [pal _ushort]     ;; 7
    [layer _byte]     ;; 8
    [r _byte]         ;; 9
    [g _byte]         ;; 10
