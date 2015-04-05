@@ -32,6 +32,88 @@
         [i (in-naturals)])
     (cvector-set! vec (+ k i) v)))
 
+;; My GL lib
+
+(define (make-2dtexture)
+  (define Id (u32vector-ref (glGenTextures 1) 0))
+  (with-texture (GL_TEXTURE0 Id)
+    (2D-defaults))
+  Id)
+
+(define (load-texture/bytes w h bs)
+  (define the-copy (bytes-copy bs))
+  (argb->rgba! the-copy)
+  (glTexImage2D GL_TEXTURE_2D
+                0 GL_RGBA
+                w h 0
+                GL_RGBA GL_UNSIGNED_BYTE
+                the-copy))
+
+(define (load-texture/float-bytes w h bs)
+  (glTexImage2D GL_TEXTURE_2D
+                0 GL_RGBA32F
+                ;; w is in float values, but RGBA32F is 4 float
+                ;; values, so we need to do a fourth of this.
+                (ceiling (/ w 4)) h 0
+                GL_RGBA GL_FLOAT
+                bs))
+
+(define (2D-defaults)
+  (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MIN_FILTER GL_LINEAR)
+  (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MAG_FILTER GL_LINEAR)
+  (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_S GL_CLAMP_TO_EDGE)
+  (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_T GL_CLAMP_TO_EDGE))
+
+(define (gl-texture-index i)
+  (match i
+    [(== GL_TEXTURE0) 0]
+    [(== GL_TEXTURE1) 1]
+    [(== GL_TEXTURE2) 2]
+    [(== GL_TEXTURE3) 3]))
+
+(define-syntax-rule (define-with-state with-state (F static-arg ...))
+  (define-syntax-rule (with-state (dyn-arg (... ...)) . body)
+    (begin (F static-arg ... dyn-arg (... ...))
+           (let () . body)
+           (F static-arg ... 0))))
+
+(define-with-state with-program (glUseProgram))
+(define-with-state with-vertexarray (glBindVertexArray))
+(define-syntax-rule (with-texture (GL_TEXTUREx TextureId) . body)
+  (begin (glActiveTexture GL_TEXTUREx)
+         (glBindTexture GL_TEXTURE_2D TextureId)
+         (let () . body)
+         (glActiveTexture GL_TEXTUREx)
+         (glBindTexture GL_TEXTURE_2D 0)))
+(define-with-state with-framebuffer (glBindFramebuffer GL_FRAMEBUFFER))
+(define-with-state with-renderbuffer (glBindRenderbuffer GL_RENDERBUFFER))
+
+(define (glVertexAttribIPointer* index size type normalized stride pointer)
+  (glVertexAttribIPointer index size type stride pointer))
+(define-syntax-rule
+  (define-vertex-attrib-array
+    Index SpriteData-start SpriteData-end)
+  (begin
+    (define-values (int? type)
+      (ctype->gltype (ctype-range-type _sprite-data SpriteData-start SpriteData-end)))
+    (define byte-offset
+      (ctype-offset _sprite-data SpriteData-start))
+    (define HowMany
+      (add1 (- SpriteData-end SpriteData-start)))
+    ((if int? glVertexAttribIPointer* glVertexAttribPointer)
+     Index HowMany type
+     #f
+     (ctype-sizeof _sprite-data)
+     byte-offset)
+    (glEnableVertexAttribArray Index)))
+
+(define-syntax-rule
+  (define-vertex-attrib-array*
+    [AttribId AttribStart AttribEnd] ...)
+  (begin
+    (define-vertex-attrib-array AttribId AttribStart AttribEnd)
+    ...))
+
 ;; Old Code from GB (gl-util.rkt)
 
 (define-syntax-rule (define-shader-source id path)
@@ -59,58 +141,46 @@
 
 ;; Old Code from GB (crt.rkt)
 
-(define (2D-defaults)
-  (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MIN_FILTER GL_LINEAR)
-  (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MAG_FILTER GL_LINEAR)
-  (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_S GL_CLAMP_TO_EDGE)
-  (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_T GL_CLAMP_TO_EDGE))
-
 (define (make-draw-on-crt crt-width crt-height mode)
   (eprintf "You are using OpenGL ~a\n" (gl-version))
 
   (define myTexture (u32vector-ref (glGenTextures 1) 0))
-  (glBindTexture GL_TEXTURE_2D myTexture)
-  (2D-defaults)
-  (glTexImage2D
-   GL_TEXTURE_2D 0 GL_RGBA8 crt-width crt-height 0
-   GL_RGBA GL_UNSIGNED_BYTE
-   0)
-  (glBindTexture GL_TEXTURE_2D 0)
+  (with-texture (GL_TEXTURE0 myTexture)
+    (2D-defaults)
+    (glTexImage2D
+     GL_TEXTURE_2D 0 GL_RGBA8 crt-width crt-height 0
+     GL_RGBA GL_UNSIGNED_BYTE
+     0))
 
   (define myRB (u32vector-ref (glGenRenderbuffers 1) 0))
-
-  (glBindRenderbuffer GL_RENDERBUFFER myRB)
-  (glRenderbufferStorage GL_RENDERBUFFER
-                         GL_DEPTH_COMPONENT24
-                         crt-width crt-height)
-  (glBindRenderbuffer GL_RENDERBUFFER 0)
+  (with-renderbuffer (myRB)
+    (glRenderbufferStorage GL_RENDERBUFFER
+                           GL_DEPTH_COMPONENT24
+                           crt-width crt-height))
 
   (define myFBO (u32vector-ref (glGenFramebuffers 1) 0))
+  (with-framebuffer (myFBO)
+    (glFramebufferTexture2D
+     GL_DRAW_FRAMEBUFFER
+     GL_COLOR_ATTACHMENT0
+     GL_TEXTURE_2D myTexture 0)
 
-  (glBindFramebuffer GL_FRAMEBUFFER myFBO)
-  (glFramebufferTexture2D
-   GL_DRAW_FRAMEBUFFER
-   GL_COLOR_ATTACHMENT0
-   GL_TEXTURE_2D myTexture 0)
+    (glFramebufferRenderbuffer
+     GL_FRAMEBUFFER
+     GL_DEPTH_ATTACHMENT
+     GL_RENDERBUFFER myRB)
 
-  (glFramebufferRenderbuffer
-   GL_FRAMEBUFFER
-   GL_DEPTH_ATTACHMENT
-   GL_RENDERBUFFER myRB)
-
-  (match (glCheckFramebufferStatus GL_FRAMEBUFFER)
-    [(== GL_FRAMEBUFFER_COMPLETE)
-     (void)]
-    [x
-     (eprintf "FBO creation failed: ~v\n" x)
-     (exit 1)])
-
-  (glBindFramebuffer GL_FRAMEBUFFER 0)
+    (match (glCheckFramebufferStatus GL_FRAMEBUFFER)
+      [(== GL_FRAMEBUFFER_COMPLETE)
+       (void)]
+      [x
+       (eprintf "FBO creation failed: ~v\n" x)
+       (exit 1)]))
 
   (define shader_program (glCreateProgram))
 
   (define EFFECT_VERTS 6)
-  
+
   (define-shader-source crt-fragment "gl/crt.fragment.glsl")
   (define-shader-source crt-vert "gl/crt.vertex.glsl")
   (define-shader-source std-fragment "gl/std.fragment.glsl")
@@ -129,39 +199,28 @@
   (glLinkProgram shader_program)
   (print-shader-log glGetProgramInfoLog 'Program shader_program)
 
-  (glUseProgram shader_program)
-
-  (glUniform1i (glGetUniformLocation shader_program "rubyTexture") 0)
-  (glUniform2fv (glGetUniformLocation shader_program "rubyInputSize")
-                1 (f32vector (* 1. crt-width) (* 1. crt-height)))
-
-  (glUseProgram 0)
+  (with-program (shader_program)
+    (glUniform1i (glGetUniformLocation shader_program "rubyTexture")
+                 (gl-texture-index GL_TEXTURE0))
+    (glUniform2fv (glGetUniformLocation shader_program "rubyInputSize")
+                  1 (f32vector (* 1. crt-width) (* 1. crt-height))))
 
   (define vao (u32vector-ref (glGenVertexArrays 1) 0))
 
   (define (new-draw-on-crt actual-screen-width actual-screen-height do-the-drawing)
-    (glUseProgram shader_program)
-    (glUniform2fv (glGetUniformLocation shader_program "rubyOutputSize") 1
-                  (f32vector (* 1. actual-screen-width) (* 1. actual-screen-height)))
-    (glUseProgram 0)
+    (with-framebuffer (myFBO)
+      (glViewport 0 0 crt-width crt-height)
+      (do-the-drawing))
 
-    (glBindFramebuffer GL_FRAMEBUFFER myFBO)
-    (glViewport 0 0 crt-width crt-height)
-    (do-the-drawing)
-    (glBindFramebuffer GL_FRAMEBUFFER 0)
-
-    (glUseProgram shader_program)
-    (glClearColor 0.0 0.0 0.0 0.0)
-    (glClear (bitwise-ior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
-    (glViewport 0 0 actual-screen-width actual-screen-height)
-    (glActiveTexture GL_TEXTURE0)
-    (glBindTexture GL_TEXTURE_2D myTexture)
-    (glBindVertexArray vao)
-    (glDrawArrays GL_TRIANGLES 0 EFFECT_VERTS)
-    (glBindVertexArray 0)
-    (glActiveTexture GL_TEXTURE0)
-    (glBindTexture GL_TEXTURE_2D 0)
-    (glUseProgram 0))
+    (with-program (shader_program)
+      (glUniform2fv (glGetUniformLocation shader_program "rubyOutputSize") 1
+                    (f32vector (* 1. actual-screen-width) (* 1. actual-screen-height)))
+      (glClearColor 0.0 0.0 0.0 0.0)
+      (glClear (bitwise-ior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
+      (glViewport 0 0 actual-screen-width actual-screen-height)
+      (with-texture (GL_TEXTURE0 myTexture)
+        (with-vertexarray (vao)
+          (glDrawArrays GL_TRIANGLES 0 EFFECT_VERTS)))))
 
   new-draw-on-crt)
 
@@ -249,13 +308,18 @@
     (point-install! -1 -1 2 3)
     (point-install! +1 -1 5))
 
-  ;; Create Shaders
+  (define AttributeCount 5)
+
   (define ProgramId (glCreateProgram))
-  (glBindAttribLocation ProgramId 0 "in_DX_DY")
-  (glBindAttribLocation ProgramId 1 "in_MX_MY_THETA_A")
-  (glBindAttribLocation ProgramId 2 "in_SPR_PAL")
-  (glBindAttribLocation ProgramId 3 "in_LAYER_R_G_B")
-  (glBindAttribLocation ProgramId 4 "in_HORIZ_VERT")
+  (match-define (list in_DX_DY-attrib in_MX_MY_THETA_A-attrib
+                      in_SPR_PAL-attrib in_LAYER_R_G_B-attrib
+                      in_HORIZ_VERT-attrib)
+                (build-list AttributeCount (λ (x) x)))
+  (glBindAttribLocation ProgramId         in_DX_DY-attrib "in_DX_DY")
+  (glBindAttribLocation ProgramId in_MX_MY_THETA_A-attrib "in_MX_MY_THETA_A")
+  (glBindAttribLocation ProgramId       in_SPR_PAL-attrib "in_SPR_PAL")
+  (glBindAttribLocation ProgramId   in_LAYER_R_G_B-attrib "in_LAYER_R_G_B")
+  (glBindAttribLocation ProgramId    in_HORIZ_VERT-attrib "in_HORIZ_VERT")
 
   (define-shader-source ngl-vert "gl/ngl.vertex.glsl")
   (define-shader-source ngl-fragment "gl/ngl.fragment.glsl")
@@ -265,8 +329,6 @@
   (define&compile-shader FragmentShaderId GL_FRAGMENT_SHADER
     ProgramId ngl-fragment)
 
-  (define DrawType GL_TRIANGLES)
-  (define AttributeCount 5)
   (define *initialize-count* (* 2 512))
 
   (define (install-objects! t)
@@ -277,36 +339,14 @@
   (define (count-objects t)
     (tree-fold (λ (count o) (add1 count)) 0 t))
 
-  (define (make-2dtexture)
-    (define Id (u32vector-ref (glGenTextures 1) 0))
-    (glBindTexture GL_TEXTURE_2D Id)
-    (2D-defaults)
-    Id)
-
-  (define (load-texture/bytes w h bs)
-    (define the-copy (bytes-copy bs))
-    (argb->rgba! the-copy)
-    (glTexImage2D GL_TEXTURE_2D
-                  0 GL_RGBA
-                  w h 0
-                  GL_RGBA GL_UNSIGNED_BYTE
-                  the-copy))
-
-  (define (load-texture/float-bytes w h bs)
-    (glTexImage2D GL_TEXTURE_2D
-                  0 GL_RGBA32F
-                  ;; w is in float values, but RGBA32F is 4 float
-                  ;; values, so we need to do a fourth of this.
-                  (ceiling (/ w 4)) h 0
-                  GL_RGBA GL_FLOAT
-                  bs))
-
   (define SpriteAtlasId (make-2dtexture))
-  (load-texture/bytes atlas-size atlas-size atlas-bs)
+  (with-texture (GL_TEXTURE0 SpriteAtlasId)
+    (load-texture/bytes atlas-size atlas-size atlas-bs))
   (define PaletteAtlasId (make-2dtexture))
-  (load-texture/bytes PALETTE-DEPTH pal-size pal-bs)
+  (with-texture (GL_TEXTURE0 PaletteAtlasId)
+    (load-texture/bytes PALETTE-DEPTH pal-size pal-bs))
   (define SpriteIndexId (make-2dtexture))
-  (let ()
+  (with-texture (GL_TEXTURE0 SpriteIndexId)
     (define sprite-index-count
       (vector-length idx->w*h*tx*ty))
 
@@ -341,61 +381,36 @@
   (define LayersId (u32vector-ref (glGenTextures 1) 0))
   (glBindTexture GL_TEXTURE_2D_ARRAY LayersId)
   (glTexStorage3D GL_TEXTURE_2D_ARRAY 1 GL_RGBA8 width height LAYERS)
+  (glBindTexture GL_TEXTURE_2D_ARRAY 0)
 
   (glLinkProgram ProgramId)
   (print-shader-log glGetProgramInfoLog 'Program ProgramId)
 
-  (glUseProgram ProgramId)
-  (glUniform1i (glGetUniformLocation ProgramId "SpriteAtlasTex") 0)
-  (glUniform1i (glGetUniformLocation ProgramId "PaletteAtlasTex") 1)
-  (glUniform1i (glGetUniformLocation ProgramId "SpriteIndexTex") 2)
-  (glUniform1i (glGetUniformLocation ProgramId "LayerConfigTex") 3)
-  (glUniform1ui (glGetUniformLocation ProgramId "ViewportWidth") width)
-  (glUniform1ui (glGetUniformLocation ProgramId "ViewportHeight") height)
-
-  (glUseProgram 0)
+  (with-program (ProgramId)
+    (glUniform1i (glGetUniformLocation ProgramId "SpriteAtlasTex")
+                 (gl-texture-index GL_TEXTURE0))
+    (glUniform1i (glGetUniformLocation ProgramId "PaletteAtlasTex")
+                 (gl-texture-index GL_TEXTURE1))
+    (glUniform1i (glGetUniformLocation ProgramId "SpriteIndexTex")
+                 (gl-texture-index GL_TEXTURE2))
+    (glUniform1i (glGetUniformLocation ProgramId "LayerConfigTex")
+                 (gl-texture-index GL_TEXTURE3))
+    (glUniform1ui (glGetUniformLocation ProgramId "ViewportWidth") width)
+    (glUniform1ui (glGetUniformLocation ProgramId "ViewportHeight") height))
 
   (define VaoId (u32vector-ref (glGenVertexArrays 1) 0))
-  (glBindVertexArray VaoId)
-
-  (define (glVertexAttribIPointer* index size type normalized stride pointer)
-    (glVertexAttribIPointer index size type stride pointer))
-  (define-syntax-rule
-    (define-vertex-attrib-array
-      Index SpriteData-start SpriteData-end)
-    (begin
-      (define-values (int? type)
-        (ctype->gltype (ctype-range-type _sprite-data SpriteData-start SpriteData-end)))
-      (define byte-offset
-        (ctype-offset _sprite-data SpriteData-start))
-      (define HowMany
-        (add1 (- SpriteData-end SpriteData-start)))
-      ((if int? glVertexAttribIPointer* glVertexAttribPointer)
-       Index HowMany type
-       #f
-       (ctype-sizeof _sprite-data)
-       byte-offset)
-      (glEnableVertexAttribArray Index)))
-
-  (define-syntax-rule
-    (define-vertex-attrib-array*
-      [AttribId AttribStart AttribEnd] ...)
-    (begin
-      (define-vertex-attrib-array AttribId AttribStart AttribEnd)
-      ...))
-
   (define VboId (u32vector-ref (glGenBuffers 1) 0))
-  (glBindBuffer GL_ARRAY_BUFFER VboId)
+  (with-vertexarray (VaoId)    
+    (glBindBuffer GL_ARRAY_BUFFER VboId)
 
-  (define-vertex-attrib-array*
-    [0  0  1]
-    [1  2  5]
-    [2  6  7]
-    [3  8 11]
-    [4 12 13])
+    (define-vertex-attrib-array*
+      [        in_DX_DY-attrib  0  1]
+      [in_MX_MY_THETA_A-attrib  2  5]
+      [      in_SPR_PAL-attrib  6  7]
+      [  in_LAYER_R_G_B-attrib  8 11]
+      [   in_HORIZ_VERT-attrib 12 13])
 
-  (glBindBuffer GL_ARRAY_BUFFER 0)
-  (glBindVertexArray 0)
+    (glBindBuffer GL_ARRAY_BUFFER 0))
 
   (define last-layer-config #f)
 
@@ -421,110 +436,93 @@
            (system-big-endian?) lc-bs
            (+ (* lc-values lc-bytes-per-value i)
               (* lc-bytes-per-value o)))))
-      (glBindTexture GL_TEXTURE_2D LayerConfigId)
-      (load-texture/float-bytes lc-values LAYERS lc-bs))
+
+      (with-texture (GL_TEXTURE3 LayerConfigId)
+        (load-texture/float-bytes lc-values LAYERS lc-bs)))
 
     ;; xxx optimize static
     (define objects (cons static-st dynamic-st))
 
-    (glBindVertexArray VaoId)
+    (with-vertexarray (VaoId)
+      (for ([i (in-range AttributeCount)])
+        (glEnableVertexAttribArray i))
 
-    (for ([i (in-range AttributeCount)])
-      (glEnableVertexAttribArray i))
+      ;; xxx use scheme/nest
+      (with-texture (GL_TEXTURE0 SpriteAtlasId)
+        (with-texture (GL_TEXTURE1 PaletteAtlasId)
+          (with-texture (GL_TEXTURE2 SpriteIndexId)
+            (with-texture (GL_TEXTURE3 LayerConfigId)
+              (glBindBuffer GL_ARRAY_BUFFER VboId)
 
-    (glActiveTexture GL_TEXTURE0)
-    (glBindTexture GL_TEXTURE_2D SpriteAtlasId)
-    (glActiveTexture GL_TEXTURE1)
-    (glBindTexture GL_TEXTURE_2D PaletteAtlasId)
-    (glActiveTexture GL_TEXTURE2)
-    (glBindTexture GL_TEXTURE_2D SpriteIndexId)
-    (glActiveTexture GL_TEXTURE3)
-    (glBindTexture GL_TEXTURE_2D LayerConfigId)
+              (define early-count (count-objects objects))
+              (define SpriteData-count:new (max *initialize-count* early-count))
 
-    (glBindBuffer GL_ARRAY_BUFFER VboId)
+              (unless (>= SpriteData-count SpriteData-count:new)
+                (define SpriteData-count:old SpriteData-count)
+                (set! SpriteData-count
+                      (max (* 2 SpriteData-count)
+                           SpriteData-count:new))
+                (glBufferData GL_ARRAY_BUFFER
+                              (* SpriteData-count
+                                 DrawnMult
+                                 (ctype-sizeof _sprite-data))
+                              #f
+                              GL_STREAM_DRAW))
 
-    (define early-count (count-objects objects))
-    (define SpriteData-count:new (max *initialize-count* early-count))
+              (set! SpriteData
+                    (make-cvector*
+                     (glMapBufferRange
+                      GL_ARRAY_BUFFER
+                      0
+                      (* SpriteData-count
+                         DrawnMult
+                         (ctype-sizeof _sprite-data))
+                      (bitwise-ior
+                       ;; We are overriding everything (this would be wrong if
+                       ;; we did the caching "optimization" I imagine)
+                       GL_MAP_INVALIDATE_RANGE_BIT
+                       GL_MAP_INVALIDATE_BUFFER_BIT
 
-    (unless (>= SpriteData-count SpriteData-count:new)
-      (define SpriteData-count:old SpriteData-count)
-      (set! SpriteData-count
-            (max (* 2 SpriteData-count)
-                 SpriteData-count:new))
-      (glBufferData GL_ARRAY_BUFFER
-                    (* SpriteData-count
-                       DrawnMult
-                       (ctype-sizeof _sprite-data))
-                    #f
-                    GL_STREAM_DRAW))
+                       ;; We are not doing complex queues, so don't block other
+                       ;; operations (but it doesn't seem to improve performance
+                       ;; by having this option)
+                       ;; GL_MAP_UNSYNCHRONIZED_BIT
 
-    (set! SpriteData
-          (make-cvector*
-           (glMapBufferRange
-            GL_ARRAY_BUFFER
-            0
-            (* SpriteData-count
-               DrawnMult
-               (ctype-sizeof _sprite-data))
-            (bitwise-ior
-             ;; We are overriding everything (this would be wrong if
-             ;; we did the caching "optimization" I imagine)
-             GL_MAP_INVALIDATE_RANGE_BIT
-             GL_MAP_INVALIDATE_BUFFER_BIT
+                       ;; We are writing
+                       GL_MAP_WRITE_BIT))
+                     _sprite-data
+                     (* SpriteData-count
+                        DrawnMult)))
 
-             ;; We are not doing complex queues, so don't block other
-             ;; operations (but it doesn't seem to improve performance
-             ;; by having this option)
-             ;; GL_MAP_UNSYNCHRONIZED_BIT
+              ;; Reload all data every frame
+              (install-objects! objects)
+              (define this-count early-count)
+              (glUnmapBuffer GL_ARRAY_BUFFER)
+              (glBindBuffer GL_ARRAY_BUFFER 0)
 
-             ;; We are writing
-             GL_MAP_WRITE_BIT))
-           _sprite-data
-           (* SpriteData-count
-              DrawnMult)))
+              (with-program (ProgramId)
+                (glEnable GL_DEPTH_TEST)
+                (glClearColor 0.0 0.0 0.0 1.0)
 
-    ;; Reload all data every frame
-    (install-objects! objects)
-    (define this-count early-count)
-    (glUnmapBuffer GL_ARRAY_BUFFER)
-    (glBindBuffer GL_ARRAY_BUFFER 0)
+                (glEnable GL_BLEND)
+                ;; xxx blending is still wrong (but may not matter when i implement layers myself)
+                (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
 
-    (glUseProgram ProgramId)
+                (glClear (bitwise-ior GL_DEPTH_BUFFER_BIT GL_COLOR_BUFFER_BIT))
 
-    (glEnable GL_DEPTH_TEST)
-    (glClearColor 0.0 0.0 0.0 1.0)
+                ;; xxx draw this onto a 1xLAYERS 2D texture array
+                (define drawn-count this-count)
+                (glDrawArrays
+                 GL_TRIANGLES 0
+                 (* DrawnMult drawn-count))
 
-    (glEnable GL_BLEND)
-    ;; xxx blending is still wrong (but may not matter when i implement layers myself)
-    (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
+                ;; xxx do the layer combination pass
 
-    (glClear (bitwise-ior GL_DEPTH_BUFFER_BIT GL_COLOR_BUFFER_BIT))
+                (glDisable GL_DEPTH_TEST)
+                (glDisable GL_BLEND)
 
-    ;; xxx draw this onto a 1xLAYERS 2D texture array
-    (define drawn-count this-count)
-    (glDrawArrays
-     DrawType 0
-     (* DrawnMult drawn-count))
-
-    ;; xxx do the layer combination pass
-
-    (glDisable GL_DEPTH_TEST)
-    (glDisable GL_BLEND)
-
-    ;; This is actually already active
-    (glActiveTexture GL_TEXTURE2)
-    (glBindTexture GL_TEXTURE_2D 0)
-    (glActiveTexture GL_TEXTURE1)
-    (glBindTexture GL_TEXTURE_2D 0)
-    (glActiveTexture GL_TEXTURE0)
-    (glBindTexture GL_TEXTURE_2D 0)
-
-    (for ([i (in-range AttributeCount)])
-      (glDisableVertexAttribArray i))
-
-    (glBindVertexArray 0)
-
-    (glUseProgram 0))
+                (for ([i (in-range AttributeCount)])
+                  (glDisableVertexAttribArray i)))))))))
 
   draw)
 
