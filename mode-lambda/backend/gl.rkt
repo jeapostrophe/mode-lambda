@@ -87,6 +87,7 @@
          (glBindTexture GL_TEXTURE_2D 0)))
 (define-with-state with-framebuffer (glBindFramebuffer GL_FRAMEBUFFER))
 (define-with-state with-renderbuffer (glBindRenderbuffer GL_RENDERBUFFER))
+(define-with-state with-arraybuffer (glBindBuffer GL_ARRAY_BUFFER))
 
 (define (glVertexAttribIPointer* index size type normalized stride pointer)
   (glVertexAttribIPointer index size type stride pointer))
@@ -401,16 +402,13 @@
   (define VaoId (u32vector-ref (glGenVertexArrays 1) 0))
   (define VboId (u32vector-ref (glGenBuffers 1) 0))
   (with-vertexarray (VaoId)    
-    (glBindBuffer GL_ARRAY_BUFFER VboId)
-
-    (define-vertex-attrib-array*
-      [        in_DX_DY-attrib  0  1]
-      [in_MX_MY_THETA_A-attrib  2  5]
-      [      in_SPR_PAL-attrib  6  7]
-      [  in_LAYER_R_G_B-attrib  8 11]
-      [   in_HORIZ_VERT-attrib 12 13])
-
-    (glBindBuffer GL_ARRAY_BUFFER 0))
+    (with-arraybuffer (VboId)
+      (define-vertex-attrib-array*
+        [        in_DX_DY-attrib  0  1]
+        [in_MX_MY_THETA_A-attrib  2  5]
+        [      in_SPR_PAL-attrib  6  7]
+        [  in_LAYER_R_G_B-attrib  8 11]
+        [   in_HORIZ_VERT-attrib 12 13])))
 
   (define last-layer-config #f)
 
@@ -452,53 +450,51 @@
         (with-texture (GL_TEXTURE1 PaletteAtlasId)
           (with-texture (GL_TEXTURE2 SpriteIndexId)
             (with-texture (GL_TEXTURE3 LayerConfigId)
-              (glBindBuffer GL_ARRAY_BUFFER VboId)
+              (with-arraybuffer (VboId)
+                (define early-count (count-objects objects))
+                (define SpriteData-count:new (max *initialize-count* early-count))
 
-              (define early-count (count-objects objects))
-              (define SpriteData-count:new (max *initialize-count* early-count))
+                (unless (>= SpriteData-count SpriteData-count:new)
+                  (define SpriteData-count:old SpriteData-count)
+                  (set! SpriteData-count
+                        (max (* 2 SpriteData-count)
+                             SpriteData-count:new))
+                  (glBufferData GL_ARRAY_BUFFER
+                                (* SpriteData-count
+                                   DrawnMult
+                                   (ctype-sizeof _sprite-data))
+                                #f
+                                GL_STREAM_DRAW))
 
-              (unless (>= SpriteData-count SpriteData-count:new)
-                (define SpriteData-count:old SpriteData-count)
-                (set! SpriteData-count
-                      (max (* 2 SpriteData-count)
-                           SpriteData-count:new))
-                (glBufferData GL_ARRAY_BUFFER
-                              (* SpriteData-count
-                                 DrawnMult
-                                 (ctype-sizeof _sprite-data))
-                              #f
-                              GL_STREAM_DRAW))
+                (set! SpriteData
+                      (make-cvector*
+                       (glMapBufferRange
+                        GL_ARRAY_BUFFER
+                        0
+                        (* SpriteData-count
+                           DrawnMult
+                           (ctype-sizeof _sprite-data))
+                        (bitwise-ior
+                         ;; We are overriding everything (this would be wrong if
+                         ;; we did the caching "optimization" I imagine)
+                         GL_MAP_INVALIDATE_RANGE_BIT
+                         GL_MAP_INVALIDATE_BUFFER_BIT
 
-              (set! SpriteData
-                    (make-cvector*
-                     (glMapBufferRange
-                      GL_ARRAY_BUFFER
-                      0
-                      (* SpriteData-count
-                         DrawnMult
-                         (ctype-sizeof _sprite-data))
-                      (bitwise-ior
-                       ;; We are overriding everything (this would be wrong if
-                       ;; we did the caching "optimization" I imagine)
-                       GL_MAP_INVALIDATE_RANGE_BIT
-                       GL_MAP_INVALIDATE_BUFFER_BIT
+                         ;; We are not doing complex queues, so don't block other
+                         ;; operations (but it doesn't seem to improve performance
+                         ;; by having this option)
+                         ;; GL_MAP_UNSYNCHRONIZED_BIT
 
-                       ;; We are not doing complex queues, so don't block other
-                       ;; operations (but it doesn't seem to improve performance
-                       ;; by having this option)
-                       ;; GL_MAP_UNSYNCHRONIZED_BIT
+                         ;; We are writing
+                         GL_MAP_WRITE_BIT))
+                       _sprite-data
+                       (* SpriteData-count
+                          DrawnMult)))
 
-                       ;; We are writing
-                       GL_MAP_WRITE_BIT))
-                     _sprite-data
-                     (* SpriteData-count
-                        DrawnMult)))
-
-              ;; Reload all data every frame
-              (install-objects! objects)
-              (define this-count early-count)
-              (glUnmapBuffer GL_ARRAY_BUFFER)
-              (glBindBuffer GL_ARRAY_BUFFER 0)
+                ;; Reload all data every frame
+                (install-objects! objects)
+                (define this-count early-count)
+                (glUnmapBuffer GL_ARRAY_BUFFER))
 
               (with-program (ProgramId)
                 (glEnable GL_DEPTH_TEST)
