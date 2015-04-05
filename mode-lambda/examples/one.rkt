@@ -191,7 +191,14 @@
                               #:fov (fl* 8.0 (fl/ (fx->fl W) (fx->fl H))))
                        #f #f #f
                        (layer (fx->fl (/ W 2)) (fl+ (fx->fl (/ H 2)) 25.0)
-                              #:theta (fl/ pi 4.0))
+                              #:theta (fl* (fl/
+                                            (fx->fl
+                                             (fxmodulo (fxquotient
+                                                        (current-milliseconds)
+                                                        10)
+                                                       360))
+                                            360.0)
+                                           (fl* 2.0 pi)))
                        #f #f
                        (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
                               #:mx 2.0 #:my 2.0)))]
@@ -261,13 +268,12 @@
            [_ old]))
        (if (equal? old new)
            w
-           (update-rt
-            (struct-copy one w
-                         [mode new])))]
+           (struct-copy one w
+                        [mode new]))]
       [else
        w]))
    (define (word-tick w)
-     w)])
+     (update-rt w))])
 
 (define (update-rt w)
   (struct-copy one w

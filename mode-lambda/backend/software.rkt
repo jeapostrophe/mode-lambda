@@ -162,17 +162,20 @@
       (match-define (sprite-data dx dy mx my theta a.0 spr-idx pal-idx layer 
                                  r g b _ _) s)
       (match-define (layer-data Lcx Lcy Lhw Lhh Lmx Lmy Ltheta
-                                _ _ fov wrap-x? wrap-y?)
+                                _ _ _ wrap-x? wrap-y?)
                     (or (vector-ref layer-config layer)
                         (error 'geometry-shader
                                "Cannot draw on layer ~v without config"
                                layer)))
+      ;; M = (Translate(Lcx,Lcy) * (Rotate(Ltheta) * Translate(-Hw,-Hh))) * (Translate(Dx,Dy) * Rotate(Theta))
+
       ;; First we rotate the sprite
       (2d-rotate! theta R)
       ;; Then we move it to correct place on the layer
       (2d-translate! dx dy T)
       (3*3mat-mult! T R M1)
       ;; Next, we move the whole layer so the center is the (0,0)
+      ;; XXX I'm not sure if these should be Lhw and Lhh
       (2d-translate! (fl* -1.0 hwidth.0) (fl* -1.0 hheight.0) T)
       ;; Then, we perform the layer rotation
       (2d-rotate! Ltheta R)

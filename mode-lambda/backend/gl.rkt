@@ -31,7 +31,7 @@
 
 (define (make-delayed-until-gl-is-around t)
   (define c #f)
-  (define r #f)
+  (define r void)
   (λ ()
     (unless c
       (set! c #t)
@@ -204,13 +204,13 @@
     (glBindBuffer GL_ARRAY_BUFFER VboId)
 
     (define DataWidth 4)
-    (define DataSize 4)
+    (define DataSize (ctype-sizeof _float))
     (define DataCount 6)
     (glVertexAttribPointer 0 DataSize GL_FLOAT #f 0 0)
     (glEnableVertexAttribArray 0)
 
     ;; xxx this should really just be called once when VboId was made
-    ;; with the stream_draw setting
+    ;; with the dynamic_draw setting
     (glBufferData GL_ARRAY_BUFFER (* DataCount DataWidth DataSize) #f GL_STATIC_DRAW)
 
     (define DataVec
@@ -223,7 +223,7 @@
        _float
        (* DataWidth
           DataSize
-          DataCount)))    
+          DataCount)))
     (cvector-set*! DataVec 0
                    0.0 0.0 inset-left inset-bottom
                    1.0 0.0 inset-right inset-bottom
@@ -377,36 +377,44 @@
   (define (count-objects t)
     (tree-fold (λ (count o) (add1 count)) 0 t))
 
-  (define (2D-defaults)
+  (define (make-2dtexture)
+    (define Id (u32vector-ref (glGenTextures 1) 0))
+    (glBindTexture GL_TEXTURE_2D Id)
     (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_S GL_CLAMP_TO_EDGE)
     (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_T GL_CLAMP_TO_EDGE)
     (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MAG_FILTER GL_LINEAR)
-    (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MIN_FILTER GL_LINEAR))
+    (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MIN_FILTER GL_LINEAR)
+    Id)
 
-  (define (make-texture/bytes w h bs)
-    (define Id (u32vector-ref (glGenTextures 1) 0))
-    (glBindTexture GL_TEXTURE_2D Id)
-    (2D-defaults)
+  (define (load-texture/bytes w h bs)
     (define the-copy (bytes-copy bs))
     (argb->rgba! the-copy)
     (glTexImage2D GL_TEXTURE_2D
                   0 GL_RGBA
                   w h 0
                   GL_RGBA GL_UNSIGNED_BYTE
-                  the-copy)
-    Id)
+                  the-copy))
 
-  (define SpriteAtlasId (make-texture/bytes atlas-size atlas-size atlas-bs))
-  (define PaletteAtlasId (make-texture/bytes PALETTE-DEPTH pal-size pal-bs))
-  (define SpriteIndexId (u32vector-ref (glGenTextures 1) 0))
+  (define (load-texture/float-bytes w h bs)
+    (glTexImage2D GL_TEXTURE_2D
+                  0 GL_RGBA32F
+                  ;; w is in float values, but RGBA32F is 4 float
+                  ;; values, so we need to do a fourth of this.
+                  (ceiling (/ w 4)) h 0
+                  GL_RGBA GL_FLOAT
+                  bs))
+
+  (define SpriteAtlasId (make-2dtexture))
+  (load-texture/bytes atlas-size atlas-size atlas-bs)
+  (define PaletteAtlasId (make-2dtexture))
+  (load-texture/bytes PALETTE-DEPTH pal-size pal-bs)
+  (define SpriteIndexId (make-2dtexture))
   (let ()
-    (glBindTexture GL_TEXTURE_2D SpriteIndexId)
-    (2D-defaults)
     (define sprite-index-count
       (vector-length idx->w*h*tx*ty))
 
     (define index-values 4)
-    (define index-bytes-per-value 4)
+    (define index-bytes-per-value (ctype-sizeof _float))
     (define index-bin
       (make-bytes (* index-values index-bytes-per-value
                      sprite-index-count)))
@@ -427,11 +435,11 @@
       (num->pow2 sprite-index-count))
     (define effective-sprite-index-count
       (expt 2 sic-width))
-    (glTexImage2D GL_TEXTURE_2D
-                  0 GL_RGBA32F
-                  1 effective-sprite-index-count 0
-                  GL_RGBA GL_FLOAT
-                  index-bin))
+
+    (load-texture/float-bytes
+     index-values effective-sprite-index-count index-bin))
+
+  (define LayerConfigId (make-2dtexture))
 
   (glLinkProgram ProgramId)
   (print-shader-log glGetProgramInfoLog 'Program ProgramId)
@@ -440,9 +448,10 @@
   (glUniform1i (glGetUniformLocation ProgramId "SpriteAtlasTex") 0)
   (glUniform1i (glGetUniformLocation ProgramId "PaletteAtlasTex") 1)
   (glUniform1i (glGetUniformLocation ProgramId "SpriteIndexTex") 2)
-  (define LayerConfigBlockIdx (glGetUniformBlockIndex ProgramId "LayerConfigBlock"))
+  (glUniform1i (glGetUniformLocation ProgramId "LayerConfigTex") 3)
   (glUniform1ui (glGetUniformLocation ProgramId "ViewportWidth") width)
   (glUniform1ui (glGetUniformLocation ProgramId "ViewportHeight") height)
+
   (glUseProgram 0)
 
   (define VaoId (u32vector-ref (glGenVertexArrays 1) 0))
@@ -496,12 +505,36 @@
 
   (glBindVertexArray 0)
 
+  (define last-layer-config #f)
+
   (define (draw layer-config static-st dynamic-st)
-    ;; xxx load layer-config into LayerConfigBlockIdx
-    
+    (unless (equal? layer-config last-layer-config)
+      (set! last-layer-config layer-config)
+      (define lc-values 12)
+      (define lc-bytes-per-value (ctype-sizeof _float))
+      (define lc-bs (make-bytes (* lc-values LAYERS lc-bytes-per-value)))
+      (for ([i (in-naturals)]
+            [lc (in-vector layer-config)])
+        (match-define
+         (layer-data Lcx Lcy Lhw Lhh Lmx Lmy Ltheta
+                     mode7-coeff horizon fov wrap-x? wrap-y?)
+         (or lc default-layer))
+        (for ([o (in-naturals)]
+              [v (in-list (list Lcx Lcy Lhw Lhh Lmx Lmy Ltheta
+                                mode7-coeff horizon fov
+                                (if wrap-x? 1.0 0.0)
+                                (if wrap-y? 1.0 0.0)))])
+          (real->floating-point-bytes
+           v lc-bytes-per-value
+           (system-big-endian?) lc-bs
+           (+ (* lc-values lc-bytes-per-value i)
+              (* lc-bytes-per-value o)))))
+      (glBindTexture GL_TEXTURE_2D LayerConfigId)
+      (load-texture/float-bytes lc-values LAYERS lc-bs))
+
     ;; xxx optimize static
     (define objects (cons static-st dynamic-st))
-    
+
     (glBindVertexArray VaoId)
 
     (for ([i (in-range AttributeCount)])
@@ -513,6 +546,8 @@
     (glBindTexture GL_TEXTURE_2D PaletteAtlasId)
     (glActiveTexture GL_TEXTURE2)
     (glBindTexture GL_TEXTURE_2D SpriteIndexId)
+    (glActiveTexture GL_TEXTURE3)
+    (glBindTexture GL_TEXTURE_2D LayerConfigId)
 
     (glBindBuffer GL_ARRAY_BUFFER VboId)
 
