@@ -79,7 +79,12 @@ void main(void)
   float wrapxp = LC_HORIZON_FOV_WRAPXP_WRAPYP.z;
   float wrapyp = LC_HORIZON_FOV_WRAPXP_WRAPYP.w;
 
-  // xxx use wrapxp and wrapyp
+  // xxx use wrapxp and wrapyp -- the software renderer uses these to
+  // decide whether to mess with the points. i really need to generate
+  // 4 times more vertices and add two more parameters that are
+  // bools. it's not normally possible to "discard" a vertex, but i
+  // could set the alpha to 0 or i could set w to 0, so it is
+  // projected out to infinity.
 
   vec4 in_TexCoord =
     texelFetch(SpriteIndexTex, ivec2(0, spr), 0);
