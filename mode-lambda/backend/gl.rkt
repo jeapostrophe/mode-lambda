@@ -10,6 +10,7 @@
          racket/match
          web-server/templates
          opengl
+         scheme/nest
          (only-in math/base
                   sum)
          (only-in ffi/unsafe
@@ -51,7 +52,7 @@
 
 ;; Fullscreen
 
-(define (make-draw-on-crt crt-width crt-height mode)
+(define (make-draw-screen crt-width crt-height mode)
   (eprintf "You are using OpenGL ~a\n" (gl-version))
 
   (define myTexture (glGen glGenTextures))
@@ -110,24 +111,25 @@
 
   (define vao (glGen glGenVertexArrays))
 
-  (define (new-draw-on-crt actual-screen-width actual-screen-height do-the-drawing)
+  (define (new-draw-screen actual-screen-width actual-screen-height do-the-drawing)
     (with-framebuffer (myFBO)
       (glViewport 0 0 crt-width crt-height)
       (do-the-drawing))
 
-    (with-program (shader_program)
-      (glUniform2fv (glGetUniformLocation shader_program "rubyOutputSize") 1
-                    (f32vector (* 1. actual-screen-width) (* 1. actual-screen-height)))
-      (glClearColor 0.0 0.0 0.0 0.0)
-      (glClear (bitwise-ior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
-      (glViewport 0 0 actual-screen-width actual-screen-height)
-      (with-texture (GL_TEXTURE0 myTexture)
-        (with-vertexarray (vao)
-          (glDrawArrays GL_TRIANGLES 0 EFFECT_VERTS)))))
+    (nest
+     ([with-program (shader_program)]
+      [with-texture (GL_TEXTURE0 myTexture)]
+      [with-vertexarray (vao)])
+     (glUniform2fv (glGetUniformLocation shader_program "rubyOutputSize") 1
+                   (f32vector (* 1. actual-screen-width) (* 1. actual-screen-height)))
+     (glClearColor 0.0 0.0 0.0 0.0)
+     (glClear (bitwise-ior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
+     (glViewport 0 0 actual-screen-width actual-screen-height)
+     (glDrawArrays GL_TRIANGLES 0 EFFECT_VERTS)))
 
-  new-draw-on-crt)
+  new-draw-screen)
 
-;; Old Code from GB (ngl.rkt)
+;; Draw the sprites
 
 ;; xxx this whole system is too complicated, just write it down
 ;; explicitly or build a special define-cstruct
@@ -223,21 +225,6 @@
                        pal-size pal-bs pal->idx)
    csd)
 
-  (define SpriteData-count 0)
-  (define SpriteData #f)
-
-  (define (install-object! i o)
-    (define-syntax-rule (point-install! Horiz Vert j ...)
-      (begin
-        (set-sprite-data-horiz! o Horiz)
-        (set-sprite-data-vert! o Vert)
-        (cvector-set! SpriteData (+ (* i DrawnMult) j) o)
-        ...))
-    (point-install! -1 +1 0)
-    (point-install! +1 +1 1 4)
-    (point-install! -1 -1 2 3)
-    (point-install! +1 -1 5))
-
   (define AttributeCount 5)
 
   (define ProgramId (glCreateProgram))
@@ -258,14 +245,6 @@
     ProgramId ngl-vert)
   (define&compile-shader FragmentShaderId GL_FRAGMENT_SHADER
     ProgramId ngl-fragment)
-
-  (define *initialize-count* (* 2 512))
-
-  (define (install-objects! t)
-    (tree-fold (λ (offset o)
-                 (install-object! offset o)
-                 (add1 offset))
-               0 t))
 
   (define SpriteAtlasId (make-2dtexture))
   (with-texture (GL_TEXTURE0 SpriteAtlasId)
@@ -302,15 +281,38 @@
 
   (define VaoId (glGen glGenVertexArrays))
   (define VboId (glGen glGenBuffers))
-  (with-vertexarray (VaoId)
-    (with-arraybuffer (VboId)
-      (define-vertex-attrib-array*
-        [        in_DX_DY-attrib  0  1]
-        [in_MX_MY_THETA_A-attrib  2  5]
-        [      in_SPR_PAL-attrib  6  7]
-        [  in_LAYER_R_G_B-attrib  8 11]
-        [   in_HORIZ_VERT-attrib 12 13])))
+  (nest
+   ([with-vertexarray (VaoId)]
+    [with-arraybuffer (VboId)])
+   (define-vertex-attrib-array*
+     [        in_DX_DY-attrib  0  1]
+     [in_MX_MY_THETA_A-attrib  2  5]
+     [      in_SPR_PAL-attrib  6  7]
+     [  in_LAYER_R_G_B-attrib  8 11]
+     [   in_HORIZ_VERT-attrib 12 13]))
 
+  (define SpriteData-count 0)
+  (define *initialize-count* (* 2 512))
+  (define SpriteData #f)
+
+  (define (install-object! i o)
+    (define-syntax-rule (point-install! Horiz Vert j ...)
+      (begin
+        (set-sprite-data-horiz! o Horiz)
+        (set-sprite-data-vert! o Vert)
+        (cvector-set! SpriteData (+ (* i DrawnMult) j) o)
+        ...))
+    (point-install! -1 +1 0)
+    (point-install! +1 +1 1 4)
+    (point-install! -1 -1 2 3)
+    (point-install! +1 -1 5))
+  
+  (define (install-objects! t)
+    (tree-fold (λ (offset o)
+                 (install-object! offset o)
+                 (add1 offset))
+               0 t))
+  
   (define last-layer-config #f)
 
   (define (draw layer-config static-st dynamic-st)
@@ -322,85 +324,85 @@
 
     ;; xxx optimize static
     (define objects (cons static-st dynamic-st))
+    (define early-count (count-objects objects))
+    (define SpriteData-count:new (max *initialize-count* early-count))
 
-    ;; xxx use scheme/nest
-    (with-vertexarray (VaoId)
-      (with-vertex-attributes (AttributeCount)
-        (with-texture (GL_TEXTURE0 SpriteAtlasId)
-          (with-texture (GL_TEXTURE1 PaletteAtlasId)
-            (with-texture (GL_TEXTURE2 SpriteIndexId)
-              (with-texture (GL_TEXTURE3 LayerConfigId)
-                (define early-count (count-objects objects))
-                (define SpriteData-count:new (max *initialize-count* early-count))
-                (with-arraybuffer (VboId)
-                  (unless (>= SpriteData-count SpriteData-count:new)
-                    (set! SpriteData-count
-                          (max (* 2 SpriteData-count)
-                               SpriteData-count:new))
-                    (glBufferData GL_ARRAY_BUFFER
-                                  (* SpriteData-count
-                                     DrawnMult
-                                     (ctype-sizeof _sprite-data))
-                                  #f
-                                  GL_STREAM_DRAW))
+    (nest
+     ([with-vertexarray (VaoId)]
+      [with-vertex-attributes (AttributeCount)]
+      [with-texture (GL_TEXTURE0 SpriteAtlasId)]
+      [with-texture (GL_TEXTURE1 PaletteAtlasId)]
+      [with-texture (GL_TEXTURE2 SpriteIndexId)]
+      [with-texture (GL_TEXTURE3 LayerConfigId)]
+      [with-feature (GL_BLEND)]
+      [with-feature (GL_DEPTH_TEST)]
+      [with-program (ProgramId)])
+     (with-arraybuffer (VboId)
+       (unless (>= SpriteData-count SpriteData-count:new)
+         (set! SpriteData-count
+               (max (* 2 SpriteData-count)
+                    SpriteData-count:new))
+         (glBufferData GL_ARRAY_BUFFER
+                       (* SpriteData-count
+                          DrawnMult
+                          (ctype-sizeof _sprite-data))
+                       #f
+                       GL_STREAM_DRAW))
 
-                  (set! SpriteData
-                        (make-cvector*
-                         (glMapBufferRange
-                          GL_ARRAY_BUFFER
-                          0
-                          (* SpriteData-count
-                             DrawnMult
-                             (ctype-sizeof _sprite-data))
-                          (bitwise-ior
-                           ;; We are overriding everything (this would be wrong if
-                           ;; we did the caching "optimization" I imagine)
-                           GL_MAP_INVALIDATE_RANGE_BIT
-                           GL_MAP_INVALIDATE_BUFFER_BIT
+       (set! SpriteData
+             (make-cvector*
+              (glMapBufferRange
+               GL_ARRAY_BUFFER
+               0
+               (* SpriteData-count
+                  DrawnMult
+                  (ctype-sizeof _sprite-data))
+               (bitwise-ior
+                ;; We are overriding everything (this would be wrong if
+                ;; we did the caching "optimization" I imagine)
+                GL_MAP_INVALIDATE_RANGE_BIT
+                GL_MAP_INVALIDATE_BUFFER_BIT
 
-                           ;; We are not doing complex queues, so don't block other
-                           ;; operations (but it doesn't seem to improve performance
-                           ;; by having this option)
-                           ;; GL_MAP_UNSYNCHRONIZED_BIT
+                ;; We are not doing complex queues, so don't block other
+                ;; operations (but it doesn't seem to improve performance
+                ;; by having this option)
+                ;; GL_MAP_UNSYNCHRONIZED_BIT
 
-                           ;; We are writing
-                           GL_MAP_WRITE_BIT))
-                         _sprite-data
-                         (* SpriteData-count
-                            DrawnMult)))
+                ;; We are writing
+                GL_MAP_WRITE_BIT))
+              _sprite-data
+              (* SpriteData-count
+                 DrawnMult)))
 
-                  (install-objects! objects)
-                  (glUnmapBuffer GL_ARRAY_BUFFER))
+       (install-objects! objects)
+       (glUnmapBuffer GL_ARRAY_BUFFER))
+     
+     (glClearColor 0.0 0.0 0.0 1.0)
+     ;; xxx blending is still wrong (but may not matter
+     ;; when i implement layers myself)
+     (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
+     (glClear (bitwise-ior GL_DEPTH_BUFFER_BIT GL_COLOR_BUFFER_BIT))
 
-                (with-program (ProgramId)
-                  (with-feature (GL_DEPTH_TEST)
-                    (with-feature (GL_BLEND)
-                      (glClearColor 0.0 0.0 0.0 1.0)
-                      ;; xxx blending is still wrong (but may not matter
-                      ;; when i implement layers myself)
-                      (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
-                      (glClear (bitwise-ior GL_DEPTH_BUFFER_BIT GL_COLOR_BUFFER_BIT))
-
-                      ;; xxx draw this onto a 1xLAYERS 2D texture array
-                      ;; then do the layer combination pass
-                      (glDrawArrays
-                       GL_TRIANGLES 0
-                       (* DrawnMult early-count))))))))))))
+     ;; xxx draw this onto a 1xLAYERS 2D texture array
+     ;; then do the layer combination pass
+     (glDrawArrays
+      GL_TRIANGLES 0
+      (* DrawnMult early-count))))
 
   draw)
 
 ;; New interface
 
 (define (stage-draw/dc csd width height)
-  (define draw-on-crt
+  (define draw-screen
     (make-delayed-until-gl-is-around
-     (λ ()
-       (make-draw-on-crt width height 'crt))))
+     (λ () (make-draw-screen width height 'crt))))
   (define draw-sprites
     (make-delayed-until-gl-is-around
-     (λ ()
-       (make-draw csd width height))))
+     (λ () (make-draw csd width height))))
   (λ (layer-config static-st dynamic-st)
+    (define draw-things
+      (λ () ((draw-sprites) layer-config static-st dynamic-st)))
     (λ (w h dc)
       (local-require racket/class)
       (define glctx (send dc get-gl-context))
@@ -408,8 +410,7 @@
         (error 'draw "Could not initialize OpenGL!"))
       (send glctx call-as-current
             (λ ()
-              ((draw-on-crt) w h
-               (λ () ((draw-sprites) layer-config static-st dynamic-st)))
+              ((draw-screen) w h draw-things)
               (send glctx swap-buffers))))))
 
 (define gui-mode 'gl-core)
