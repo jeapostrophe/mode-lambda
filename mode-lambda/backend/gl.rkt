@@ -450,10 +450,9 @@
         (with-texture (GL_TEXTURE1 PaletteAtlasId)
           (with-texture (GL_TEXTURE2 SpriteIndexId)
             (with-texture (GL_TEXTURE3 LayerConfigId)
+              (define early-count (count-objects objects))
+              (define SpriteData-count:new (max *initialize-count* early-count))
               (with-arraybuffer (VboId)
-                (define early-count (count-objects objects))
-                (define SpriteData-count:new (max *initialize-count* early-count))
-
                 (unless (>= SpriteData-count SpriteData-count:new)
                   (define SpriteData-count:old SpriteData-count)
                   (set! SpriteData-count
@@ -493,7 +492,6 @@
 
                 ;; Reload all data every frame
                 (install-objects! objects)
-                (define this-count early-count)
                 (glUnmapBuffer GL_ARRAY_BUFFER))
 
               (with-program (ProgramId)
@@ -507,10 +505,9 @@
                 (glClear (bitwise-ior GL_DEPTH_BUFFER_BIT GL_COLOR_BUFFER_BIT))
 
                 ;; xxx draw this onto a 1xLAYERS 2D texture array
-                (define drawn-count this-count)
                 (glDrawArrays
                  GL_TRIANGLES 0
-                 (* DrawnMult drawn-count))
+                 (* DrawnMult early-count))
 
                 ;; xxx do the layer combination pass
 
