@@ -44,7 +44,7 @@
      (ctype-sizeof _sprite-data)
      byte-offset)))
 
-(define-syntax-rule 
+(define-syntax-rule
   (define-vertex-attrib-array* [AttribId AttribStart AttribEnd] ...)
   (begin (define-vertex-attrib-array AttribId AttribStart AttribEnd)
          ...))
@@ -171,6 +171,52 @@
 
 (define DrawnMult 6)
 
+(define LAYER-VALUES 12)
+(define (layer-config->bytes layer-config)
+  (define lc-bytes-per-value (ctype-sizeof _float))
+  (define lc-bs (make-bytes (* LAYER-VALUES LAYERS lc-bytes-per-value)))
+  (for ([i (in-naturals)]
+        [lc (in-vector layer-config)])
+    (match-define
+     (layer-data Lcx Lcy Lhw Lhh Lmx Lmy Ltheta
+                 mode7-coeff horizon fov wrap-x? wrap-y?)
+     (or lc default-layer))
+    (for ([o (in-naturals)]
+          [v (in-list (list Lcx Lcy Lhw Lhh Lmx Lmy Ltheta
+                            mode7-coeff horizon fov
+                            (if wrap-x? 1.0 0.0)
+                            (if wrap-y? 1.0 0.0)))])
+      (real->floating-point-bytes
+       v lc-bytes-per-value
+       (system-big-endian?) lc-bs
+       (+ (* LAYER-VALUES lc-bytes-per-value i)
+          (* lc-bytes-per-value o)))))
+  lc-bs)
+
+(define INDEX-VALUES 4)
+(define (sprite-index->bytes idx->w*h*tx*ty)
+  (define sprite-index-count
+    (vector-length idx->w*h*tx*ty))
+  (define index-bytes-per-value (ctype-sizeof _float))
+  (define index-bin
+    (make-bytes (* INDEX-VALUES index-bytes-per-value
+                   sprite-index-count)))
+  (for ([vec (in-vector idx->w*h*tx*ty)]
+        [i (in-naturals)])
+    (for ([v (in-vector vec)]
+          [o (in-naturals)])
+      (real->floating-point-bytes
+       v index-bytes-per-value
+       (system-big-endian?) index-bin
+       (+ (* INDEX-VALUES
+             index-bytes-per-value
+             i)
+          (* index-bytes-per-value o)))))
+  index-bin)
+
+(define (count-objects t)
+  (tree-fold (λ (count o) (add1 count)) 0 t))
+
 (define (make-draw csd width height)
   (match-define
    (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
@@ -185,7 +231,7 @@
       (begin
         (set-sprite-data-horiz! o Horiz)
         (set-sprite-data-vert! o Vert)
-        (cvector-set! SpriteData (+ (* i 6) j) o)
+        (cvector-set! SpriteData (+ (* i DrawnMult) j) o)
         ...))
     (point-install! -1 +1 0)
     (point-install! +1 +1 1 4)
@@ -220,8 +266,6 @@
                  (install-object! offset o)
                  (add1 offset))
                0 t))
-  (define (count-objects t)
-    (tree-fold (λ (count o) (add1 count)) 0 t))
 
   (define SpriteAtlasId (make-2dtexture))
   (with-texture (GL_TEXTURE0 SpriteAtlasId)
@@ -231,38 +275,14 @@
     (load-texture/bytes PALETTE-DEPTH pal-size pal-bs))
   (define SpriteIndexId (make-2dtexture))
   (with-texture (GL_TEXTURE0 SpriteIndexId)
-    (define sprite-index-count 
-      (vector-length idx->w*h*tx*ty))
-    (define index-values 4)
-    (define index-bytes-per-value (ctype-sizeof _float))
-    (define index-bin
-      (make-bytes (* index-values index-bytes-per-value
-                     sprite-index-count)))
-
-    (for ([vec (in-vector idx->w*h*tx*ty)]
-          [i (in-naturals)])
-      (for ([v (in-vector vec)]
-            [o (in-naturals)])
-        (real->floating-point-bytes
-         v index-bytes-per-value
-         (system-big-endian?) index-bin
-         (+ (* index-values
-               index-bytes-per-value
-               i)
-            (* index-bytes-per-value o)))))
-
-    (define sic-width
-      (num->pow2 sprite-index-count))
-    (define effective-sprite-index-count
-      (expt 2 sic-width))
-
     (load-texture/float-bytes
-     index-values effective-sprite-index-count index-bin))
+     INDEX-VALUES (vector-length idx->w*h*tx*ty)
+     (sprite-index->bytes idx->w*h*tx*ty)))
 
   (define LayerConfigId (make-2dtexture))
 
   (define LayersId (glGen glGenTextures))
-  (with-texture-array (LayersId)  
+  (with-texture-array (LayersId)
     (glTexStorage3D GL_TEXTURE_2D_ARRAY 1 GL_RGBA8 width height LAYERS))
 
   (glLinkProgram ProgramId)
@@ -296,28 +316,9 @@
   (define (draw layer-config static-st dynamic-st)
     (unless (equal? layer-config last-layer-config)
       (set! last-layer-config layer-config)
-      (define lc-values 12)
-      (define lc-bytes-per-value (ctype-sizeof _float))
-      (define lc-bs (make-bytes (* lc-values LAYERS lc-bytes-per-value)))
-      (for ([i (in-naturals)]
-            [lc (in-vector layer-config)])
-        (match-define
-         (layer-data Lcx Lcy Lhw Lhh Lmx Lmy Ltheta
-                     mode7-coeff horizon fov wrap-x? wrap-y?)
-         (or lc default-layer))
-        (for ([o (in-naturals)]
-              [v (in-list (list Lcx Lcy Lhw Lhh Lmx Lmy Ltheta
-                                mode7-coeff horizon fov
-                                (if wrap-x? 1.0 0.0)
-                                (if wrap-y? 1.0 0.0)))])
-          (real->floating-point-bytes
-           v lc-bytes-per-value
-           (system-big-endian?) lc-bs
-           (+ (* lc-values lc-bytes-per-value i)
-              (* lc-bytes-per-value o)))))
-
       (with-texture (GL_TEXTURE3 LayerConfigId)
-        (load-texture/float-bytes lc-values LAYERS lc-bs)))
+        (load-texture/float-bytes LAYER-VALUES LAYERS
+                                  (layer-config->bytes layer-config))))
 
     ;; xxx optimize static
     (define objects (cons static-st dynamic-st))
@@ -333,7 +334,6 @@
                 (define SpriteData-count:new (max *initialize-count* early-count))
                 (with-arraybuffer (VboId)
                   (unless (>= SpriteData-count SpriteData-count:new)
-                    (define SpriteData-count:old SpriteData-count)
                     (set! SpriteData-count
                           (max (* 2 SpriteData-count)
                                SpriteData-count:new))
@@ -369,7 +369,6 @@
                          (* SpriteData-count
                             DrawnMult)))
 
-                  ;; Reload all data every frame
                   (install-objects! objects)
                   (glUnmapBuffer GL_ARRAY_BUFFER))
 
