@@ -19,8 +19,6 @@
 
 (define-syntax-rule (glsl-include p) (include-template p))
 
-;; Fullscreen
-
 (define (make-draw-screen crt-width crt-height mode)
   (eprintf "You are using OpenGL ~a\n" (gl-version))
 
@@ -80,7 +78,7 @@
 
   (define vao (glGen glGenVertexArrays))
 
-  (define (new-draw-screen actual-screen-width actual-screen-height do-the-drawing)
+  (λ (actual-screen-width actual-screen-height do-the-drawing)
     (with-framebuffer (myFBO)
       (glViewport 0 0 crt-width crt-height)
       (do-the-drawing))
@@ -94,13 +92,7 @@
      (glClearColor 0.0 0.0 0.0 0.0)
      (glClear (bitwise-ior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
      (glViewport 0 0 actual-screen-width actual-screen-height)
-     (glDrawArrays GL_TRIANGLES 0 EFFECT_VERTS)))
-
-  new-draw-screen)
-
-;; Draw the sprites
-
-(define DrawnMult 6)
+     (glDrawArrays GL_TRIANGLES 0 EFFECT_VERTS))))
 
 (define LAYER-VALUES 12)
 (define (layer-config->bytes layer-config)
@@ -208,6 +200,7 @@
   (define SpriteData-count 0)
   (define *initialize-count* (* 2 512))
   (define SpriteData #f)
+  (define DrawnMult 6)
 
   (define (install-object! i o)
     (define-syntax-rule (point-install! Horiz Vert j ...)
@@ -229,7 +222,7 @@
   
   (define last-layer-config #f)
 
-  (define (draw layer-config static-st dynamic-st)
+  (λ (layer-config static-st dynamic-st)
     (unless (equal? layer-config last-layer-config)
       (set! last-layer-config layer-config)
       (with-texture (GL_TEXTURE3 LayerConfigId)
@@ -301,11 +294,7 @@
      ;; then do the layer combination pass
      (glDrawArrays
       GL_TRIANGLES 0
-      (* DrawnMult early-count))))
-
-  draw)
-
-;; New interface
+      (* DrawnMult early-count)))))
 
 (define (stage-draw/dc csd width height)
   (define draw-screen
