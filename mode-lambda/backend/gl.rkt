@@ -35,7 +35,7 @@
 ;; My GL lib
 
 (define (make-2dtexture)
-  (define Id (u32vector-ref (glGenTextures 1) 0))
+  (define Id (glGen glGenTextures))
   (with-texture (GL_TEXTURE0 Id)
     (2D-defaults))
   Id)
@@ -71,23 +71,44 @@
     [(== GL_TEXTURE2) 2]
     [(== GL_TEXTURE3) 3]))
 
+(define-syntax-rule (wrapper (before ...) (middle ...) (after ...))
+  (let () before ... middle ... after ...))
+
 (define-syntax-rule (define-with-state with-state (F static-arg ...))
   (define-syntax-rule (with-state (dyn-arg (... ...)) . body)
-    (begin (F static-arg ... dyn-arg (... ...))
-           (let () . body)
-           (F static-arg ... 0))))
+    (wrapper [(F static-arg ... dyn-arg (... ...))] 
+             body
+             [(F static-arg ... 0)])))
 
 (define-with-state with-program (glUseProgram))
 (define-with-state with-vertexarray (glBindVertexArray))
+(define-syntax-rule (with-texture-array (TextureId) . body)
+  (wrapper [(glBindTexture GL_TEXTURE_2D_ARRAY TextureId)]
+           body
+           [(glBindTexture GL_TEXTURE_2D_ARRAY 0)]))
 (define-syntax-rule (with-texture (GL_TEXTUREx TextureId) . body)
-  (begin (glActiveTexture GL_TEXTUREx)
-         (glBindTexture GL_TEXTURE_2D TextureId)
-         (let () . body)
-         (glActiveTexture GL_TEXTUREx)
-         (glBindTexture GL_TEXTURE_2D 0)))
+  (wrapper [(glActiveTexture GL_TEXTUREx)
+            (glBindTexture GL_TEXTURE_2D TextureId)]
+           body
+           [(glActiveTexture GL_TEXTUREx)
+            (glBindTexture GL_TEXTURE_2D 0)]))
 (define-with-state with-framebuffer (glBindFramebuffer GL_FRAMEBUFFER))
 (define-with-state with-renderbuffer (glBindRenderbuffer GL_RENDERBUFFER))
 (define-with-state with-arraybuffer (glBindBuffer GL_ARRAY_BUFFER))
+
+(define-syntax-rule (with-feature (FLAG) . body)
+  (wrapper [(glEnable FLAG)] body [(glDisable FLAG)]))
+
+(define-syntax-rule (with-vertex-attributes (AttributeCount) . body)
+  (wrapper [(for ([i (in-range AttributeCount)])
+              (glEnableVertexAttribArray i))]
+           body
+           [(for ([i (in-range AttributeCount)])
+              (glDisableVertexAttribArray i))]))
+
+(define (glGen glGenThing)
+  (u32vector-ref (glGenThing 1) 0))
+
 ;; xxx continue working on these things
 
 (define (glVertexAttribIPointer* index size type normalized stride pointer)
@@ -106,15 +127,12 @@
      Index HowMany type
      #f
      (ctype-sizeof _sprite-data)
-     byte-offset)
-    (glEnableVertexAttribArray Index)))
+     byte-offset)))
 
-(define-syntax-rule
-  (define-vertex-attrib-array*
-    [AttribId AttribStart AttribEnd] ...)
-  (begin
-    (define-vertex-attrib-array AttribId AttribStart AttribEnd)
-    ...))
+(define-syntax-rule 
+  (define-vertex-attrib-array* [AttribId AttribStart AttribEnd] ...)
+  (begin (define-vertex-attrib-array AttribId AttribStart AttribEnd)
+         ...))
 
 ;; Old Code from GB (gl-util.rkt)
 
@@ -146,7 +164,7 @@
 (define (make-draw-on-crt crt-width crt-height mode)
   (eprintf "You are using OpenGL ~a\n" (gl-version))
 
-  (define myTexture (u32vector-ref (glGenTextures 1) 0))
+  (define myTexture (glGen glGenTextures))
   (with-texture (GL_TEXTURE0 myTexture)
     (2D-defaults)
     (glTexImage2D
@@ -154,13 +172,13 @@
      GL_RGBA GL_UNSIGNED_BYTE
      0))
 
-  (define myRB (u32vector-ref (glGenRenderbuffers 1) 0))
+  (define myRB (glGen glGenRenderbuffers))
   (with-renderbuffer (myRB)
     (glRenderbufferStorage GL_RENDERBUFFER
                            GL_DEPTH_COMPONENT24
                            crt-width crt-height))
 
-  (define myFBO (u32vector-ref (glGenFramebuffers 1) 0))
+  (define myFBO (glGen glGenFramebuffers))
   (with-framebuffer (myFBO)
     (glFramebufferTexture2D
      GL_DRAW_FRAMEBUFFER
@@ -170,14 +188,7 @@
     (glFramebufferRenderbuffer
      GL_FRAMEBUFFER
      GL_DEPTH_ATTACHMENT
-     GL_RENDERBUFFER myRB)
-
-    (match (glCheckFramebufferStatus GL_FRAMEBUFFER)
-      [(== GL_FRAMEBUFFER_COMPLETE)
-       (void)]
-      [x
-       (eprintf "FBO creation failed: ~v\n" x)
-       (exit 1)]))
+     GL_RENDERBUFFER myRB))
 
   (define shader_program (glCreateProgram))
 
@@ -207,7 +218,7 @@
     (glUniform2fv (glGetUniformLocation shader_program "rubyInputSize")
                   1 (f32vector (* 1. crt-width) (* 1. crt-height))))
 
-  (define vao (u32vector-ref (glGenVertexArrays 1) 0))
+  (define vao (glGen glGenVertexArrays))
 
   (define (new-draw-on-crt actual-screen-width actual-screen-height do-the-drawing)
     (with-framebuffer (myFBO)
@@ -351,9 +362,8 @@
     (load-texture/bytes PALETTE-DEPTH pal-size pal-bs))
   (define SpriteIndexId (make-2dtexture))
   (with-texture (GL_TEXTURE0 SpriteIndexId)
-    (define sprite-index-count
+    (define sprite-index-count 
       (vector-length idx->w*h*tx*ty))
-
     (define index-values 4)
     (define index-bytes-per-value (ctype-sizeof _float))
     (define index-bin
@@ -382,10 +392,9 @@
 
   (define LayerConfigId (make-2dtexture))
 
-  (define LayersId (u32vector-ref (glGenTextures 1) 0))
-  (glBindTexture GL_TEXTURE_2D_ARRAY LayersId)
-  (glTexStorage3D GL_TEXTURE_2D_ARRAY 1 GL_RGBA8 width height LAYERS)
-  (glBindTexture GL_TEXTURE_2D_ARRAY 0)
+  (define LayersId (glGen glGenTextures))
+  (with-texture-array (LayersId)  
+    (glTexStorage3D GL_TEXTURE_2D_ARRAY 1 GL_RGBA8 width height LAYERS))
 
   (glLinkProgram ProgramId)
   (print-shader-log glGetProgramInfoLog 'Program ProgramId)
@@ -402,9 +411,9 @@
     (glUniform1ui (glGetUniformLocation ProgramId "ViewportWidth") width)
     (glUniform1ui (glGetUniformLocation ProgramId "ViewportHeight") height))
 
-  (define VaoId (u32vector-ref (glGenVertexArrays 1) 0))
-  (define VboId (u32vector-ref (glGenBuffers 1) 0))
-  (with-vertexarray (VaoId)    
+  (define VaoId (glGen glGenVertexArrays))
+  (define VboId (glGen glGenBuffers))
+  (with-vertexarray (VaoId)
     (with-arraybuffer (VboId)
       (define-vertex-attrib-array*
         [        in_DX_DY-attrib  0  1]
@@ -444,81 +453,71 @@
     ;; xxx optimize static
     (define objects (cons static-st dynamic-st))
 
+    ;; xxx use scheme/nest
     (with-vertexarray (VaoId)
-      (for ([i (in-range AttributeCount)])
-        (glEnableVertexAttribArray i))
+      (with-vertex-attributes (AttributeCount)
+        (with-texture (GL_TEXTURE0 SpriteAtlasId)
+          (with-texture (GL_TEXTURE1 PaletteAtlasId)
+            (with-texture (GL_TEXTURE2 SpriteIndexId)
+              (with-texture (GL_TEXTURE3 LayerConfigId)
+                (define early-count (count-objects objects))
+                (define SpriteData-count:new (max *initialize-count* early-count))
+                (with-arraybuffer (VboId)
+                  (unless (>= SpriteData-count SpriteData-count:new)
+                    (define SpriteData-count:old SpriteData-count)
+                    (set! SpriteData-count
+                          (max (* 2 SpriteData-count)
+                               SpriteData-count:new))
+                    (glBufferData GL_ARRAY_BUFFER
+                                  (* SpriteData-count
+                                     DrawnMult
+                                     (ctype-sizeof _sprite-data))
+                                  #f
+                                  GL_STREAM_DRAW))
 
-      ;; xxx use scheme/nest
-      (with-texture (GL_TEXTURE0 SpriteAtlasId)
-        (with-texture (GL_TEXTURE1 PaletteAtlasId)
-          (with-texture (GL_TEXTURE2 SpriteIndexId)
-            (with-texture (GL_TEXTURE3 LayerConfigId)
-              (define early-count (count-objects objects))
-              (define SpriteData-count:new (max *initialize-count* early-count))
-              (with-arraybuffer (VboId)
-                (unless (>= SpriteData-count SpriteData-count:new)
-                  (define SpriteData-count:old SpriteData-count)
-                  (set! SpriteData-count
-                        (max (* 2 SpriteData-count)
-                             SpriteData-count:new))
-                  (glBufferData GL_ARRAY_BUFFER
-                                (* SpriteData-count
-                                   DrawnMult
-                                   (ctype-sizeof _sprite-data))
-                                #f
-                                GL_STREAM_DRAW))
+                  (set! SpriteData
+                        (make-cvector*
+                         (glMapBufferRange
+                          GL_ARRAY_BUFFER
+                          0
+                          (* SpriteData-count
+                             DrawnMult
+                             (ctype-sizeof _sprite-data))
+                          (bitwise-ior
+                           ;; We are overriding everything (this would be wrong if
+                           ;; we did the caching "optimization" I imagine)
+                           GL_MAP_INVALIDATE_RANGE_BIT
+                           GL_MAP_INVALIDATE_BUFFER_BIT
 
-                (set! SpriteData
-                      (make-cvector*
-                       (glMapBufferRange
-                        GL_ARRAY_BUFFER
-                        0
-                        (* SpriteData-count
-                           DrawnMult
-                           (ctype-sizeof _sprite-data))
-                        (bitwise-ior
-                         ;; We are overriding everything (this would be wrong if
-                         ;; we did the caching "optimization" I imagine)
-                         GL_MAP_INVALIDATE_RANGE_BIT
-                         GL_MAP_INVALIDATE_BUFFER_BIT
+                           ;; We are not doing complex queues, so don't block other
+                           ;; operations (but it doesn't seem to improve performance
+                           ;; by having this option)
+                           ;; GL_MAP_UNSYNCHRONIZED_BIT
 
-                         ;; We are not doing complex queues, so don't block other
-                         ;; operations (but it doesn't seem to improve performance
-                         ;; by having this option)
-                         ;; GL_MAP_UNSYNCHRONIZED_BIT
+                           ;; We are writing
+                           GL_MAP_WRITE_BIT))
+                         _sprite-data
+                         (* SpriteData-count
+                            DrawnMult)))
 
-                         ;; We are writing
-                         GL_MAP_WRITE_BIT))
-                       _sprite-data
-                       (* SpriteData-count
-                          DrawnMult)))
+                  ;; Reload all data every frame
+                  (install-objects! objects)
+                  (glUnmapBuffer GL_ARRAY_BUFFER))
 
-                ;; Reload all data every frame
-                (install-objects! objects)
-                (glUnmapBuffer GL_ARRAY_BUFFER))
+                (with-program (ProgramId)
+                  (with-feature (GL_DEPTH_TEST)
+                    (with-feature (GL_BLEND)
+                      (glClearColor 0.0 0.0 0.0 1.0)
+                      ;; xxx blending is still wrong (but may not matter
+                      ;; when i implement layers myself)
+                      (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
+                      (glClear (bitwise-ior GL_DEPTH_BUFFER_BIT GL_COLOR_BUFFER_BIT))
 
-              (with-program (ProgramId)
-                (glEnable GL_DEPTH_TEST)
-                (glClearColor 0.0 0.0 0.0 1.0)
-
-                (glEnable GL_BLEND)
-                ;; xxx blending is still wrong (but may not matter when i implement layers myself)
-                (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
-
-                (glClear (bitwise-ior GL_DEPTH_BUFFER_BIT GL_COLOR_BUFFER_BIT))
-
-                ;; xxx draw this onto a 1xLAYERS 2D texture array
-                (glDrawArrays
-                 GL_TRIANGLES 0
-                 (* DrawnMult early-count))
-
-                ;; xxx do the layer combination pass
-
-                (glDisable GL_DEPTH_TEST)
-                (glDisable GL_BLEND)
-
-                (for ([i (in-range AttributeCount)])
-                  (glDisableVertexAttribArray i)))))))))
+                      ;; xxx draw this onto a 1xLAYERS 2D texture array
+                      ;; then do the layer combination pass
+                      (glDrawArrays
+                       GL_TRIANGLES 0
+                       (* DrawnMult early-count))))))))))))
 
   draw)
 

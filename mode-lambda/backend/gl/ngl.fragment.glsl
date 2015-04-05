@@ -11,9 +11,7 @@ in vec2 TexCoord;
 in float Palette;
 in float Layer;
 
-#define LAYERS 8
-
-out vec4 out_Color[LAYERS];
+out vec4 out_Color[@LAYERS];
 
 float clampx ( float v ) { return floor(v) + 0.5; }
 float clampy ( float v ) { return floor(v) - 0.5; }
