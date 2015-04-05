@@ -178,6 +178,12 @@
   (define VaoId (u32vector-ref (glGenVertexArrays 1) 0))
   (define VboId (u32vector-ref (glGenBuffers 1) 0))
 
+  (define DataWidth 4)
+  (define DataSize (ctype-sizeof _float))
+  (define DataCount 6)
+  (glBindBuffer GL_ARRAY_BUFFER VboId)
+  (glBufferData GL_ARRAY_BUFFER (* DataCount DataWidth DataSize) #f GL_DYNAMIC_DRAW)
+
   (define (new-draw-on-crt actual-screen-width actual-screen-height do-the-drawing)
     ;; Init
 
@@ -203,15 +209,8 @@
     (glBindVertexArray VaoId)
     (glBindBuffer GL_ARRAY_BUFFER VboId)
 
-    (define DataWidth 4)
-    (define DataSize (ctype-sizeof _float))
-    (define DataCount 6)
     (glVertexAttribPointer 0 DataSize GL_FLOAT #f 0 0)
     (glEnableVertexAttribArray 0)
-
-    ;; xxx this should really just be called once when VboId was made
-    ;; with the dynamic_draw setting
-    (glBufferData GL_ARRAY_BUFFER (* DataCount DataWidth DataSize) #f GL_STATIC_DRAW)
 
     (define DataVec
       (make-cvector*
