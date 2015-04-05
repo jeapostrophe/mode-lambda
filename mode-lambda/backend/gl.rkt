@@ -88,6 +88,7 @@
 (define-with-state with-framebuffer (glBindFramebuffer GL_FRAMEBUFFER))
 (define-with-state with-renderbuffer (glBindRenderbuffer GL_RENDERBUFFER))
 (define-with-state with-arraybuffer (glBindBuffer GL_ARRAY_BUFFER))
+;; xxx continue working on these things
 
 (define (glVertexAttribIPointer* index size type normalized stride pointer)
   (glVertexAttribIPointer index size type stride pointer))
@@ -248,6 +249,8 @@
       (bytes-set! pixels (+ 3 offset) alpha))))
 ;; </COPIED>
 
+;; xxx this whole system is too complicated, just write it down
+;; explicitly or build a special define-cstruct
 (define ctype-name->bytes
   (match-lambda
    ['uint8 1]
