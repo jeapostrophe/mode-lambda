@@ -99,18 +99,13 @@
   (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_T GL_CLAMP_TO_EDGE))
 
 (define (make-draw-on-crt crt-width crt-height mode)
-  (eprintf "You are using OpenGL ~a\n"
-           (gl-version))
-
-  (define texture-width crt-width)
-  (define texture-height crt-height)
+  (eprintf "You are using OpenGL ~a\n" (gl-version))
 
   (define myTexture (u32vector-ref (glGenTextures 1) 0))
   (glBindTexture GL_TEXTURE_2D myTexture)
   (2D-defaults)
-  (printf "crt texture prep\n")
   (glTexImage2D
-   GL_TEXTURE_2D 0 GL_RGBA8 texture-width texture-height 0
+   GL_TEXTURE_2D 0 GL_RGBA8 crt-width crt-height 0
    GL_RGBA GL_UNSIGNED_BYTE
    0)
   (glBindTexture GL_TEXTURE_2D 0)
@@ -120,7 +115,7 @@
   (glBindRenderbuffer GL_RENDERBUFFER myRB)
   (glRenderbufferStorage GL_RENDERBUFFER
                          GL_DEPTH_COMPONENT24
-                         texture-width texture-height)
+                         crt-width crt-height)
   (glBindRenderbuffer GL_RENDERBUFFER 0)
 
   (define myFBO (u32vector-ref (glGenFramebuffers 1) 0))
@@ -167,7 +162,7 @@
   (glUniform2fv (glGetUniformLocation shader_program "rubyInputSize")
                 1 (f32vector (* 1. crt-width) (* 1. crt-height)))
   (glUniform2fv (glGetUniformLocation shader_program "rubyTextureSize")
-                1 (f32vector (* 1. texture-width) (* 1. texture-height)))
+                1 (f32vector (* 1. crt-width) (* 1. crt-height)))
 
   (glUseProgram 0)
 
@@ -197,10 +192,8 @@
     (define inset-top (+ inset-bottom screen-height))
 
     (glUseProgram shader_program)
-    (glUniform2fv
-     (glGetUniformLocation shader_program "rubyOutputSize")
-     1
-     (f32vector (* 1. actual-screen-width) (* 1. actual-screen-height)))
+    (glUniform2fv (glGetUniformLocation shader_program "rubyOutputSize") 1
+                  (f32vector (* 1. actual-screen-width) (* 1. actual-screen-height)))
     (glUseProgram 0)
     (glBindVertexArray VaoId)
     (glBindBuffer GL_ARRAY_BUFFER VboId)
@@ -258,8 +251,7 @@
 
 ;; Old Code from GB (ngl.rkt)
 
-(define (num->pow2 n)
-  (integer-length n))
+(define num->pow2 integer-length)
 
 (define debug? #f)
 
