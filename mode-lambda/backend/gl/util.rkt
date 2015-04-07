@@ -71,12 +71,10 @@
   (let () before ... middle ... after ...))
 
 (define-syntax-rule (define-with-state with-state (F static-arg ...))
-  (begin (define old-value (make-parameter (list 0)))
-         (define-syntax-rule (with-state (dyn-arg (... ...)) . body)
-           (wrapper [(F static-arg ... dyn-arg (... ...))]
-                    [(parameterize ([old-value (list dyn-arg (... ...))])
-                       . body)]
-                    [(apply F static-arg ... (old-value))]))))
+  (define-syntax-rule (with-state (dyn-arg (... ...)) . body)
+    (wrapper [(F static-arg ... dyn-arg (... ...))]
+             body
+             [(F static-arg ... 0)])))
 
 (define-with-state with-program (glUseProgram))
 (define-with-state with-vertexarray (glBindVertexArray))
@@ -124,15 +122,12 @@
     (eprintf "Exiting...\n")
     (exit 1)))
 
-(define-syntax-rule
-  (define&compile-shader VertexShaderId GL_VERTEX_SHADER
-    ProgramId VertexShader)
-  (begin (define VertexShaderId (glCreateShader GL_VERTEX_SHADER))
-         (glShaderSource VertexShaderId 1 (vector VertexShader)
-                         (s32vector))
-         (glCompileShader VertexShaderId)
-         (print-shader-log glGetShaderInfoLog 'VertexShader VertexShaderId)
-         (glAttachShader ProgramId VertexShaderId)))
+(define (compile-shader GL_VERTEX_SHADER ProgramId VertexShader)
+  (define VertexShaderId (glCreateShader GL_VERTEX_SHADER))
+  (glShaderSource VertexShaderId 1 (vector VertexShader) (s32vector))
+  (glCompileShader VertexShaderId)
+  (print-shader-log glGetShaderInfoLog 'VertexShader VertexShaderId)
+  (glAttachShader ProgramId VertexShaderId))
 
 ;; COPIED FROM opengl/main
 ;; Convert argb -> rgba
