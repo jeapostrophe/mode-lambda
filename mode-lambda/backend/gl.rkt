@@ -294,7 +294,7 @@
                        (GL_COLOR_ATTACHMENTi i))))
      (glClearColor 0.0 0.0 0.0 0.0)
      (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
-     (glClear (bitwise-ior GL_DEPTH_BUFFER_BIT GL_COLOR_BUFFER_BIT))
+     (glClear GL_COLOR_BUFFER_BIT)
      (glViewport 0 0 width height)
      (glDrawArrays GL_TRIANGLES 0 (* DrawnMult early-count)))
 
@@ -305,7 +305,7 @@
       [with-textures (1 LayerTargets)]
       [with-program (combine-program)])
      (glClearColor 0.0 0.0 0.0 0.0)
-     (glClear (bitwise-ior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
+     (glClear GL_COLOR_BUFFER_BIT)
      (glViewport 0 0 width height)
      (glDrawArrays GL_TRIANGLES 0 FULLSCREEN_VERTS))
 
@@ -315,8 +315,8 @@
       [with-vertexarray (screen-vao)])
      (glUniform2fv (glGetUniformLocation screen-program "rubyOutputSize") 1
                    (f32vector (* 1. actual-screen-width) (* 1. actual-screen-height)))
-     (glClearColor 0.0 0.0 0.0 1.0)
-     (glClear (bitwise-ior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
+     (glClearColor 0.0 0.0 0.0 0.0)
+     (glClear GL_COLOR_BUFFER_BIT)
      (glViewport 0 0 actual-screen-width actual-screen-height)
      (glDrawArrays GL_TRIANGLES 0 FULLSCREEN_VERTS))))
 
