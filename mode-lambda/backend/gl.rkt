@@ -101,21 +101,15 @@
   (define LayerTargets
     (for/list ([i (in-range LAYERS)])
       (make-target-texture width height)))
-  (define layer-rb (glGen glGenRenderbuffers))
-  (with-renderbuffer (layer-rb)
-    (glRenderbufferStorage GL_RENDERBUFFER
-                           GL_DEPTH_COMPONENT24
-                           width height))
+  
   (define layer-fbo (glGen glGenFramebuffers))
   (with-framebuffer (layer-fbo)
     (for ([i (in-naturals)]
           [tex (in-list LayerTargets)])
       (glFramebufferTexture2D GL_DRAW_FRAMEBUFFER
                               (GL_COLOR_ATTACHMENTi i)
-                              GL_TEXTURE_2D tex 0))
-    (glFramebufferRenderbuffer GL_FRAMEBUFFER
-                               GL_DEPTH_ATTACHMENT
-                               GL_RENDERBUFFER layer-rb))
+                              GL_TEXTURE_2D tex 0)))
+  
   (for ([i (in-range LAYERS)])
     (glBindFragDataLocation layer-program i (format "out_Color~a" i)))
   (glLinkProgram&check layer-program)
@@ -160,20 +154,11 @@
   (define screen-tex
     (make-target-texture width height))
 
-  (define screen-rb (glGen glGenRenderbuffers))
-  (with-renderbuffer (screen-rb)
-    (glRenderbufferStorage GL_RENDERBUFFER
-                           GL_DEPTH_COMPONENT24
-                           width height))
-
   (define screen-fbo (glGen glGenFramebuffers))
   (with-framebuffer (screen-fbo)
     (glFramebufferTexture2D GL_DRAW_FRAMEBUFFER
                             (GL_COLOR_ATTACHMENTi 0)
-                            GL_TEXTURE_2D screen-tex 0)
-    (glFramebufferRenderbuffer GL_FRAMEBUFFER
-                               GL_DEPTH_ATTACHMENT
-                               GL_RENDERBUFFER screen-rb))
+                            GL_TEXTURE_2D screen-tex 0))
 
   (define screen-program (glCreateProgram))
 
