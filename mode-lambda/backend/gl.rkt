@@ -163,49 +163,62 @@
           (define *initialize-count* (* 2 512))
           (define SpriteData #f)
           
+          (define actual-update!
+            (λ (objects)
+              (define early-count (count-objects objects))
+              (define SpriteData-count:new (max *initialize-count* early-count))
+              (with-arraybuffer (layer-vbo)
+                (unless (>= SpriteData-count SpriteData-count:new)
+                  (set! SpriteData-count
+                        (max (* 2 SpriteData-count)
+                             SpriteData-count:new))
+                  (glBufferData GL_ARRAY_BUFFER
+                                (* SpriteData-count
+                                   DrawnMult
+                                   (ctype-sizeof _sprite-data))
+                                #f
+                                GL_STREAM_DRAW))
+
+                (set! SpriteData
+                      (make-cvector*
+                       (glMapBufferRange
+                        GL_ARRAY_BUFFER
+                        0
+                        (* SpriteData-count
+                           DrawnMult
+                           (ctype-sizeof _sprite-data))
+                        (bitwise-ior
+                         ;; We are overriding everything (this would be wrong if
+                         ;; we did the caching "optimization" I imagine)
+                         GL_MAP_INVALIDATE_RANGE_BIT
+                         GL_MAP_INVALIDATE_BUFFER_BIT
+
+                         ;; We are not doing complex queues, so don't block other
+                         ;; operations (but it doesn't seem to improve performance
+                         ;; by having this option)
+                         ;; GL_MAP_UNSYNCHRONIZED_BIT
+
+                         ;; We are writing
+                         GL_MAP_WRITE_BIT))
+                       _sprite-data
+                       (* SpriteData-count
+                          DrawnMult)))
+
+                (install-objects! objects)
+                (glUnmapBuffer GL_ARRAY_BUFFER))
+              early-count))
+          
+          (define last-objects #f)
+          (define last-count 0)
           (λ (objects)
-            (define early-count (count-objects objects))
-            (define SpriteData-count:new (max *initialize-count* early-count))
-            (with-arraybuffer (layer-vbo)
-              (unless (>= SpriteData-count SpriteData-count:new)
-                (set! SpriteData-count
-                      (max (* 2 SpriteData-count)
-                           SpriteData-count:new))
-                (glBufferData GL_ARRAY_BUFFER
-                              (* SpriteData-count
-                                 DrawnMult
-                                 (ctype-sizeof _sprite-data))
-                              #f
-                              GL_STREAM_DRAW))
-
-              (set! SpriteData
-                    (make-cvector*
-                     (glMapBufferRange
-                      GL_ARRAY_BUFFER
-                      0
-                      (* SpriteData-count
-                         DrawnMult
-                         (ctype-sizeof _sprite-data))
-                      (bitwise-ior
-                       ;; We are overriding everything (this would be wrong if
-                       ;; we did the caching "optimization" I imagine)
-                       GL_MAP_INVALIDATE_RANGE_BIT
-                       GL_MAP_INVALIDATE_BUFFER_BIT
-
-                       ;; We are not doing complex queues, so don't block other
-                       ;; operations (but it doesn't seem to improve performance
-                       ;; by having this option)
-                       ;; GL_MAP_UNSYNCHRONIZED_BIT
-
-                       ;; We are writing
-                       GL_MAP_WRITE_BIT))
-                     _sprite-data
-                     (* SpriteData-count
-                        DrawnMult)))
-
-              (install-objects! objects)
-              (glUnmapBuffer GL_ARRAY_BUFFER))
-            early-count)))
+            (cond
+             [(eq? last-objects objects)
+              last-count]
+             [else
+              (set! last-objects objects)
+              (define early-count (actual-update! objects))
+              (set! last-count early-count)
+              early-count]))))
 
       (λ (static-st dynamic-st)
         ;; xxx optimize static
