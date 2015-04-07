@@ -11,15 +11,9 @@ in vec2 TexCoord;
 in float Palette;
 in float Layer;
 
-// xxx use macro
-layout (location = 0) out vec4 out_Color0;
-layout (location = 1) out vec4 out_Color1;
-layout (location = 2) out vec4 out_Color2;
-layout (location = 3) out vec4 out_Color3;
-layout (location = 4) out vec4 out_Color4;
-layout (location = 5) out vec4 out_Color5;
-layout (location = 6) out vec4 out_Color6;
-layout (location = 7) out vec4 out_Color7;
+@in[i (in-range LAYERS)]{
+  layout (location = @i) out vec4 out_Color@i;
+}
 
 float clampx ( float v ) { return floor(v) + 0.5; }
 float clampy ( float v ) { return floor(v) - 0.5; }
@@ -45,24 +39,10 @@ void main(void)
   fin_Color.rgb = PixelColor.rgb + Color.rgb;
 
   vec4 blank_Color = vec4(0.0,0.0,0.0,0.0);
-  // xxx use macro
-  out_Color0 = blank_Color;
-  out_Color1 = blank_Color;
-  out_Color2 = blank_Color;
-  out_Color3 = blank_Color;
-  out_Color4 = blank_Color;
-  out_Color5 = blank_Color;
-  out_Color6 = blank_Color;
-  out_Color7 = blank_Color;
   
   int iLayer = int(floor(Layer));
-  // xxx use macro
-  if (iLayer == 0) { out_Color0 = fin_Color; }
-  if (iLayer == 1) { out_Color1 = fin_Color; }
-  if (iLayer == 2) { out_Color2 = fin_Color; }
-  if (iLayer == 3) { out_Color3 = fin_Color; }
-  if (iLayer == 4) { out_Color4 = fin_Color; }
-  if (iLayer == 5) { out_Color5 = fin_Color; }
-  if (iLayer == 6) { out_Color6 = fin_Color; }
-  if (iLayer == 7) { out_Color7 = fin_Color; }
+  @in[i (in-range LAYERS)]{
+    if (iLayer == @i) { out_Color@i = fin_Color; }
+    else { out_Color@i = blank_Color; }
+  }
 }
