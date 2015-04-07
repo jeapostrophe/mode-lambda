@@ -113,29 +113,33 @@
   (define (random-spr-idx)
     (sprite-idx csd (random-spr)))
   (define-values
-    (s d lc)
+    (s dt lct)
     (match mode
       ["rand"
        (values
         '()
-        (for/list ([i (in-range (* 2 W))])
-          (sprite (* W (random)) (* H (random))
-                  #:r (random-byte) #:g (random-byte) #:b (random-byte)
-                  #:a (+ 0.5 (* 0.5 (random)))
-                  (random-spr-idx)
-                  #:mx (* (random) 2) #:my (* (random) 2)
-                  #:theta (* (random) 2 pi)))
-        (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)))
-                #f #f #f #f #f #f #f))]
+        (λ ()
+          (for/list ([i (in-range (* 2 W))])
+            (sprite (* W (random)) (* H (random))
+                    #:r (random-byte) #:g (random-byte) #:b (random-byte)
+                    #:a (+ 0.5 (* 0.5 (random)))
+                    (random-spr-idx)
+                    #:mx (* (random) 2) #:my (* (random) 2)
+                    #:theta (* (random) 2 pi))))
+        (λ ()
+          (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)))
+                  #f #f #f #f #f #f #f)))]
       ["grid"
        (values
         '()
-        (for*/list ([x (in-range (quotient W 10))]
-                    [y (in-range (quotient W 10))])
-          (sprite (exact->inexact (* 16 x)) (exact->inexact (* 16 y))
-                  (random-spr-idx)))
-        (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)))
-                #f #f #f #f #f #f #f))]
+        (λ ()
+          (for*/list ([x (in-range (quotient W 10))]
+                      [y (in-range (quotient W 10))])
+            (sprite (exact->inexact (* 16 x)) (exact->inexact (* 16 y))
+                    (random-spr-idx))))
+        (λ ()
+          (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)))
+                  #f #f #f #f #f #f #f)))]
       ["blocks"
        (define schemes (polygon-idxs 7 cw-slots))
        (match-define scheme (random-list-ref schemes))
@@ -147,22 +151,6 @@
          (for/vector ([c (in-vector scheme)])
            (palette-idx csd (string->symbol (format "hi~a" c)))))
        ;;(printf "color-schemes: ~v\n" color-schemes)
-       (define block-sprites
-         (for*/list ([c (in-range (quotient (quotient W 8) 4))]
-                     [r (in-range (quotient (quotient H 8) 4))])
-           (define block (random 7))
-           (define block-data (vector-ref blocks block))
-           (define rotation (random-vector-ref block-data))
-           (for*/list ([cc (in-range 4)]
-                       [rr (in-range 4)])
-             (when (= 1 (bytes-ref (vector-ref rotation rr) cc))
-               (define x (fx+ (fx* 4 c) cc))
-               (define y (fx+ (fx* 4 r) rr))
-               (sprite #:layer 4
-                       (+ 3 4 0.5 (fx->fl (fx* 8 x)))
-                       (+ 3 4 0.5 (fx->fl (fx* 8 y)))
-                       (vector-ref block-styles block)
-                       #:pal-idx (vector-ref color-schemes block))))))
        (define background-sprites
          (for*/list ([x (in-range (quotient W 8))]
                      [y (in-range (quotient H 8))])
@@ -172,46 +160,68 @@
                      (fl+ 4.0 (fx->fl (fx* 8 y)))
                      (vector-ref block-styles 0)
                      #:pal-idx (palette-idx csd 'grayscale)))))
-       (define foreground-sprites
-         (for*/list ([x (in-range (quotient W 8))]
-                     [y (in-range (quotient H 8))])
-           (when (or (and (even? x) (odd? y))
-                     (and (even? y) (odd? x)))
-             (sprite (fl+ 4.0 (fx->fl (fx* 8 x)))
-                     (fl+ 4.0 (fx->fl (fx* 8 y)))
-                     (vector-ref block-styles 1)
-                     #:a 0.25
-                     #:layer 7
-                     #:pal-idx (palette-idx csd 'med0)))))
+
        (values background-sprites
-               (list* block-sprites foreground-sprites)
-               (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
-                              #:mode7 2.0
-                              #:horizon 0.0
-                              #:fov (fl* 8.0 (fl/ (fx->fl W) (fx->fl H))))
-                       #f #f #f
-                       (layer (fx->fl (/ W 2)) (fl+ (fx->fl (/ H 2)) 25.0)
-                              #:theta (fl* (fl/
-                                            (fx->fl
-                                             (fxmodulo (fxquotient
-                                                        (current-milliseconds)
-                                                        10)
-                                                       360))
-                                            360.0)
-                                           (fl* 2.0 pi)))
-                       #f #f
-                       (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
-                              #:mx 2.0 #:my 2.0)))]
+               (λ ()
+                 (define block-sprites
+                   (for*/list ([c (in-range (quotient (quotient W 8) 4))]
+                               [r (in-range (quotient (quotient H 8) 4))])
+                     (define block (random 7))
+                     (define block-data (vector-ref blocks block))
+                     (define rotation (random-vector-ref block-data))
+                     (for*/list ([cc (in-range 4)]
+                                 [rr (in-range 4)])
+                       (when (= 1 (bytes-ref (vector-ref rotation rr) cc))
+                         (define x (fx+ (fx* 4 c) cc))
+                         (define y (fx+ (fx* 4 r) rr))
+                         (sprite #:layer 4
+                                 (+ 3 4 0.5 (fx->fl (fx* 8 x)))
+                                 (+ 3 4 0.5 (fx->fl (fx* 8 y)))
+                                 (vector-ref block-styles block)
+                                 #:pal-idx (vector-ref color-schemes block))))))
+
+                 (define foreground-sprites
+                   (for*/list ([x (in-range (quotient W 8))]
+                               [y (in-range (quotient H 8))])
+                     (when (or (and (even? x) (odd? y))
+                               (and (even? y) (odd? x)))
+                       (sprite (fl+ 4.0 (fx->fl (fx* 8 x)))
+                               (fl+ 4.0 (fx->fl (fx* 8 y)))
+                               (vector-ref block-styles 1)
+                               #:a 0.25
+                               #:layer 7
+                               #:pal-idx (palette-idx csd 'med0)))))
+                 (list* block-sprites foreground-sprites))
+               (λ ()
+                 (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
+                                #:mode7 2.0
+                                #:horizon 0.0
+                                #:fov (fl* 8.0 (fl/ (fx->fl W) (fx->fl H))))
+                         #f #f #f
+                         (layer (fx->fl (/ W 2)) (fl+ (fx->fl (/ H 2)) 25.0)
+                                #:theta (fl* (fl/
+                                              (fx->fl
+                                               (fxmodulo (fxquotient
+                                                          (current-milliseconds)
+                                                          10)
+                                                         360))
+                                              360.0)
+                                             (fl* 2.0 pi)))
+                         #f #f
+                         (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
+                                #:mx 2.0 #:my 2.0))))]
       ["tile"
        (values
         '()
-        (sprite (fx->fl (/ W 2)) (fx->fl (/ H 2))
-                (sprite-idx csd 'star)
-                #:r 255 #:g 255 #:b 255)
-        (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
-                       #:hw (fl/ (fx->fl W) 8.0) #:hh (fl/ (fx->fl H) 8.0)
-                       #:mx 0.5 #:my 0.5)
-                #f #f #f #f #f #f #f))]
+        (λ ()
+          (sprite (fx->fl (/ W 2)) (fx->fl (/ H 2))
+                  (sprite-idx csd 'star)
+                  #:r 255 #:g 255 #:b 255))
+        (λ ()
+          (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
+                         #:hw (fl/ (fx->fl W) 8.0) #:hh (fl/ (fx->fl H) 8.0)
+                         #:mx 0.5 #:my 0.5)
+                  #f #f #f #f #f #f #f)))]
       ["wrapping"
        (define (star@ x y r g b)
          (sprite x y (sprite-idx csd 'star)
@@ -219,36 +229,39 @@
                  #:mx 0.5 #:my 0.5))
        (values
         '()
-        (list (star@ 0.0 0.0 255 255 255)
-              (star@ (fl- (fl* 1.0 (fl/ (fx->fl W) 4.0)) (fl* 4.0 (fx->fl W)))
-                     (fl* 1.0 (fl/ (fx->fl H) 4.0))
-                     128 0 255)
-              (star@ (fl* 1.0 (fl/ (fx->fl W) 2.0))
-                     (fl* 1.0 (fl/ (fx->fl H) 2.0))
-                     255 0 255)
-              (star@ (fl+ (fl* 3.0 (fl/ (fx->fl W) 4.0)) (fl* 4.0 (fx->fl W)))
-                     (fl* 3.0 (fl/ (fx->fl H) 4.0))
-                     255 0 128)
-              (star@ 0.0 (fl* (fl/ 1.0 4.0) (fx->fl H)) 255 0 0)
-              (star@ (fx->fl W) (fl* (fl/ 3.0 4.0) (fx->fl H)) 0 255 0)
-              (star@ (fl* (fl/ 1.0 4.0) (fx->fl W)) 0.0 255 255 0)
-              (star@ (fl* (fl/ 3.0 4.0) (fx->fl W)) (fx->fl H) 0 0 255))
-        (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
-                       #:hw (fx->fl (/ W 2)) #:hh (fx->fl (/ H 2))
-                       #:wrap-x? #t #:wrap-y? #t
-                       #:mx 0.5 #:my 0.5)
-                #f #f #f #f #f #f #f))]))
-  (render lc s d))
+        (λ ()
+          (list (star@ 0.0 0.0 255 255 255)
+                (star@ (fl- (fl* 1.0 (fl/ (fx->fl W) 4.0)) (fl* 4.0 (fx->fl W)))
+                       (fl* 1.0 (fl/ (fx->fl H) 4.0))
+                       128 0 255)
+                (star@ (fl* 1.0 (fl/ (fx->fl W) 2.0))
+                       (fl* 1.0 (fl/ (fx->fl H) 2.0))
+                       255 0 255)
+                (star@ (fl+ (fl* 3.0 (fl/ (fx->fl W) 4.0)) (fl* 4.0 (fx->fl W)))
+                       (fl* 3.0 (fl/ (fx->fl H) 4.0))
+                       255 0 128)
+                (star@ 0.0 (fl* (fl/ 1.0 4.0) (fx->fl H)) 255 0 0)
+                (star@ (fx->fl W) (fl* (fl/ 3.0 4.0) (fx->fl H)) 0 255 0)
+                (star@ (fl* (fl/ 1.0 4.0) (fx->fl W)) 0.0 255 255 0)
+                (star@ (fl* (fl/ 3.0 4.0) (fx->fl W)) (fx->fl H) 0 0 255)))
+        (λ ()
+          (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
+                         #:hw (fx->fl (/ W 2)) #:hh (fx->fl (/ H 2))
+                         #:wrap-x? #t #:wrap-y? #t
+                         #:mx 0.5 #:my 0.5)
+                  #f #f #f #f #f #f #f)))]))
+  (λ ()
+    (render (lct) s (dt))))
 
 (struct one
-  (renderi mode prng-st rt)
+  (renderi mode rt)
   #:methods gen:word
   [(define (word-fps w)
      30.0)
    (define (word-label s ft)
      (lux-standard-label "Mode-λ" ft))
    (define (word-output w)
-     (one-rt w))
+     ((one-rt w)))
    (define (word-event w e)
      (define closed? #f)
      (cond
@@ -269,19 +282,12 @@
        (if (equal? old new)
            w
            (struct-copy one w
-                        [prng-st (capture-prng-st)]
                         [mode new]))]
       [else
        w]))
    (define (word-tick w)
-     (parameterize ([current-pseudo-random-generator
-                     (vector->pseudo-random-generator
-                      (one-prng-st w))])
-       (update-rt w)))])
+     w)])
 
-(define (capture-prng-st)
-  (pseudo-random-generator->vector
-   (make-pseudo-random-generator)))
 
 (define (update-rt w)
   (struct-copy one w
@@ -296,5 +302,4 @@
    (λ ()
      (fiat-lux (update-rt (one (prepare-renderi stage-draw/dc)
                                "blocks"
-                               (capture-prng-st)
                                #f))))))
