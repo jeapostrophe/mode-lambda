@@ -132,8 +132,7 @@
 
       (define DrawnMult 6)
       
-      (define layer-vao (glGen glGenVertexArrays))
-      (define update-SpriteData!
+      (define (make-update-SpriteData! layer-vao)
         (let ()
           (define layer-vbo (glGen glGenBuffers))
           (nest
@@ -219,11 +218,15 @@
               (define early-count (actual-update! objects))
               (set! last-count early-count)
               early-count]))))
+      
+      (define layer-static-vao (glGen glGenVertexArrays))
+      (define update-static-sprites! (make-update-SpriteData! layer-static-vao))
+      (define layer-dynamic-vao (glGen glGenVertexArrays))
+      (define update-dynamic-sprites! (make-update-SpriteData! layer-dynamic-vao))
 
       (λ (static-st dynamic-st)
-        ;; xxx optimize static
-        (define objects (cons static-st dynamic-st))
-        (define early-count (update-SpriteData! objects))
+        (define static-count (update-static-sprites! static-st))
+        (define dynamic-count (update-dynamic-sprites! dynamic-st))
 
         (nest
          ([with-framebuffer (layer-fbo)]
@@ -243,9 +246,14 @@
          (glViewport 0 0 width height)
          
          (nest 
-          ([with-vertexarray (layer-vao)]
+          ([with-vertexarray (layer-static-vao)]
            [with-vertex-attributes ((length _sprite-data:info))])
-          (glDrawArrays GL_TRIANGLES 0 (* DrawnMult early-count)))))))
+          (glDrawArrays GL_TRIANGLES 0 (* DrawnMult static-count)))
+         
+         (nest 
+          ([with-vertexarray (layer-dynamic-vao)]
+           [with-vertex-attributes ((length _sprite-data:info))])
+          (glDrawArrays GL_TRIANGLES 0 (* DrawnMult dynamic-count)))))))
 
   (define combine-tex (make-target-texture width height))
   (define combine-layers!
