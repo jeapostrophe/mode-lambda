@@ -183,7 +183,7 @@
                      #:a 0.25
                      #:layer 7
                      #:pal-idx (palette-idx csd 'med0)))))
-       (values (list background-sprites)
+       (values background-sprites
                (list* block-sprites foreground-sprites)
                (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
                               #:mode7 2.0

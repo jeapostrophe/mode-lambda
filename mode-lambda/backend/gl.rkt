@@ -11,8 +11,6 @@
          web-server/templates
          opengl
          scheme/nest
-         (only-in math/base
-                  sum)
          (only-in ffi/unsafe
                   ctype-sizeof
                   _float))
@@ -79,7 +77,7 @@
   (define update-layer-config!
     (let ()
       (define last-layer-config #f)
-      
+
       (λ (layer-config)
         (unless (equal? layer-config last-layer-config)
           (set! last-layer-config layer-config)
@@ -131,38 +129,39 @@
         (glUniform1ui (glGetUniformLocation layer-program "ViewportHeight") height))
 
       (define DrawnMult 6)
-      
-      (define (make-update-SpriteData! layer-vao)
-        (let ()
-          (define layer-vbo (glGen glGenBuffers))
-          (nest
-           ([with-vertexarray (layer-vao)]
-            [with-arraybuffer (layer-vbo)])
-           (define-attribs/cstruct-info _sprite-data:info))
 
-          (define (install-object! i o)
-            (define-syntax-rule (point-install! Horiz Vert j ...)
-              (begin
-                (set-sprite-data-horiz! o Horiz)
-                (set-sprite-data-vert! o Vert)
-                (cvector-set! SpriteData (+ (* i DrawnMult) j) o)
-                ...))
-            (point-install! -1 +1 0)
-            (point-install! +1 +1 1 4)
-            (point-install! -1 -1 2 3)
-            (point-install! +1 -1 5))
+      (define (make-sprite-draw!)
+        (define layer-vao (glGen glGenVertexArrays))
+        (define layer-vbo (glGen glGenBuffers))
+        (nest
+         ([with-vertexarray (layer-vao)]
+          [with-arraybuffer (layer-vbo)])
+         (define-attribs/cstruct-info _sprite-data:info))
 
-          (define (install-objects! t)
-            (tree-fold (λ (offset o)
-                         (install-object! offset o)
-                         (add1 offset))
-                       0 t))
-          
-          (define SpriteData-count 0)
-          (define *initialize-count* (* 2 512))
-          (define SpriteData #f)
-          
-          (define actual-update!
+        (define actual-update!
+          (let ()
+            (define (install-object! i o)
+              (define-syntax-rule (point-install! Horiz Vert j ...)
+                (begin
+                  (set-sprite-data-horiz! o Horiz)
+                  (set-sprite-data-vert! o Vert)
+                  (cvector-set! SpriteData (+ (* i DrawnMult) j) o)
+                  ...))
+              (point-install! -1 +1 0)
+              (point-install! +1 +1 1 4)
+              (point-install! -1 -1 2 3)
+              (point-install! +1 -1 5))
+
+            (define (install-objects! t)
+              (tree-fold (λ (offset o)
+                           (install-object! offset o)
+                           (add1 offset))
+                         0 t))
+
+            (define SpriteData-count 0)
+            (define *initialize-count* (* 2 512))
+            (define SpriteData #f)
+            
             (λ (objects)
               (define early-count (count-objects objects))
               (define SpriteData-count:new (max *initialize-count* early-count))
@@ -205,29 +204,33 @@
 
                 (install-objects! objects)
                 (glUnmapBuffer GL_ARRAY_BUFFER))
-              early-count))
-          
-          (define last-objects #f)
-          (define last-count 0)
-          (λ (objects)
-            (cond
-             [(eq? last-objects objects)
-              last-count]
-             [else
-              (set! last-objects objects)
-              (define early-count (actual-update! objects))
-              (set! last-count early-count)
-              early-count]))))
-      
-      (define layer-static-vao (glGen glGenVertexArrays))
-      (define update-static-sprites! (make-update-SpriteData! layer-static-vao))
-      (define layer-dynamic-vao (glGen glGenVertexArrays))
-      (define update-dynamic-sprites! (make-update-SpriteData! layer-dynamic-vao))
+              early-count)))
+
+        (define update!
+          (let ()
+            (define last-objects #f)
+            (define last-count 0)
+            (λ (objects)
+              (cond
+               [(eq? last-objects objects)
+                last-count]
+               [else
+                (set! last-objects objects)
+                (define early-count (actual-update! objects))
+                (set! last-count early-count)
+                early-count]))))
+
+        (λ (objects)
+          (define obj-count (update! objects))
+          (nest
+           ([with-vertexarray (layer-vao)]
+            [with-vertex-attributes ((length _sprite-data:info))])
+           (glDrawArrays GL_TRIANGLES 0 (* DrawnMult obj-count)))))
+
+      (define draw-static! (make-sprite-draw!))
+      (define draw-dynamic! (make-sprite-draw!))
 
       (λ (static-st dynamic-st)
-        (define static-count (update-static-sprites! static-st))
-        (define dynamic-count (update-dynamic-sprites! dynamic-st))
-
         (nest
          ([with-framebuffer (layer-fbo)]
           [with-texture (GL_TEXTURE0 SpriteAtlasId)]
@@ -244,16 +247,9 @@
          (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
          (glClear GL_COLOR_BUFFER_BIT)
          (glViewport 0 0 width height)
-         
-         (nest 
-          ([with-vertexarray (layer-static-vao)]
-           [with-vertex-attributes ((length _sprite-data:info))])
-          (glDrawArrays GL_TRIANGLES 0 (* DrawnMult static-count)))
-         
-         (nest 
-          ([with-vertexarray (layer-dynamic-vao)]
-           [with-vertex-attributes ((length _sprite-data:info))])
-          (glDrawArrays GL_TRIANGLES 0 (* DrawnMult dynamic-count)))))))
+
+         (draw-static! static-st)
+         (draw-dynamic! dynamic-st)))))
 
   (define combine-tex (make-target-texture width height))
   (define combine-layers!
