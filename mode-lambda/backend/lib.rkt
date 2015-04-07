@@ -10,7 +10,8 @@
   root-bm)
 
 (define (save-bitmap! bm p)
-  (send bm save-file p 'png 100 #:unscaled? #t))
+  (send bm save-file p 'png 100 #:unscaled? #t)
+  (void))
 
 (define (draw-bitmap! w W h H bm dc)
   (send dc set-background "white")
@@ -22,7 +23,8 @@
   (define x (/ (/ (- w SW) 2) scale))
   (define y (/ (/ (- h SH) 2) scale))
   (send dc set-scale scale scale)
-  (send dc draw-bitmap bm x y))
+  (send dc draw-bitmap bm x y)
+  (void))
 
 (define draw/dc/c
   (backend/c ()
