@@ -202,5 +202,15 @@
      0))
   myTexture)
 
+(define (make-fbo targets)
+  (define the-fbo (glGen glGenFramebuffers))
+  (with-framebuffer (the-fbo)
+    (for ([i (in-naturals)]
+          [tex (in-list targets)])
+      (glFramebufferTexture2D GL_DRAW_FRAMEBUFFER
+                              (GL_COLOR_ATTACHMENTi i)
+                              GL_TEXTURE_2D tex 0)))
+  the-fbo)
+
 (provide
  (all-defined-out))

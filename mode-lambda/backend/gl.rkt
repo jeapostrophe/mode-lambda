@@ -102,16 +102,10 @@
     (for/list ([i (in-range LAYERS)])
       (make-target-texture width height)))
   
-  (define layer-fbo (glGen glGenFramebuffers))
-  (with-framebuffer (layer-fbo)
-    (for ([i (in-naturals)]
-          [tex (in-list LayerTargets)])
-      (glFramebufferTexture2D GL_DRAW_FRAMEBUFFER
-                              (GL_COLOR_ATTACHMENTi i)
-                              GL_TEXTURE_2D tex 0)))
-  
+  (define layer-fbo (make-fbo LayerTargets)) 
   (for ([i (in-range LAYERS)])
     (glBindFragDataLocation layer-program i (format "out_Color~a" i)))
+  
   (glLinkProgram&check layer-program)
   (with-program (layer-program)
     (glUniform1i (glGetUniformLocation layer-program "SpriteAtlasTex")
@@ -151,14 +145,8 @@
   (define combine-vao (glGen glGenVertexArrays))
 
   ;; Screen step
-  (define screen-tex
-    (make-target-texture width height))
-
-  (define screen-fbo (glGen glGenFramebuffers))
-  (with-framebuffer (screen-fbo)
-    (glFramebufferTexture2D GL_DRAW_FRAMEBUFFER
-                            (GL_COLOR_ATTACHMENTi 0)
-                            GL_TEXTURE_2D screen-tex 0))
+  (define screen-tex (make-target-texture width height))
+  (define screen-fbo (make-fbo (list screen-tex)))
 
   (define screen-program (glCreateProgram))
 
