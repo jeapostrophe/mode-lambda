@@ -1,5 +1,6 @@
 #lang racket/base
 (require opengl
+         racket/list
          racket/match
          web-server/templates
          ffi/vector
@@ -51,21 +52,34 @@
     [(== GL_TEXTURE2) 2]
     [(== GL_TEXTURE3) 3]))
 
+(define GL_COLOR_ATTACHMENTx
+  (vector GL_COLOR_ATTACHMENT0 GL_COLOR_ATTACHMENT1 GL_COLOR_ATTACHMENT2
+          GL_COLOR_ATTACHMENT3 GL_COLOR_ATTACHMENT4 GL_COLOR_ATTACHMENT5
+          GL_COLOR_ATTACHMENT6 GL_COLOR_ATTACHMENT7))
+(define (GL_COLOR_ATTACHMENTi i)
+  (vector-ref GL_COLOR_ATTACHMENTx i))
+
+(define GL_TEXTUREx
+  (vector GL_TEXTURE0 GL_TEXTURE1 GL_TEXTURE2
+          GL_TEXTURE3 GL_TEXTURE4 GL_TEXTURE5
+          GL_TEXTURE6 GL_TEXTURE7 GL_TEXTURE8
+          GL_TEXTURE9 GL_TEXTURE10 GL_TEXTURE11))
+(define (GL_TEXTUREi i)
+  (vector-ref GL_TEXTUREx i))
+
 (define-syntax-rule (wrapper (before ...) (middle ...) (after ...))
   (let () before ... middle ... after ...))
 
 (define-syntax-rule (define-with-state with-state (F static-arg ...))
-  (define-syntax-rule (with-state (dyn-arg (... ...)) . body)
-    (wrapper [(F static-arg ... dyn-arg (... ...))]
-             body
-             [(F static-arg ... 0)])))
+  (begin (define old-value (make-parameter (list 0)))
+         (define-syntax-rule (with-state (dyn-arg (... ...)) . body)
+           (wrapper [(F static-arg ... dyn-arg (... ...))]
+                    [(parameterize ([old-value (list dyn-arg (... ...))])
+                       . body)]
+                    [(apply F static-arg ... (old-value))]))))
 
 (define-with-state with-program (glUseProgram))
 (define-with-state with-vertexarray (glBindVertexArray))
-(define-syntax-rule (with-texture-array (TextureId) . body)
-  (wrapper [(glBindTexture GL_TEXTURE_2D_ARRAY TextureId)]
-           body
-           [(glBindTexture GL_TEXTURE_2D_ARRAY 0)]))
 (define-syntax-rule (with-texture (GL_TEXTUREx TextureId) . body)
   (wrapper [(glActiveTexture GL_TEXTUREx)
             (glBindTexture GL_TEXTURE_2D TextureId)]
@@ -85,6 +99,14 @@
            body
            [(for ([i (in-range AttributeCount)])
               (glDisableVertexAttribArray i))]))
+
+(define-syntax-rule (with-textures (start-idx ids) . body)
+  (with-textures* start-idx ids (λ () . body)))
+(define (with-textures* start-idx ids t)
+  (if (empty? ids)
+      (t)
+      (with-texture ((GL_TEXTUREi start-idx) (first ids))
+        (with-textures* (+ 1 start-idx) (rest ids) t))))
 
 (define (glGen glGenThing)
   (u32vector-ref (glGenThing 1) 0))
@@ -170,6 +192,20 @@
 
 (define (glVertexAttribIPointer* index size type normalized stride pointer)
   (glVertexAttribIPointer index size type stride pointer))
+
+(define (glLinkProgram&check ProgramId)
+  (glLinkProgram ProgramId)
+  (print-shader-log glGetProgramInfoLog 'Program ProgramId))
+
+(define (make-target-texture width height)
+  (define myTexture (glGen glGenTextures))
+  (with-texture (GL_TEXTURE0 myTexture)
+    (2D-defaults)
+    (glTexImage2D
+     GL_TEXTURE_2D 0 GL_RGBA8 width height 0
+     GL_RGBA GL_UNSIGNED_BYTE
+     0))
+  myTexture)
 
 (provide
  (all-defined-out))

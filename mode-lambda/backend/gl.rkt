@@ -19,16 +19,12 @@
 
 (define-syntax-rule (glsl-include p) (include-template p))
 
+(define FULLSCREEN_VERTS 6)
+
 (define (make-draw-screen crt-width crt-height mode)
   (eprintf "You are using OpenGL ~a\n" (gl-version))
 
-  (define myTexture (glGen glGenTextures))
-  (with-texture (GL_TEXTURE0 myTexture)
-    (2D-defaults)
-    (glTexImage2D
-     GL_TEXTURE_2D 0 GL_RGBA8 crt-width crt-height 0
-     GL_RGBA GL_UNSIGNED_BYTE
-     0))
+  (define myTexture (make-target-texture crt-width crt-height))
 
   (define myRB (glGen glGenRenderbuffers))
   (with-renderbuffer (myRB)
@@ -38,19 +34,14 @@
 
   (define myFBO (glGen glGenFramebuffers))
   (with-framebuffer (myFBO)
-    (glFramebufferTexture2D
-     GL_DRAW_FRAMEBUFFER
-     GL_COLOR_ATTACHMENT0
-     GL_TEXTURE_2D myTexture 0)
-
-    (glFramebufferRenderbuffer
-     GL_FRAMEBUFFER
-     GL_DEPTH_ATTACHMENT
-     GL_RENDERBUFFER myRB))
+    (glFramebufferTexture2D GL_DRAW_FRAMEBUFFER
+                            (GL_COLOR_ATTACHMENTi 0)
+                            GL_TEXTURE_2D myTexture 0)
+    (glFramebufferRenderbuffer GL_FRAMEBUFFER
+                               GL_DEPTH_ATTACHMENT
+                               GL_RENDERBUFFER myRB))
 
   (define shader_program (glCreateProgram))
-
-  (define EFFECT_VERTS 6)
 
   (define-shader-source crt-fragment "gl/crt.fragment.glsl")
   (define-shader-source crt-vert "gl/crt.vertex.glsl")
@@ -67,8 +58,7 @@
   (define&compile-shader vertex_shader GL_VERTEX_SHADER
     shader_program the-vert)
 
-  (glLinkProgram shader_program)
-  (print-shader-log glGetProgramInfoLog 'Program shader_program)
+  (glLinkProgram&check shader_program)
 
   (with-program (shader_program)
     (glUniform1i (glGetUniformLocation shader_program "rubyTexture")
@@ -89,10 +79,10 @@
       [with-vertexarray (vao)])
      (glUniform2fv (glGetUniformLocation shader_program "rubyOutputSize") 1
                    (f32vector (* 1. actual-screen-width) (* 1. actual-screen-height)))
-     (glClearColor 0.0 0.0 0.0 0.0)
+     (glClearColor 0.0 0.0 0.0 1.0)
      (glClear (bitwise-ior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
      (glViewport 0 0 actual-screen-width actual-screen-height)
-     (glDrawArrays GL_TRIANGLES 0 EFFECT_VERTS))))
+     (glDrawArrays GL_TRIANGLES 0 FULLSCREEN_VERTS))))
 
 (define LAYER-VALUES 12)
 (define (layer-config->bytes layer-config)
@@ -145,7 +135,8 @@
    (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
                        pal-size pal-bs pal->idx)
    csd)
-
+  
+  ;; Main rendering step
   (define ProgramId (glCreateProgram))
   (bind-attribs/cstruct-info ProgramId _sprite-data:info)
 
@@ -170,14 +161,27 @@
      (sprite-index->bytes idx->w*h*tx*ty)))
 
   (define LayerConfigId (make-2dtexture))
-
-  (define LayersId (glGen glGenTextures))
-  (with-texture-array (LayersId)
-    (glTexStorage3D GL_TEXTURE_2D_ARRAY 1 GL_RGBA8 width height LAYERS))
-
-  (glLinkProgram ProgramId)
-  (print-shader-log glGetProgramInfoLog 'Program ProgramId)
-
+  (define LayerTargets
+    (for/list ([i (in-range LAYERS)])
+      (make-target-texture width height)))
+  (define LayersRB (glGen glGenRenderbuffers))
+  (with-renderbuffer (LayersRB)
+    (glRenderbufferStorage GL_RENDERBUFFER
+                           GL_DEPTH_COMPONENT24
+                           width height))
+  (define LayersFBO (glGen glGenFramebuffers))
+  (with-framebuffer (LayersFBO)
+    (for ([i (in-naturals)]
+          [tex (in-list LayerTargets)])
+      (glFramebufferTexture2D GL_DRAW_FRAMEBUFFER
+                              (GL_COLOR_ATTACHMENTi i)
+                              GL_TEXTURE_2D tex 0))
+    (glFramebufferRenderbuffer GL_FRAMEBUFFER
+                               GL_DEPTH_ATTACHMENT
+                               GL_RENDERBUFFER LayersRB))
+  (for ([i (in-range LAYERS)])
+    (glBindFragDataLocation ProgramId i (format "out_Color~a" i)))
+  (glLinkProgram&check ProgramId)
   (with-program (ProgramId)
     (glUniform1i (glGetUniformLocation ProgramId "SpriteAtlasTex")
                  (gl-texture-index GL_TEXTURE0))
@@ -189,13 +193,33 @@
                  (gl-texture-index GL_TEXTURE3))
     (glUniform1ui (glGetUniformLocation ProgramId "ViewportWidth") width)
     (glUniform1ui (glGetUniformLocation ProgramId "ViewportHeight") height))
-
   (define VaoId (glGen glGenVertexArrays))
   (define VboId (glGen glGenBuffers))
   (nest
    ([with-vertexarray (VaoId)]
     [with-arraybuffer (VboId)])
    (define-attribs/cstruct-info _sprite-data:info))
+  
+  ;; Combining Step
+  (define combine-program (glCreateProgram))
+  (define-shader-source combine-vert "gl/combine.vertex.glsl")
+  (define-shader-source combine-fragment "gl/combine.fragment.glsl")
+  (define&compile-shader combine-vert-shader GL_VERTEX_SHADER
+    combine-program combine-vert)
+  (define&compile-shader combine-frag-shader GL_FRAGMENT_SHADER
+    combine-program combine-fragment)
+  (glLinkProgram&check combine-program)
+  (with-program (combine-program)
+    (glUniform1i (glGetUniformLocation combine-program "LayerConfigTex")
+                 (gl-texture-index GL_TEXTURE0))
+    (glUniform1iv (glGetUniformLocation combine-program "LayerTargets")
+                  LAYERS
+                  (list->s32vector
+                   (for/list ([i (in-range LAYERS)])
+                     (+ 1 i))))
+    (glUniform1ui (glGetUniformLocation combine-program "ViewportWidth") width)
+    (glUniform1ui (glGetUniformLocation combine-program "ViewportHeight") height))
+  (define combine-vao (glGen glGenVertexArrays))
 
   (define SpriteData-count 0)
   (define *initialize-count* (* 2 512))
@@ -213,7 +237,7 @@
     (point-install! +1 +1 1 4)
     (point-install! -1 -1 2 3)
     (point-install! +1 -1 5))
-  
+
   (define (install-objects! t)
     (tree-fold (λ (offset o)
                  (install-object! offset o)
@@ -235,7 +259,8 @@
     (define SpriteData-count:new (max *initialize-count* early-count))
 
     (nest
-     ([with-vertexarray (VaoId)]
+     ([with-framebuffer (LayersFBO)]
+      [with-vertexarray (VaoId)]
       [with-vertex-attributes ((length _sprite-data:info))]
       [with-texture (GL_TEXTURE0 SpriteAtlasId)]
       [with-texture (GL_TEXTURE1 PaletteAtlasId)]
@@ -283,18 +308,23 @@
 
        (install-objects! objects)
        (glUnmapBuffer GL_ARRAY_BUFFER))
-     
      (glClearColor 0.0 0.0 0.0 1.0)
      ;; xxx blending is still wrong (but may not matter
      ;; when i implement layers myself)
      (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
      (glClear (bitwise-ior GL_DEPTH_BUFFER_BIT GL_COLOR_BUFFER_BIT))
-
-     ;; xxx draw this onto a 1xLAYERS 2D texture array
-     ;; then do the layer combination pass
-     (glDrawArrays
-      GL_TRIANGLES 0
-      (* DrawnMult early-count)))))
+     (glViewport 0 0 width height)
+     (glDrawArrays GL_TRIANGLES 0 (* DrawnMult early-count)))
+    
+    (nest
+     ([with-vertexarray (combine-vao)]
+      [with-texture (GL_TEXTURE0 LayerConfigId)]
+      [with-textures (1 LayerTargets)]
+      [with-program (combine-program)])
+     (glClearColor 0.0 0.0 0.0 1.0)
+     (glClear (bitwise-ior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
+     (glViewport 0 0 width height)
+     (glDrawArrays GL_TRIANGLES 0 FULLSCREEN_VERTS))))
 
 (define (stage-draw/dc csd width height)
   (define draw-screen

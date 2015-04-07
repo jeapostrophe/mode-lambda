@@ -10,20 +10,7 @@ float compute_scale( float big, float small ) {
   return (big / small);
 }
 
-#define VERTS @EFFECT_VERTS
-
-const vec2 coordData[VERTS] =
-  vec2[VERTS]( vec2(0.0, 0.0),
-               vec2(1.0, 0.0),
-               vec2(1.0, 1.0),
-
-               vec2(0.0, 1.0),
-               vec2(1.0, 1.0),
-               vec2(0.0, 0.0) );
-
-vec2 compute_iTexCoord() {
-  return coordData[ gl_VertexID ];
-}
+@glsl-include["fullscreen.glsl"]
 
 vec2 compute_iPos( vec2 iTexCoord ) {
   float actual_screen_width = rubyOutputSize.x;
