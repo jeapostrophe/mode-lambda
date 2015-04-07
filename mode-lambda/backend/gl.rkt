@@ -130,92 +130,96 @@
         (glUniform1ui (glGetUniformLocation layer-program "ViewportWidth") width)
         (glUniform1ui (glGetUniformLocation layer-program "ViewportHeight") height))
 
-      (define layer-vao (glGen glGenVertexArrays))
-      (define layer-vbo (glGen glGenBuffers))
-      (nest
-       ([with-vertexarray (layer-vao)]
-        [with-arraybuffer (layer-vbo)])
-       (define-attribs/cstruct-info _sprite-data:info))
-
-      (define SpriteData-count 0)
-      (define *initialize-count* (* 2 512))
-      (define SpriteData #f)
       (define DrawnMult 6)
+      
+      (define layer-vao (glGen glGenVertexArrays))
+      (define update-SpriteData!
+        (let ()
+          (define layer-vbo (glGen glGenBuffers))
+          (nest
+           ([with-vertexarray (layer-vao)]
+            [with-arraybuffer (layer-vbo)])
+           (define-attribs/cstruct-info _sprite-data:info))
 
-      (define (install-object! i o)
-        (define-syntax-rule (point-install! Horiz Vert j ...)
-          (begin
-            (set-sprite-data-horiz! o Horiz)
-            (set-sprite-data-vert! o Vert)
-            (cvector-set! SpriteData (+ (* i DrawnMult) j) o)
-            ...))
-        (point-install! -1 +1 0)
-        (point-install! +1 +1 1 4)
-        (point-install! -1 -1 2 3)
-        (point-install! +1 -1 5))
+          (define (install-object! i o)
+            (define-syntax-rule (point-install! Horiz Vert j ...)
+              (begin
+                (set-sprite-data-horiz! o Horiz)
+                (set-sprite-data-vert! o Vert)
+                (cvector-set! SpriteData (+ (* i DrawnMult) j) o)
+                ...))
+            (point-install! -1 +1 0)
+            (point-install! +1 +1 1 4)
+            (point-install! -1 -1 2 3)
+            (point-install! +1 -1 5))
 
-      (define (install-objects! t)
-        (tree-fold (λ (offset o)
-                     (install-object! offset o)
-                     (add1 offset))
-                   0 t))
+          (define (install-objects! t)
+            (tree-fold (λ (offset o)
+                         (install-object! offset o)
+                         (add1 offset))
+                       0 t))
+          
+          (define SpriteData-count 0)
+          (define *initialize-count* (* 2 512))
+          (define SpriteData #f)
+          
+          (λ (objects)
+            (define early-count (count-objects objects))
+            (define SpriteData-count:new (max *initialize-count* early-count))
+            (with-arraybuffer (layer-vbo)
+              (unless (>= SpriteData-count SpriteData-count:new)
+                (set! SpriteData-count
+                      (max (* 2 SpriteData-count)
+                           SpriteData-count:new))
+                (glBufferData GL_ARRAY_BUFFER
+                              (* SpriteData-count
+                                 DrawnMult
+                                 (ctype-sizeof _sprite-data))
+                              #f
+                              GL_STREAM_DRAW))
+
+              (set! SpriteData
+                    (make-cvector*
+                     (glMapBufferRange
+                      GL_ARRAY_BUFFER
+                      0
+                      (* SpriteData-count
+                         DrawnMult
+                         (ctype-sizeof _sprite-data))
+                      (bitwise-ior
+                       ;; We are overriding everything (this would be wrong if
+                       ;; we did the caching "optimization" I imagine)
+                       GL_MAP_INVALIDATE_RANGE_BIT
+                       GL_MAP_INVALIDATE_BUFFER_BIT
+
+                       ;; We are not doing complex queues, so don't block other
+                       ;; operations (but it doesn't seem to improve performance
+                       ;; by having this option)
+                       ;; GL_MAP_UNSYNCHRONIZED_BIT
+
+                       ;; We are writing
+                       GL_MAP_WRITE_BIT))
+                     _sprite-data
+                     (* SpriteData-count
+                        DrawnMult)))
+
+              (install-objects! objects)
+              (glUnmapBuffer GL_ARRAY_BUFFER))
+            early-count)))
 
       (λ (static-st dynamic-st)
         ;; xxx optimize static
         (define objects (cons static-st dynamic-st))
-        (define early-count (count-objects objects))
-        (define SpriteData-count:new (max *initialize-count* early-count))
+        (define early-count (update-SpriteData! objects))
 
         (nest
          ([with-framebuffer (layer-fbo)]
-          [with-vertexarray (layer-vao)]
-          [with-vertex-attributes ((length _sprite-data:info))]
           [with-texture (GL_TEXTURE0 SpriteAtlasId)]
           [with-texture (GL_TEXTURE1 PaletteAtlasId)]
           [with-texture (GL_TEXTURE2 SpriteIndexId)]
           [with-texture (GL_TEXTURE3 LayerConfigId)]
           [with-feature (GL_BLEND)]
           [with-program (layer-program)])
-         (with-arraybuffer (layer-vbo)
-           (unless (>= SpriteData-count SpriteData-count:new)
-             (set! SpriteData-count
-                   (max (* 2 SpriteData-count)
-                        SpriteData-count:new))
-             (glBufferData GL_ARRAY_BUFFER
-                           (* SpriteData-count
-                              DrawnMult
-                              (ctype-sizeof _sprite-data))
-                           #f
-                           GL_STREAM_DRAW))
-
-           (set! SpriteData
-                 (make-cvector*
-                  (glMapBufferRange
-                   GL_ARRAY_BUFFER
-                   0
-                   (* SpriteData-count
-                      DrawnMult
-                      (ctype-sizeof _sprite-data))
-                   (bitwise-ior
-                    ;; We are overriding everything (this would be wrong if
-                    ;; we did the caching "optimization" I imagine)
-                    GL_MAP_INVALIDATE_RANGE_BIT
-                    GL_MAP_INVALIDATE_BUFFER_BIT
-
-                    ;; We are not doing complex queues, so don't block other
-                    ;; operations (but it doesn't seem to improve performance
-                    ;; by having this option)
-                    ;; GL_MAP_UNSYNCHRONIZED_BIT
-
-                    ;; We are writing
-                    GL_MAP_WRITE_BIT))
-                  _sprite-data
-                  (* SpriteData-count
-                     DrawnMult)))
-
-           (install-objects! objects)
-           (glUnmapBuffer GL_ARRAY_BUFFER))
-
          (glDrawBuffers LAYERS
                         (list->s32vector
                          (for/list ([i (in-range LAYERS)])
@@ -224,7 +228,11 @@
          (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
          (glClear GL_COLOR_BUFFER_BIT)
          (glViewport 0 0 width height)
-         (glDrawArrays GL_TRIANGLES 0 (* DrawnMult early-count))))))
+         
+         (nest 
+          ([with-vertexarray (layer-vao)]
+           [with-vertex-attributes ((length _sprite-data:info))])
+          (glDrawArrays GL_TRIANGLES 0 (* DrawnMult early-count)))))))
 
   (define combine-tex (make-target-texture width height))
   (define combine-layers!
