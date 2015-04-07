@@ -257,7 +257,7 @@
   (renderi mode rt)
   #:methods gen:word
   [(define (word-fps w)
-     30.0)
+     60.0)
    (define (word-label s ft)
      (lux-standard-label "Mode-λ" ft))
    (define (word-output w)
@@ -281,8 +281,9 @@
            [_ old]))
        (if (equal? old new)
            w
-           (struct-copy one w
-                        [mode new]))]
+           (update-rt
+            (struct-copy one w
+                         [mode new])))]
       [else
        w]))
    (define (word-tick w)
@@ -301,5 +302,5 @@
    (make-gui #:mode gui-mode)
    (λ ()
      (fiat-lux (update-rt (one (prepare-renderi stage-draw/dc)
-                               "rand" #;"blocks"
+                               "blocks"
                                #f))))))
