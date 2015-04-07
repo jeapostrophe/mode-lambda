@@ -160,38 +160,38 @@
                      (fl+ 4.0 (fx->fl (fx* 8 y)))
                      (vector-ref block-styles 0)
                      #:pal-idx (palette-idx csd 'grayscale)))))
+       (define block-sprites
+         (for*/list ([c (in-range (quotient (quotient W 8) 4))]
+                     [r (in-range (quotient (quotient H 8) 4))])
+           (define block (random 7))
+           (define block-data (vector-ref blocks block))
+           (define rotation (random-vector-ref block-data))
+           (for*/list ([cc (in-range 4)]
+                       [rr (in-range 4)])
+             (when (= 1 (bytes-ref (vector-ref rotation rr) cc))
+               (define x (fx+ (fx* 4 c) cc))
+               (define y (fx+ (fx* 4 r) rr))
+               (sprite #:layer 4
+                       (+ 3 4 0.5 (fx->fl (fx* 8 x)))
+                       (+ 3 4 0.5 (fx->fl (fx* 8 y)))
+                       (vector-ref block-styles block)
+                       #:pal-idx (vector-ref color-schemes block))))))
 
-       (values background-sprites
+       (define foreground-sprites
+         (for*/list ([x (in-range (quotient W 8))]
+                     [y (in-range (quotient H 8))])
+           (when (or (and (even? x) (odd? y))
+                     (and (even? y) (odd? x)))
+             (sprite (fl+ 4.0 (fx->fl (fx* 8 x)))
+                     (fl+ 4.0 (fx->fl (fx* 8 y)))
+                     (vector-ref block-styles 1)
+                     #:a 0.25
+                     #:layer 7
+                     #:pal-idx (palette-idx csd 'med0)))))
+
+       (values (list* block-sprites foreground-sprites background-sprites)
                (λ ()
-                 (define block-sprites
-                   (for*/list ([c (in-range (quotient (quotient W 8) 4))]
-                               [r (in-range (quotient (quotient H 8) 4))])
-                     (define block (random 7))
-                     (define block-data (vector-ref blocks block))
-                     (define rotation (random-vector-ref block-data))
-                     (for*/list ([cc (in-range 4)]
-                                 [rr (in-range 4)])
-                       (when (= 1 (bytes-ref (vector-ref rotation rr) cc))
-                         (define x (fx+ (fx* 4 c) cc))
-                         (define y (fx+ (fx* 4 r) rr))
-                         (sprite #:layer 4
-                                 (+ 3 4 0.5 (fx->fl (fx* 8 x)))
-                                 (+ 3 4 0.5 (fx->fl (fx* 8 y)))
-                                 (vector-ref block-styles block)
-                                 #:pal-idx (vector-ref color-schemes block))))))
-
-                 (define foreground-sprites
-                   (for*/list ([x (in-range (quotient W 8))]
-                               [y (in-range (quotient H 8))])
-                     (when (or (and (even? x) (odd? y))
-                               (and (even? y) (odd? x)))
-                       (sprite (fl+ 4.0 (fx->fl (fx* 8 x)))
-                               (fl+ 4.0 (fx->fl (fx* 8 y)))
-                               (vector-ref block-styles 1)
-                               #:a 0.25
-                               #:layer 7
-                               #:pal-idx (palette-idx csd 'med0)))))
-                 (list* block-sprites foreground-sprites))
+                 '())
                (λ ()
                  (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
                                 #:mode7 2.0
@@ -301,5 +301,5 @@
    (make-gui #:mode gui-mode)
    (λ ()
      (fiat-lux (update-rt (one (prepare-renderi stage-draw/dc)
-                               "blocks"
+                               "rand" #;"blocks"
                                #f))))))
