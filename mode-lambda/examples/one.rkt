@@ -71,6 +71,7 @@
   (define ns
     (append
      (let ()
+       ;; xxx the block borders look wrong
        (add-palette!/file sd 'block-pal (build-path p "blocks" "pal.png"))
        (define (add! i)
          (define n (string->symbol (format "Block~a" i)))
@@ -182,9 +183,8 @@
                      #:a 0.25
                      #:layer 7
                      #:pal-idx (palette-idx csd 'med0)))))
-       (values '()
-               ;; xxx re-enable these and put in bg in s part
-               (list* block-sprites background-sprites foreground-sprites)
+       (values (list background-sprites)
+               (list* block-sprites #;foreground-sprites)
                (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
                               #:mode7 2.0
                               #:horizon 0.0

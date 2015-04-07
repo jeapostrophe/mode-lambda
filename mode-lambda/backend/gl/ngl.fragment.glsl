@@ -26,7 +26,7 @@ float clampy ( float v ) { return floor(v) - 0.5; }
  
 void main(void)
 {
-  vec4 PixelColor;  
+  vec4 PixelColor;
   
   ivec2 TexCoord_uv = ivec2(clampx(TexCoord.x), clampy(TexCoord.y));
   vec4 SpriteColor = texelFetch(SpriteAtlasTex, TexCoord_uv, 0);
@@ -39,22 +39,23 @@ void main(void)
     PixelColor = texelFetch(PaletteAtlasTex, PalCoord_uv, 0 );
   }
 
-  // Colors are not pre-multiplied (I don't do this in the software
-  // one and I don't know why OpenGL seems to require it)
-  PixelColor.rgb = PixelColor.a * PixelColor.rgb;
-
   vec4 fin_Color;
   
   fin_Color.a = PixelColor.a * Color.a;
   fin_Color.rgb = PixelColor.rgb + Color.rgb;
-  
-  if ( fin_Color.a == 0.0 ) {
-    discard;
-  }
 
+  vec4 blank_Color = vec4(0.0,0.0,0.0,0.0);
+  // xxx use macro
+  out_Color0 = blank_Color;
+  out_Color1 = blank_Color;
+  out_Color2 = blank_Color;
+  out_Color3 = blank_Color;
+  out_Color4 = blank_Color;
+  out_Color5 = blank_Color;
+  out_Color6 = blank_Color;
+  out_Color7 = blank_Color;
+  
   int iLayer = int(floor(Layer));
-  // xxx remove this hack
-  iLayer = 0;
   // xxx use macro
   if (iLayer == 0) { out_Color0 = fin_Color; }
   if (iLayer == 1) { out_Color1 = fin_Color; }

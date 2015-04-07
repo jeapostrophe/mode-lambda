@@ -267,7 +267,6 @@
       [with-texture (GL_TEXTURE2 SpriteIndexId)]
       [with-texture (GL_TEXTURE3 LayerConfigId)]
       [with-feature (GL_BLEND)]
-      [with-feature (GL_DEPTH_TEST)]
       [with-program (ProgramId)])
      (with-arraybuffer (VboId)
        (unless (>= SpriteData-count SpriteData-count:new)
@@ -308,9 +307,9 @@
 
        (install-objects! objects)
        (glUnmapBuffer GL_ARRAY_BUFFER))
-     (glClearColor 0.0 0.0 0.0 1.0)
-     ;; xxx blending is still wrong (but may not matter
-     ;; when i implement layers myself)
+     
+     (glDrawBuffers LAYERS (list->s32vector (for/list ([i (in-range LAYERS)]) (GL_COLOR_ATTACHMENTi i))))
+     (glClearColor 0.0 0.0 0.0 0.0)
      (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
      (glClear (bitwise-ior GL_DEPTH_BUFFER_BIT GL_COLOR_BUFFER_BIT))
      (glViewport 0 0 width height)
@@ -321,7 +320,7 @@
       [with-texture (GL_TEXTURE0 LayerConfigId)]
       [with-textures (1 LayerTargets)]
       [with-program (combine-program)])
-     (glClearColor 0.0 0.0 0.0 1.0)
+     (glClearColor 0.0 0.0 0.0 0.0)
      (glClear (bitwise-ior GL_COLOR_BUFFER_BIT GL_DEPTH_BUFFER_BIT))
      (glViewport 0 0 width height)
      (glDrawArrays GL_TRIANGLES 0 FULLSCREEN_VERTS))))
