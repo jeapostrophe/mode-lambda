@@ -15,7 +15,7 @@ float Lmy = LC_MX_MY_THETA_MODE7COEEF.y;
 float Ltheta = LC_MX_MY_THETA_MODE7COEEF.z;
 float mode7coeff = LC_MX_MY_THETA_MODE7COEEF.w;
 vec4 LC_HORIZON_FOV_WRAPXP_WRAPYP =
-  texelFetch(LayerConfigTex, ivec2(1, layer), 0);
+  texelFetch(LayerConfigTex, ivec2(2, layer), 0);
 float horizon = LC_HORIZON_FOV_WRAPXP_WRAPYP.x;
 float fov = LC_HORIZON_FOV_WRAPXP_WRAPYP.y;
 float wrapxp = LC_HORIZON_FOV_WRAPXP_WRAPYP.z;

@@ -177,6 +177,7 @@
                        (vector-ref block-styles block)
                        #:pal-idx (vector-ref color-schemes block))))))
 
+       ;; xxx these aren't shown at all
        (define foreground-sprites
          (for*/list ([x (in-range (quotient W 8))]
                      [y (in-range (quotient H 8))])
@@ -193,23 +194,25 @@
                (λ ()
                  '())
                (λ ()
-                 (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
-                                #:mode7 2.0
-                                #:horizon 0.0
-                                #:fov (fl* 8.0 (fl/ (fx->fl W) (fx->fl H))))
-                         #f #f #f
-                         (layer (fx->fl (/ W 2)) (fl+ (fx->fl (/ H 2)) 25.0)
-                                #:theta (fl* (fl/
-                                              (fx->fl
-                                               (fxmodulo (fxquotient
-                                                          (current-milliseconds)
-                                                          10)
-                                                         360))
-                                              360.0)
-                                             (fl* 2.0 pi)))
-                         #f #f
-                         (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
-                                #:mx 2.0 #:my 2.0))))]
+                 (vector
+                  ;; xxx experiment with "driving" the background
+                  (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
+                         #:mode7 2.0
+                         #:horizon 0.0
+                         #:fov (fl* 8.0 (fl/ (fx->fl W) (fx->fl H))))
+                  #f #f #f
+                  (layer (fx->fl (/ W 2)) (fl+ (fx->fl (/ H 2)) 25.0)
+                         #:theta (fl* (fl/
+                                       (fx->fl
+                                        (fxmodulo (fxquotient
+                                                   (current-milliseconds)
+                                                   10)
+                                                  360))
+                                       360.0)
+                                      (fl* 2.0 pi)))
+                  #f #f
+                  (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
+                         #:mx 2.0 #:my 2.0))))]
       ["tile"
        (values
         '()
