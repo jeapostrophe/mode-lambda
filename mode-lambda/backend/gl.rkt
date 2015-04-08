@@ -334,7 +334,7 @@
 (define (stage-draw/dc csd width height)
   (define draw
     (make-delayed-until-gl-is-around
-     (λ () (make-draw csd width height 'crt))))
+     (λ () (make-draw csd width height 'std))))
   (λ (layer-config static-st dynamic-st)
     (λ (w h dc)
       (local-require racket/class)
@@ -352,4 +352,4 @@
   [gui-mode symbol?]
   [stage-draw/dc (stage-backend/c draw/dc/c)]))
 
-;; xxx seems more blurry?
+;; xxx seems more blurry? maybe try using pow2 textures everywhere again to get good UV-coords without error

@@ -23,8 +23,6 @@ float wrap(float v, float c, float hrng) {
 }
 
 float compute_pz(float mode7coeff, float ay_horiz) {
-  // xxx make lagrange rather than cond (to match software and be weird)
-  
   if (mode7coeff == 0.0) { return 1.0; }
   if (mode7coeff == 1.0) { return +1.0 * ay_horiz; }
   if (mode7coeff == 2.0) { return -1.0 * ay_horiz; }

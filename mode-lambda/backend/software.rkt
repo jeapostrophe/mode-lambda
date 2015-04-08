@@ -370,18 +370,6 @@
 
     (2d-hash-clear! tri-hash)
 
-    (define-syntax-rule (Lagrange x [x0 y0] [x1 y1] [x2 y2] [x3 y3])
-      (fl+ (fl+ (fl* y0 (lagrange-basis x x0 (x1 x2 x3)))
-                (fl* y1 (lagrange-basis x x1 (x0 x2 x3))))
-           (fl+ (fl* y2 (lagrange-basis x x2 (x1 x0 x3)))
-                (fl* y3 (lagrange-basis x x3 (x1 x2 x0))))))
-    (define-syntax-rule (lagrange-basis x x0 (x1 x2 x3))
-      (fl* (lagrange-term x x0 x1)
-           (fl* (lagrange-term x x0 x2)
-                (lagrange-term x x0 x3))))
-    (define-syntax-rule (lagrange-term x xj xm)
-      (fl/ (fl- x xm) (fl- xj xm)))
-
     (for ([layer-bs (in-vector root-bs-v)]
           [lc (in-vector layer-config)]
           [layer (in-naturals)])
@@ -390,16 +378,17 @@
         [(layer-data Lcx Lcy Lhw Lhh Lmx Lmy Ltheta
                      mode7-coeff horizon fov wrap-x? wrap-y?)
          (define (compute-pz ay-horiz)
-           (Lagrange
-            mode7-coeff
+           (cond
             ;; No Mode7
-            [0.0 1.0]
+            [(= mode7-coeff 0.0) 1.0]
             ;; Ceiling
-            [1.0 ay-horiz]
+            [(= mode7-coeff 1.0) ay-horiz]
             ;; Floor
-            [2.0 (fl* -1.0 ay-horiz)]
+            [(= mode7-coeff 2.0) (fl* -1.0 ay-horiz)]
             ;; Cylinder
-            [3.0 (flabs ay-horiz)]))
+            [(= mode7-coeff 3.0) (flabs ay-horiz)]
+            [else
+             0.0]))
          (for ([ay (in-range height)])
            (define py (fx->fl ay))
            (define ay-horiz (fl- horizon py))
