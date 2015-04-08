@@ -23,3 +23,10 @@ mat4 glTranslate( float x, float y, float z ) {
               0.0, 0.0, 1.0, z,
               0.0, 0.0, 0.0, 1.0);
 }
+
+float clampx ( float v ) { return floor(v) + 0.5; }
+float clampy ( float v ) { return floor(v) - 0.5; }
+vec4 ctexture( sampler2D tex, vec2 TexCoord ) {
+  ivec2 TexCoord_uv = ivec2(clampx(TexCoord.x), clampy(TexCoord.y));
+  return texelFetch(tex, TexCoord_uv, 0);
+}

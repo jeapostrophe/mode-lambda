@@ -351,3 +351,5 @@
  (contract-out
   [gui-mode symbol?]
   [stage-draw/dc (stage-backend/c draw/dc/c)]))
+
+;; xxx seems more blurry?

@@ -1,4 +1,5 @@
 #version 330
+@glsl-include["lib.glsl"]
 
 uniform sampler2D LayerTargets[@LAYERS];
 uniform sampler2D LayerConfigTex;
@@ -62,9 +63,8 @@ void main() {
       if (0.0 <= ey && ey <= height) {
         float ex = compute_e(ax, hwidth, fov, pz, Lcx, Lhw);
         if (0.0 <= ex && ex <= width) {
-          vec4 lay_Color = texture(LayerTargets[layer],
-                                   vec2(ex / width,
-                                        (abs(ey - height)) / height));
+          vec4 lay_Color = ctexture(LayerTargets[layer],
+                                    vec2(ex, (abs(ey - height))));
           fin_Color.rgb =
               fin_Color.rgb * (1.0 - lay_Color.a)
             + lay_Color.rgb * lay_Color.a;

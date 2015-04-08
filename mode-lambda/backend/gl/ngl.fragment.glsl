@@ -1,4 +1,5 @@
 #version 330
+@glsl-include["lib.glsl"]
 
 uniform sampler2D SpriteAtlasTex; 
 uniform sampler2D PaletteAtlasTex;
@@ -15,15 +16,10 @@ in float Layer;
   layout (location = @i) out vec4 out_Color@i;
 }
 
-float clampx ( float v ) { return floor(v) + 0.5; }
-float clampy ( float v ) { return floor(v) - 0.5; }
- 
 void main(void)
 {
   vec4 PixelColor;
-  
-  ivec2 TexCoord_uv = ivec2(clampx(TexCoord.x), clampy(TexCoord.y));
-  vec4 SpriteColor = texelFetch(SpriteAtlasTex, TexCoord_uv, 0);
+  vec4 SpriteColor = ctexture(SpriteAtlasTex, TexCoord);
 
   if ( Palette == 0.0 ) {
     PixelColor = SpriteColor;
