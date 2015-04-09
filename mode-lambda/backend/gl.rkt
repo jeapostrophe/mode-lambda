@@ -85,9 +85,6 @@
             (load-texture/float-bytes LAYER-VALUES LAYERS
                                       (layer-config->bytes layer-config)))))))
 
-  (define LayerTargets
-    (for/list ([i (in-range LAYERS)])
-      (make-target-texture width height)))
   (define render-layers!
     (let ()
       (define layer-program (glCreateProgram))
@@ -110,6 +107,10 @@
         (load-texture/float-bytes
          INDEX-VALUES (vector-length idx->w*h*tx*ty)
          (sprite-index->bytes idx->w*h*tx*ty)))
+
+      (define LayerTargets
+        (for/list ([i (in-range LAYERS)])
+          (make-target-texture width height)))
 
       (define layer-fbo (make-fbo LayerTargets))
       (for ([i (in-range LAYERS)])
@@ -249,9 +250,10 @@
          (glViewport 0 0 width height)
 
          (draw-static! static-st)
-         (draw-dynamic! dynamic-st)))))
+         (draw-dynamic! dynamic-st))
+        
+        LayerTargets)))
 
-  (define combine-tex (make-target-texture width height))
   (define combine-layers!
     (let ()
       (define combine-program (glCreateProgram))
@@ -270,10 +272,11 @@
                          (+ 1 i))))
         (glUniform1ui (glGetUniformLocation combine-program "ViewportWidth") width)
         (glUniform1ui (glGetUniformLocation combine-program "ViewportHeight") height))
+      (define combine-tex (make-target-texture width height))
       (define combine-vao (glGen glGenVertexArrays))
       (define combine-fbo (make-fbo (list combine-tex)))
 
-      (λ ()
+      (λ (LayerTargets)
         (nest
          ([with-framebuffer (combine-fbo)]
           [with-vertexarray (combine-vao)]
@@ -283,7 +286,9 @@
          (glClearColor 0.0 0.0 0.0 0.0)
          (glClear GL_COLOR_BUFFER_BIT)
          (glViewport 0 0 width height)
-         (glDrawArrays GL_TRIANGLES 0 FULLSCREEN_VERTS)))))
+         (glDrawArrays GL_TRIANGLES 0 FULLSCREEN_VERTS))
+
+        combine-tex)))
 
   (define draw-screen!
     (let ()
@@ -312,7 +317,7 @@
 
       (define screen-vao (glGen glGenVertexArrays))
 
-      (λ (actual-screen-width actual-screen-height scale)
+      (λ (actual-screen-width actual-screen-height combine-tex scale)
         (nest
          ([with-program (screen-program)]
           [with-texture (GL_TEXTURE0 combine-tex)]
@@ -331,9 +336,9 @@
     (define scale
       (compute-nice-scale actual-screen-width width actual-screen-height height))
     (update-layer-config! layer-config)
-    (render-layers! static-st dynamic-st)
-    (combine-layers!)
-    (draw-screen! actual-screen-width actual-screen-height scale)))
+    (define LayerTargets (render-layers! static-st dynamic-st))
+    (define combine-tex (combine-layers! LayerTargets))
+    (draw-screen! actual-screen-width actual-screen-height combine-tex scale)))
 
 (define (stage-draw/dc csd width height)
   (define draw #f)
