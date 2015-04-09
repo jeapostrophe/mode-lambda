@@ -13,8 +13,9 @@
   (send bm save-file p 'png 100 #:unscaled? #t)
   (void))
 
+;; xxx make sure this uses the same quotient* thing as gl
 (define (draw-bitmap! w W h H bm dc)
-  (send dc set-background "white")
+  (send dc set-background "black")
   (send dc clear)
   (define scale
     (min (/ w W) (/ h H)))
