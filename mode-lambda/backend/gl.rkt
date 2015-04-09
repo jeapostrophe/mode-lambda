@@ -231,7 +231,7 @@
       (define draw-static! (make-sprite-draw!))
       (define draw-dynamic! (make-sprite-draw!))
 
-      (λ (static-st dynamic-st)
+      (λ (scale tex-width tex-height update-tex? static-st dynamic-st)
         (nest
          ([with-framebuffer (layer-fbo)]
           [with-texture (GL_TEXTURE0 SpriteAtlasId)]
@@ -251,7 +251,7 @@
 
          (draw-static! static-st)
          (draw-dynamic! dynamic-st))
-        
+
         LayerTargets)))
 
   (define combine-layers!
@@ -276,7 +276,7 @@
       (define combine-vao (glGen glGenVertexArrays))
       (define combine-fbo (make-fbo (list combine-tex)))
 
-      (λ (LayerTargets)
+      (λ (scale tex-width tex-height update-tex? LayerTargets)
         (nest
          ([with-framebuffer (combine-fbo)]
           [with-vertexarray (combine-vao)]
@@ -317,7 +317,10 @@
 
       (define screen-vao (glGen glGenVertexArrays))
 
-      (λ (actual-screen-width actual-screen-height combine-tex scale)
+      (λ (actual-screen-width 
+          actual-screen-height
+          scale tex-width tex-height update-tex?
+          combine-tex)
         (nest
          ([with-program (screen-program)]
           [with-texture (GL_TEXTURE0 combine-tex)]
@@ -332,13 +335,23 @@
          (glViewport 0 0 actual-screen-width actual-screen-height)
          (glDrawArrays GL_TRIANGLES 0 FULLSCREEN_VERTS)))))
 
+  (define last-scale #f)
   (λ (actual-screen-width actual-screen-height layer-config static-st dynamic-st)
-    (define scale
+    (define-values (scale tex-width tex-height)
       (compute-nice-scale actual-screen-width width actual-screen-height height))
+    (define update-tex? 
+      (not (and last-scale (= scale last-scale))))
+    (set! last-scale scale)
     (update-layer-config! layer-config)
-    (define LayerTargets (render-layers! static-st dynamic-st))
-    (define combine-tex (combine-layers! LayerTargets))
-    (draw-screen! actual-screen-width actual-screen-height combine-tex scale)))
+    (define LayerTargets
+      (render-layers! scale tex-width tex-height update-tex?
+                      static-st dynamic-st))
+    (define combine-tex
+      (combine-layers! scale tex-width tex-height update-tex?
+                       LayerTargets))
+    (draw-screen! actual-screen-width actual-screen-height
+                  scale tex-width tex-height update-tex?
+                  combine-tex)))
 
 (define (stage-draw/dc csd width height)
   (define draw #f)

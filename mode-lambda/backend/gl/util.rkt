@@ -203,5 +203,8 @@
                               GL_TEXTURE_2D tex 0)))
   the-fbo)
 
+(define (num->nearest-pow2 x)
+  (expt 2 (integer-length (inexact->exact (ceiling x)))))
+
 (provide
  (all-defined-out))
