@@ -352,4 +352,4 @@
   [gui-mode symbol?]
   [stage-draw/dc (stage-backend/c draw/dc/c)]))
 
-;; xxx seems more blurry? maybe try using pow2 textures everywhere again to get good UV-coords without error
+;; xxx seems more blurry? render the whole screen from the beginning, move the quotient* thing back into racket and resize the textures as the screen changes

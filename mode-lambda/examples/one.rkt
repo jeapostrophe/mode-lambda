@@ -299,6 +299,7 @@
                        (one-mode w))]))
 
 (module+ main
+  ;; xxx do all three (soft, gl/std, gl/crt) at the same time with the same prng
   ;;(require mode-lambda/backend/software)
   (require mode-lambda/backend/gl)
   (call-with-chaos

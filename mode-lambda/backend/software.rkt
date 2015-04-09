@@ -438,6 +438,7 @@
     (define bs (render layer-config sprite-tree))
     (define bm (argb-bytes->bitmap width height bs))
     (λ (w h dc)
+      ;; xxx make sure this uses the same quotient* thing as gl and makes the border black
       (draw-bitmap! w width h height bm dc))))
 
 (provide
