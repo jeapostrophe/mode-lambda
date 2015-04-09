@@ -161,7 +161,7 @@
             (define SpriteData-count 0)
             (define *initialize-count* (* 2 512))
             (define SpriteData #f)
-            
+
             (λ (objects)
               (define early-count (count-objects objects))
               (define SpriteData-count:new (max *initialize-count* early-count))
@@ -312,11 +312,13 @@
 
       (define screen-vao (glGen glGenVertexArrays))
 
-      (λ (actual-screen-width actual-screen-height)
+      (λ (actual-screen-width actual-screen-height scale)
         (nest
          ([with-program (screen-program)]
           [with-texture (GL_TEXTURE0 combine-tex)]
           [with-vertexarray (screen-vao)])
+         (glUniform1f (glGetUniformLocation screen-program "scale")
+                      scale)
          (glUniform2fv (glGetUniformLocation screen-program "rubyOutputSize") 1
                        (f32vector (* 1. actual-screen-width)
                                   (* 1. actual-screen-height)))
@@ -326,10 +328,12 @@
          (glDrawArrays GL_TRIANGLES 0 FULLSCREEN_VERTS)))))
 
   (λ (actual-screen-width actual-screen-height layer-config static-st dynamic-st)
+    (define scale
+      (compute-nice-scale actual-screen-width width actual-screen-height height))
     (update-layer-config! layer-config)
     (render-layers! static-st dynamic-st)
     (combine-layers!)
-    (draw-screen! actual-screen-width actual-screen-height)))
+    (draw-screen! actual-screen-width actual-screen-height scale)))
 
 (define (stage-draw/dc csd width height)
   (define draw
@@ -352,4 +356,6 @@
   [gui-mode symbol?]
   [stage-draw/dc (stage-backend/c draw/dc/c)]))
 
-;; xxx seems more blurry? render the whole screen from the beginning, move the quotient* thing back into racket and resize the textures as the screen changes
+;; xxx seems more blurry? render the whole screen from the beginning,
+;; move the quotient* thing back into racket and resize the textures
+;; as the screen changes
