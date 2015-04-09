@@ -9,8 +9,6 @@ in vec2 texCoord;
 out vec4 oFragColor;
 
 void main() {
-  // Doesn't work
-  // oFragColor = texelFetch(rubyTexture, ivec2(texCoord), 0);
   // xxx use ctexture?
   oFragColor = texture(rubyTexture, texCoord);
 }

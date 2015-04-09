@@ -299,9 +299,25 @@
                        (one-mode w))]))
 
 (module+ main
-  ;; xxx do all three (soft, gl/std, gl/crt) at the same time with the same prng
-  ;;(require mode-lambda/backend/software)
-  (require mode-lambda/backend/gl)
+  (require racket/cmdline)
+  
+  ;; xxx make std vs crt option
+  (require (prefix-in gl: mode-lambda/backend/gl)
+           (prefix-in soft: mode-lambda/backend/software))
+  (define CONFIGS
+    (hash "gl" (vector gl:gui-mode gl:stage-draw/dc)
+          "soft" (vector soft:gui-mode soft:stage-draw/dc)))
+  (define the-config "gl")
+  
+  (command-line #:once-any
+                ["--gl" "Use gl version"
+                 (set! the-config "gl")]
+                ["--soft" "Use soft version"
+                 (set! the-config "soft")])
+  
+  (current-pseudo-random-generator (vector->pseudo-random-generator (vector 0 0 1 0 0 1)))
+  
+  (match-define (vector gui-mode stage-draw/dc) (hash-ref CONFIGS the-config))
   (call-with-chaos
    (make-gui #:mode gui-mode)
    (λ ()
