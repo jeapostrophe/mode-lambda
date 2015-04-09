@@ -336,9 +336,7 @@
     (draw-screen! actual-screen-width actual-screen-height scale)))
 
 (define (stage-draw/dc csd width height)
-  (define draw
-    (make-delayed-until-gl-is-around
-     (λ () (make-draw csd width height 'std))))
+  (define draw #f)
   (λ (layer-config static-st dynamic-st)
     (λ (w h dc)
       (local-require racket/class)
@@ -347,7 +345,9 @@
         (error 'draw "Could not initialize OpenGL!"))
       (send glctx call-as-current
             (λ ()
-              ((draw) w h layer-config static-st dynamic-st)
+              (unless draw
+                (set! draw (make-draw csd width height 'std)))
+              (draw w h layer-config static-st dynamic-st)
               (send glctx swap-buffers))))))
 
 (define gui-mode 'gl-core)

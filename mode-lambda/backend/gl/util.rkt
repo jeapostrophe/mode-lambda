@@ -6,15 +6,6 @@
          ffi/vector
          ffi/unsafe)
 
-(define (make-delayed-until-gl-is-around t)
-  (define c #f)
-  (define r void)
-  (λ ()
-    (unless c
-      (set! c #t)
-      (set! r (t)))
-    r))
-
 (define (make-2dtexture)
   (define Id (glGen glGenTextures))
   (with-texture (GL_TEXTURE0 Id)

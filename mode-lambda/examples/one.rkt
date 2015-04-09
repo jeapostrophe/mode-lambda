@@ -315,7 +315,9 @@
                 ["--soft" "Use soft version"
                  (set! the-config "soft")])
   
-  (current-pseudo-random-generator (vector->pseudo-random-generator (vector 0 0 1 0 0 1)))
+  (current-pseudo-random-generator
+   (vector->pseudo-random-generator
+    (vector 0 0 1 0 0 1)))
   
   (match-define (vector gui-mode stage-draw/dc) (hash-ref CONFIGS the-config))
   (call-with-chaos
