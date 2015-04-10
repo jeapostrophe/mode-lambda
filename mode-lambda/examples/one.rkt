@@ -267,8 +267,6 @@
    (define (word-output w)
      ((one-rt w)))
    (define (word-event w e)
-     ;; xxx in full-screen, events aren't delivered
-     (printf "e(~v)\n" e)
      (define closed? #f)
      (cond
       [(or (eq? e 'close)
