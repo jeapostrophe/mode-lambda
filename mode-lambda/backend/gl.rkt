@@ -65,6 +65,21 @@
 (define (count-objects t)
   (tree-fold (λ (count o) (add1 count)) 0 t))
 
+(struct delayed-fbo (tex-count [texs #:mutable] [fbo #:mutable]))
+(define (make-delayed-fbo tex-count)
+  (delayed-fbo tex-count #f #f))
+(define (initialize-dfbo! dfbo tex-width tex-height)
+  (match-define (delayed-fbo tex-count texs fbo) dfbo)
+  (when fbo
+    (glDeleteFramebuffers 1 (u32vector fbo)))
+  (when texs
+    (glDeleteTextures (length texs) (list->u32vector texs)))
+  (define new-texs
+    (for/list ([i (in-range tex-count)])
+      (make-target-texture tex-width tex-height)))
+  (set-delayed-fbo-texs! dfbo new-texs)
+  (set-delayed-fbo-fbo! dfbo (make-fbo new-texs)))
+
 (define (make-draw csd width height screen-mode)
   (eprintf "You are using OpenGL ~a\n" (gl-version))
 
@@ -87,15 +102,6 @@
 
   (define render-layers!
     (let ()
-      (define layer-program (glCreateProgram))
-      (bind-attribs/cstruct-info layer-program _sprite-data:info)
-
-      (define-shader-source layer-vert "gl/ngl.vertex.glsl")
-      (define-shader-source layer-fragment "gl/ngl.fragment.glsl")
-
-      (compile-shader GL_VERTEX_SHADER layer-program layer-vert)
-      (compile-shader GL_FRAGMENT_SHADER layer-program layer-fragment)
-
       (define SpriteAtlasId (make-2dtexture))
       (with-texture (GL_TEXTURE0 SpriteAtlasId)
         (load-texture/bytes atlas-size atlas-size atlas-bs))
@@ -108,11 +114,15 @@
          INDEX-VALUES (vector-length idx->w*h*tx*ty)
          (sprite-index->bytes idx->w*h*tx*ty)))
 
-      (define LayerTargets
-        (for/list ([i (in-range LAYERS)])
-          (make-target-texture width height)))
+      (define layer-program (glCreateProgram))
+      (bind-attribs/cstruct-info layer-program _sprite-data:info)
 
-      (define layer-fbo (make-fbo LayerTargets))
+      (define-shader-source layer-vert "gl/ngl.vertex.glsl")
+      (define-shader-source layer-fragment "gl/ngl.fragment.glsl")
+
+      (compile-shader GL_VERTEX_SHADER layer-program layer-vert)
+      (compile-shader GL_FRAGMENT_SHADER layer-program layer-fragment)
+
       (for ([i (in-range LAYERS)])
         (glBindFragDataLocation layer-program i (format "out_Color~a" i)))
 
@@ -128,6 +138,8 @@
                      (gl-texture-index GL_TEXTURE3))
         (glUniform1ui (glGetUniformLocation layer-program "ViewportWidth") width)
         (glUniform1ui (glGetUniformLocation layer-program "ViewportHeight") height))
+
+      (define layer-dfbo (make-delayed-fbo LAYERS))
 
       (define DrawnMult 6)
 
@@ -231,9 +243,12 @@
       (define draw-static! (make-sprite-draw!))
       (define draw-dynamic! (make-sprite-draw!))
 
-      (λ (scale tex-width tex-height update-tex? static-st dynamic-st)
+      (λ (update-tex? static-st dynamic-st)
+        (when update-tex?
+          (initialize-dfbo! layer-dfbo width height))
+
         (nest
-         ([with-framebuffer (layer-fbo)]
+         ([with-framebuffer ((delayed-fbo-fbo layer-dfbo))]
           [with-texture (GL_TEXTURE0 SpriteAtlasId)]
           [with-texture (GL_TEXTURE1 PaletteAtlasId)]
           [with-texture (GL_TEXTURE2 SpriteIndexId)]
@@ -252,7 +267,7 @@
          (draw-static! static-st)
          (draw-dynamic! dynamic-st))
 
-        LayerTargets)))
+        (delayed-fbo-texs layer-dfbo))))
 
   (define combine-layers!
     (let ()
@@ -272,13 +287,17 @@
                          (+ 1 i))))
         (glUniform1ui (glGetUniformLocation combine-program "ViewportWidth") width)
         (glUniform1ui (glGetUniformLocation combine-program "ViewportHeight") height))
-      (define combine-tex (make-target-texture width height))
-      (define combine-vao (glGen glGenVertexArrays))
-      (define combine-fbo (make-fbo (list combine-tex)))
 
-      (λ (scale tex-width tex-height update-tex? LayerTargets)
+      (define combine-vao (glGen glGenVertexArrays))
+
+      (define combine-dfbo (make-delayed-fbo 1))
+
+      (λ (update-tex? LayerTargets)
+        (when update-tex?
+          (initialize-dfbo! combine-dfbo width height))
+
         (nest
-         ([with-framebuffer (combine-fbo)]
+         ([with-framebuffer ((delayed-fbo-fbo combine-dfbo))]
           [with-vertexarray (combine-vao)]
           [with-texture (GL_TEXTURE0 LayerConfigId)]
           [with-textures (1 LayerTargets)]
@@ -288,7 +307,7 @@
          (glViewport 0 0 width height)
          (glDrawArrays GL_TRIANGLES 0 FULLSCREEN_VERTS))
 
-        combine-tex)))
+        (first (delayed-fbo-texs combine-dfbo)))))
 
   (define draw-screen!
     (let ()
@@ -317,9 +336,9 @@
 
       (define screen-vao (glGen glGenVertexArrays))
 
-      (λ (actual-screen-width 
+      (λ (actual-screen-width
           actual-screen-height
-          scale tex-width tex-height update-tex?
+          update-tex? scale
           combine-tex)
         (nest
          ([with-program (screen-program)]
@@ -337,20 +356,20 @@
 
   (define last-scale #f)
   (λ (actual-screen-width actual-screen-height layer-config static-st dynamic-st)
-    (define-values (scale tex-width tex-height)
+    (define-values (scale sca-width sca-height)
       (compute-nice-scale actual-screen-width width actual-screen-height height))
-    (define update-tex? 
+    (define act-width (num->nearest-pow2 sca-width))
+    (define act-height (num->nearest-pow2 sca-height))
+    (define update-tex?
       (not (and last-scale (= scale last-scale))))
     (set! last-scale scale)
     (update-layer-config! layer-config)
     (define LayerTargets
-      (render-layers! scale tex-width tex-height update-tex?
-                      static-st dynamic-st))
+      (render-layers! update-tex? static-st dynamic-st))
     (define combine-tex
-      (combine-layers! scale tex-width tex-height update-tex?
-                       LayerTargets))
+      (combine-layers! update-tex? LayerTargets))
     (draw-screen! actual-screen-width actual-screen-height
-                  scale tex-width tex-height update-tex?
+                  update-tex? scale 
                   combine-tex)))
 
 (define (stage-draw/dc csd width height)
