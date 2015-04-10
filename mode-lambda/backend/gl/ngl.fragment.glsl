@@ -38,7 +38,6 @@ void main(void)
   
   int iLayer = int(floor(Layer));
   @in[i (in-range LAYERS)]{
-    if (iLayer == @i) { out_Color@i = fin_Color; }
-    else { out_Color@i = blank_Color; }
+    out_Color@i = (iLayer == @i) ? fin_Color : blank_Color;
   }
 }

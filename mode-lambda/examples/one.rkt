@@ -40,8 +40,9 @@
 (define W 256)
 (define H 224)
 ;; GB-SNES
-(set! W (* 26 16))
-(set! H (* 26 9))
+(define GB-SNES-SCALE 26)
+(set! W (* GB-SNES-SCALE 16))
+(set! H (* GB-SNES-SCALE 9))
 (define cw-slots (* 3 7))
 
 (define (prepare-renderi stage-draw/dc)
@@ -266,6 +267,8 @@
    (define (word-output w)
      ((one-rt w)))
    (define (word-event w e)
+     ;; xxx in full-screen, events aren't delivered
+     (printf "e(~v)\n" e)
      (define closed? #f)
      (cond
       [(or (eq? e 'close)
