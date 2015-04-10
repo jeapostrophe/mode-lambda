@@ -284,6 +284,7 @@
          (glClearColor 0.0 0.0 0.0 0.0)
          (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
          (glClear GL_COLOR_BUFFER_BIT)
+         ;; xxx this should be the size of the texture (or scaled?)
          (set-viewport/fpair! (scale-info-logical the-scale-info))
 
          (draw-static! static-st)
@@ -325,6 +326,7 @@
          (set-uniform-scale-info! combine-program the-scale-info)
          (glClearColor 0.0 0.0 0.0 0.0)
          (glClear GL_COLOR_BUFFER_BIT)
+         ;; xxx this should be the size of the texture (or scaled?)
          (set-viewport/fpair! (scale-info-logical the-scale-info))
          (glDrawArrays GL_TRIANGLES 0 FULLSCREEN_VERTS))
 
@@ -413,7 +415,3 @@
  (contract-out
   [gui-mode symbol?]
   [stage-draw/dc (stage-backend/c draw/dc/c)]))
-
-;; xxx seems more blurry? render the whole screen from the beginning,
-;; move the quotient* thing back into racket and resize the textures
-;; as the screen changes
