@@ -87,8 +87,7 @@
 (define (make-delayed-fbo tex-count)
   (delayed-fbo tex-count #f #f))
 (define (initialize-dfbo! dfbo the-si)
-  ;; xxx change to texture
-  (define the-fp (scale-info-logical the-si))
+  (define the-fp (scale-info-texture the-si))
   (define tex-width (inexact->exact (f32vector-ref the-fp 0)))
   (define tex-height (inexact->exact (f32vector-ref the-fp 1)))
   
@@ -284,8 +283,7 @@
          (glClearColor 0.0 0.0 0.0 0.0)
          (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
          (glClear GL_COLOR_BUFFER_BIT)
-         ;; xxx this should be the size of the texture (or scaled?)
-         (set-viewport/fpair! (scale-info-logical the-scale-info))
+         (set-viewport/fpair! (scale-info-texture the-scale-info))
 
          (draw-static! static-st)
          (draw-dynamic! dynamic-st))
@@ -326,8 +324,7 @@
          (set-uniform-scale-info! combine-program the-scale-info)
          (glClearColor 0.0 0.0 0.0 0.0)
          (glClear GL_COLOR_BUFFER_BIT)
-         ;; xxx this should be the size of the texture (or scaled?)
-         (set-viewport/fpair! (scale-info-logical the-scale-info))
+         (set-viewport/fpair! (scale-info-texture the-scale-info))
          (glDrawArrays GL_TRIANGLES 0 FULLSCREEN_VERTS))
 
         (first (delayed-fbo-texs combine-dfbo)))))
