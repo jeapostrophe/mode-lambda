@@ -177,7 +177,7 @@
                        (vector-ref block-styles block)
                        #:pal-idx (vector-ref color-schemes block))))))
 
-       ;; xxx these aren't shown at all
+       ;; xxx these are very light in the GL version
        (define foreground-sprites
          (for*/list ([x (in-range (quotient W 8))]
                      [y (in-range (quotient H 8))])
@@ -299,26 +299,34 @@
                        (one-mode w))]))
 
 (module+ main
-  (require racket/cmdline)
-  
-  ;; xxx make std vs crt option
-  (require (prefix-in gl: mode-lambda/backend/gl)
+  (require racket/cmdline
+           (prefix-in gl: mode-lambda/backend/gl)
            (prefix-in soft: mode-lambda/backend/software))
+  
   (define CONFIGS
     (hash "gl" (vector gl:gui-mode gl:stage-draw/dc)
           "soft" (vector soft:gui-mode soft:stage-draw/dc)))
+  (define the-mode 'std)
   (define the-config "gl")
-  
-  (command-line #:once-any
-                ["--gl" "Use gl version"
-                 (set! the-config "gl")]
-                ["--soft" "Use soft version"
-                 (set! the-config "soft")])
-  
+
+  (command-line
+   #:once-any
+   ["--std" "Use std gl filter"
+    (set! the-mode 'std)]
+   ["--crt" "Use crt gl filter"
+    (set! the-mode 'crt)]
+   #:once-any
+   ["--gl" "Use gl version"
+    (set! the-config "gl")]
+   ["--soft" "Use soft version"
+    (set! the-config "soft")])
+
   (current-pseudo-random-generator
    (vector->pseudo-random-generator
     (vector 0 0 1 0 0 1)))
   
+  (gl:gl-filter-mode the-mode)
+
   (match-define (vector gui-mode stage-draw/dc) (hash-ref CONFIGS the-config))
   (call-with-chaos
    (make-gui #:mode gui-mode)

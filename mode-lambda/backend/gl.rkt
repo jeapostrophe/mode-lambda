@@ -403,12 +403,15 @@
       (send glctx call-as-current
             (λ ()
               (unless draw
-                (set! draw (make-draw csd width height 'std)))
+                (set! draw (make-draw csd width height (gl-filter-mode))))
               (draw w h layer-config static-st dynamic-st)
               (send glctx swap-buffers))))))
+
+(define gl-filter-mode (make-parameter 'std))
 
 (define gui-mode 'gl-core)
 (provide
  (contract-out
+  [gl-filter-mode (parameter/c symbol?)]
   [gui-mode symbol?]
   [stage-draw/dc (stage-backend/c draw/dc/c)]))
