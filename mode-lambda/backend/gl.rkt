@@ -403,7 +403,7 @@
       (send glctx call-as-current
             (λ ()
               (unless draw
-                (set! draw (make-draw csd width height 'crt)))
+                (set! draw (make-draw csd width height 'std)))
               (draw w h layer-config static-st dynamic-st)
               (send glctx swap-buffers))))))
 

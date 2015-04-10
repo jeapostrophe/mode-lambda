@@ -8,6 +8,5 @@ in vec2 texCoord;
 out vec4 oFragColor;
 
 void main() {
-  // xxx use ctexture?
-  oFragColor = texture(CombinedTex, texCoord);
+  oFragColor = ctexture(CombinedTex, texCoord);
 }

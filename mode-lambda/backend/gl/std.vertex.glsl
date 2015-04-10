@@ -13,5 +13,5 @@ void main() {
               0.0, ScreenSize.y,
               1.0, -1.0);
 
-  texCoord = iTexCoord;	
+  texCoord = iTexCoord * TextureSize;	
 }

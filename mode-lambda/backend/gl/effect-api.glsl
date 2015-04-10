@@ -1,5 +1,6 @@
 uniform vec2 LogicalSize;
 uniform vec2 ScreenSize;
+uniform vec2 TextureSize;
 uniform float Scale;
 
 @glsl-include["fullscreen.glsl"]
