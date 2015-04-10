@@ -33,18 +33,16 @@
   (+ q (recur r 1 5)))
 
 (define (compute-nice-scale w W h H)
-  (define scale
-    (* 1.0
-       (min (quotient* w W)
-            (quotient* h H))))
-  (values scale
-          (* scale W)
-          (* scale H)))
+  (* 1.0
+     (min (quotient* w W)
+          (quotient* h H))))
 
 (define (draw-bitmap! w W h H bm dc)
   (send dc set-background "black")
   (send dc clear)
-  (define-values (scale SW SH) (compute-nice-scale w W h H))
+  (define scale (compute-nice-scale w W h H))
+  (define SW (* scale W))
+  (define SH (* scale H))
   (define x (/ (/ (- w SW) 2) scale))
   (define y (/ (/ (- h SH) 2) scale))
   (send dc set-scale scale scale)
@@ -78,6 +76,6 @@
   [compute-nice-scale
    (-> exact-nonnegative-integer? exact-nonnegative-integer?
        exact-nonnegative-integer? exact-nonnegative-integer?
-       (values real? real? real?))]
+       real?)]
   [draw/dc/c
    contract?]))

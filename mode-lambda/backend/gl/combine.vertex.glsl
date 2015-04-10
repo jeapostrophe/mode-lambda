@@ -4,8 +4,7 @@
 
 uniform sampler2D LayerTargets[@LAYERS];
 uniform sampler2D LayerConfigTex;
-uniform uint ViewportWidth;
-uniform uint ViewportHeight;
+uniform vec2 LogicalSize;
 
 out vec2 texCoord;
 
@@ -13,9 +12,9 @@ void main() {
   vec2 iTexCoord = compute_iTexCoord();
 
   gl_Position =
-      vec4( iTexCoord.x * ViewportWidth, iTexCoord.y * ViewportHeight, 0.0, 1.0)
-    * glOrtho(0.0, ViewportWidth,
-              0.0, ViewportHeight,
+    vec4( iTexCoord.x * LogicalSize.x, iTexCoord.y * LogicalSize.y, 0.0, 1.0)
+    * glOrtho(0.0, LogicalSize.x,
+              0.0, LogicalSize.y,
               1.0, -1.0);
 
   texCoord = iTexCoord;	

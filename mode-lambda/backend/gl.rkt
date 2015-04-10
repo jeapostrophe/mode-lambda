@@ -65,10 +65,33 @@
 (define (count-objects t)
   (tree-fold (λ (count o) (add1 count)) 0 t))
 
+(define (pair->fpair w h)
+  (f32vector (* 1.0 w) (* 1.0 h)))
+(define (set-uniform-fpair! program-id uniform-name the-fpair)
+  (glUniform2fv (glGetUniformLocation program-id uniform-name) 1 the-fpair))
+(struct scale-info (logical scale scaled texture screen))
+(define (set-uniform-scale-info! program-id si)
+  (match-define (scale-info logical scale scaled texture screen) si)
+  (set-uniform-fpair! program-id "LogicalSize" logical)
+  (glUniform1f (glGetUniformLocation program-id "Scale") scale)
+  (set-uniform-fpair! program-id "ScaledSize" scaled)
+  (set-uniform-fpair! program-id "TextureSize" texture)
+  (set-uniform-fpair! program-id "ScreenSize" screen))
+
+(define (set-viewport/fpair! the-fp)
+  (define width (inexact->exact (f32vector-ref the-fp 0)))
+  (define height (inexact->exact (f32vector-ref the-fp 1)))
+  (glViewport 0 0 width height))
+
 (struct delayed-fbo (tex-count [texs #:mutable] [fbo #:mutable]))
 (define (make-delayed-fbo tex-count)
   (delayed-fbo tex-count #f #f))
-(define (initialize-dfbo! dfbo tex-width tex-height)
+(define (initialize-dfbo! dfbo the-si)
+  ;; xxx change to texture
+  (define the-fp (scale-info-logical the-si))
+  (define tex-width (inexact->exact (f32vector-ref the-fp 0)))
+  (define tex-height (inexact->exact (f32vector-ref the-fp 1)))
+  
   (match-define (delayed-fbo tex-count texs fbo) dfbo)
   (when fbo
     (glDeleteFramebuffers 1 (u32vector fbo)))
@@ -135,9 +158,7 @@
         (glUniform1i (glGetUniformLocation layer-program "SpriteIndexTex")
                      (gl-texture-index GL_TEXTURE2))
         (glUniform1i (glGetUniformLocation layer-program "LayerConfigTex")
-                     (gl-texture-index GL_TEXTURE3))
-        (glUniform1ui (glGetUniformLocation layer-program "ViewportWidth") width)
-        (glUniform1ui (glGetUniformLocation layer-program "ViewportHeight") height))
+                     (gl-texture-index GL_TEXTURE3)))
 
       (define layer-dfbo (make-delayed-fbo LAYERS))
 
@@ -243,9 +264,9 @@
       (define draw-static! (make-sprite-draw!))
       (define draw-dynamic! (make-sprite-draw!))
 
-      (λ (update-tex? static-st dynamic-st)
-        (when update-tex?
-          (initialize-dfbo! layer-dfbo width height))
+      (λ (update-scale? the-scale-info static-st dynamic-st)
+        (when update-scale?
+          (initialize-dfbo! layer-dfbo the-scale-info))
 
         (nest
          ([with-framebuffer ((delayed-fbo-fbo layer-dfbo))]
@@ -255,6 +276,7 @@
           [with-texture (GL_TEXTURE3 LayerConfigId)]
           [with-feature (GL_BLEND)]
           [with-program (layer-program)])
+         (set-uniform-scale-info! layer-program the-scale-info)
          (glDrawBuffers LAYERS
                         (list->s32vector
                          (for/list ([i (in-range LAYERS)])
@@ -262,7 +284,7 @@
          (glClearColor 0.0 0.0 0.0 0.0)
          (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
          (glClear GL_COLOR_BUFFER_BIT)
-         (glViewport 0 0 width height)
+         (set-viewport/fpair! (scale-info-logical the-scale-info))
 
          (draw-static! static-st)
          (draw-dynamic! dynamic-st))
@@ -284,17 +306,15 @@
                       LAYERS
                       (list->s32vector
                        (for/list ([i (in-range LAYERS)])
-                         (+ 1 i))))
-        (glUniform1ui (glGetUniformLocation combine-program "ViewportWidth") width)
-        (glUniform1ui (glGetUniformLocation combine-program "ViewportHeight") height))
+                         (+ 1 i)))))
 
       (define combine-vao (glGen glGenVertexArrays))
 
       (define combine-dfbo (make-delayed-fbo 1))
 
-      (λ (update-tex? LayerTargets)
-        (when update-tex?
-          (initialize-dfbo! combine-dfbo width height))
+      (λ (update-scale? the-scale-info LayerTargets)
+        (when update-scale?
+          (initialize-dfbo! combine-dfbo the-scale-info))
 
         (nest
          ([with-framebuffer ((delayed-fbo-fbo combine-dfbo))]
@@ -302,9 +322,10 @@
           [with-texture (GL_TEXTURE0 LayerConfigId)]
           [with-textures (1 LayerTargets)]
           [with-program (combine-program)])
+         (set-uniform-scale-info! combine-program the-scale-info)
          (glClearColor 0.0 0.0 0.0 0.0)
          (glClear GL_COLOR_BUFFER_BIT)
-         (glViewport 0 0 width height)
+         (set-viewport/fpair! (scale-info-logical the-scale-info))
          (glDrawArrays GL_TRIANGLES 0 FULLSCREEN_VERTS))
 
         (first (delayed-fbo-texs combine-dfbo)))))
@@ -329,48 +350,48 @@
       (glLinkProgram&check screen-program)
 
       (with-program (screen-program)
-        (glUniform1i (glGetUniformLocation screen-program "rubyTexture")
-                     (gl-texture-index GL_TEXTURE0))
-        (glUniform2fv (glGetUniformLocation screen-program "rubyInputSize")
-                      1 (f32vector (* 1. width) (* 1. height))))
+        (glUniform1i (glGetUniformLocation screen-program "CombinedTex")
+                     (gl-texture-index GL_TEXTURE0)))
 
       (define screen-vao (glGen glGenVertexArrays))
 
-      (λ (actual-screen-width
-          actual-screen-height
-          update-tex? scale
-          combine-tex)
+      (λ (update-scale? the-scale-info combine-tex)
         (nest
          ([with-program (screen-program)]
           [with-texture (GL_TEXTURE0 combine-tex)]
           [with-vertexarray (screen-vao)])
-         (glUniform1f (glGetUniformLocation screen-program "scale")
-                      scale)
-         (glUniform2fv (glGetUniformLocation screen-program "rubyOutputSize") 1
-                       (f32vector (* 1. actual-screen-width)
-                                  (* 1. actual-screen-height)))
+         (set-uniform-scale-info! screen-program the-scale-info)
          (glClearColor 0.0 0.0 0.0 0.0)
          (glClear GL_COLOR_BUFFER_BIT)
-         (glViewport 0 0 actual-screen-width actual-screen-height)
+         (set-viewport/fpair! (scale-info-screen the-scale-info))
          (glDrawArrays GL_TRIANGLES 0 FULLSCREEN_VERTS)))))
 
-  (define last-scale #f)
-  (λ (actual-screen-width actual-screen-height layer-config static-st dynamic-st)
-    (define-values (scale sca-width sca-height)
-      (compute-nice-scale actual-screen-width width actual-screen-height height))
-    (define act-width (num->nearest-pow2 sca-width))
-    (define act-height (num->nearest-pow2 sca-height))
-    (define update-tex?
-      (not (and last-scale (= scale last-scale))))
-    (set! last-scale scale)
+  (define LogicalSize (pair->fpair width height))
+
+  (define the-scale-info #f)
+  (λ (screen-width screen-height layer-config static-st dynamic-st)
+    (define scale
+      (compute-nice-scale screen-width width screen-height height))
+    (define update-scale?
+      (not (and the-scale-info 
+                (= (scale-info-scale the-scale-info)
+                   scale))))
+    (when update-scale?
+      (define sca-width (* scale width))
+      (define sca-height (* scale height))
+      (define ScaledSize (pair->fpair sca-width sca-height))
+      (define tex-width (inexact->exact (ceiling sca-width)))
+      (define tex-height (inexact->exact (ceiling sca-height)))
+      (define TextureSize (pair->fpair tex-width tex-height))
+      (define ScreenSize (pair->fpair screen-width screen-height))
+      (set! the-scale-info
+            (scale-info LogicalSize scale ScaledSize TextureSize ScreenSize)))
     (update-layer-config! layer-config)
     (define LayerTargets
-      (render-layers! update-tex? static-st dynamic-st))
+      (render-layers! update-scale? the-scale-info static-st dynamic-st))
     (define combine-tex
-      (combine-layers! update-tex? LayerTargets))
-    (draw-screen! actual-screen-width actual-screen-height
-                  update-tex? scale 
-                  combine-tex)))
+      (combine-layers! update-scale? the-scale-info LayerTargets))
+    (draw-screen! update-scale? the-scale-info combine-tex)))
 
 (define (stage-draw/dc csd width height)
   (define draw #f)

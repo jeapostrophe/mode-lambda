@@ -3,8 +3,7 @@
 
 uniform sampler2D LayerTargets[@LAYERS];
 uniform sampler2D LayerConfigTex;
-uniform uint ViewportWidth;
-uniform uint ViewportHeight;
+uniform vec2 LogicalSize;
 
 in vec2 texCoord;
 
@@ -43,8 +42,8 @@ float compute_e(float ax, float hwidth, float fov, float pz, float Lcx, float Lh
 }
 
 void main() {
-  float width = float(ViewportWidth);
-  float height = float(ViewportHeight);
+  float width = LogicalSize.x;
+  float height = LogicalSize.y;
   float hwidth = width / 2.0;
   float hheight = height / 2.0;
   

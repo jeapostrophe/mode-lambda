@@ -26,13 +26,13 @@
 #define PI 3.141592653589
 
 #ifdef LINEAR_PROCESSING
-#       define TEX2D(c) pow(texture(rubyTexture, (c)), vec4(CRTgamma))
+#       define TEX2D(c) pow(texture(CombinedTex, (c)), vec4(CRTgamma))
 #else
-#       define TEX2D(c) texture(rubyTexture, (c))
+#       define TEX2D(c) texture(CombinedTex, (c))
 #endif
 
-uniform sampler2D rubyTexture;
-uniform vec2 rubyInputSize;
+uniform sampler2D CombinedTex;
+uniform vec2 LogicalSize;
 uniform int rubyFrameCount;
 
 in vec2 texCoord;
@@ -85,9 +85,9 @@ vec2 bkwtrans(vec2 xy)
 
 vec2 transform(vec2 coord)
 {
-  coord *= rubyInputSize / rubyInputSize;
+  coord *= LogicalSize / LogicalSize;
   coord = (coord-vec2(0.5))*aspect*stretch.z+stretch.xy;
-  return (bkwtrans(coord)/overscan/aspect+vec2(0.5)) * rubyInputSize / rubyInputSize;
+  return (bkwtrans(coord)/overscan/aspect+vec2(0.5)) * LogicalSize / LogicalSize;
 }
 
 float corner(vec2 coord)
@@ -163,14 +163,14 @@ void main()
   // Of all the pixels that are mapped onto the texel we are
   // currently rendering, which pixel are we currently rendering?
   vec2 ilvec = vec2(0.0,ilfac.y > 1.5 ? mod(float(rubyFrameCount),2.0) : 0.0);
-  vec2 ratio_scale = (xy * rubyInputSize - vec2(0.5) + ilvec)/ilfac;
+  vec2 ratio_scale = (xy * LogicalSize - vec2(0.5) + ilvec)/ilfac;
 #ifdef OVERSAMPLE
   float filter = fwidth(ratio_scale.y);
 #endif
   vec2 uv_ratio = fract(ratio_scale);
 
   // Snap to the center of the underlying texel.
-  xy = (floor(ratio_scale)*ilfac + vec2(0.5) - ilvec) / rubyInputSize;
+  xy = (floor(ratio_scale)*ilfac + vec2(0.5) - ilvec) / LogicalSize;
 
   // Calculate Lanczos scaling coefficients describing the effect
   // of various neighbour texels in a scanline on the current

@@ -5,8 +5,7 @@ uniform sampler2D SpriteIndexTex;
 
 @cstruct-info->glsl-in[_sprite-data:info]
 
-uniform uint ViewportWidth;
-uniform uint ViewportHeight;
+uniform vec2 LogicalSize;
 
 uniform sampler2D LayerConfigTex;
 
@@ -40,11 +39,11 @@ void main(void)
     * glRotate(theta, 0.0, 0.0, 1.0)
     * glTranslate(dx, dy, 0.0)
     // xxx These might be Lhw and Lhh
-    * glTranslate(-1.0 * ViewportWidth / 2.0, -1.0 * ViewportHeight / 2.0, 0.0)
+    * glTranslate(-1.0 * LogicalSize.x / 2.0, -1.0 * LogicalSize.y / 2.0, 0.0)
     * glRotate(Ltheta, 0.0, 0.0, 1.0)
     * glTranslate(Lcx, Lcy, 0.0)
-    * glOrtho(0.0, ViewportWidth,
-              0.0, ViewportHeight,
+    * glOrtho(0.0, LogicalSize.x,
+              0.0, LogicalSize.y,
               1.0, -1.0);
   TexCoord =
     vec2(tx + ((horiz + 1.0)/+2.0) * w,

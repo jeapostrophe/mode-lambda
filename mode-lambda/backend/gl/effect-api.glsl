@@ -1,17 +1,17 @@
-uniform vec2 rubyInputSize;
-uniform vec2 rubyOutputSize;
-uniform float scale;
+uniform vec2 LogicalSize;
+uniform vec2 ScreenSize;
+uniform float Scale;
 
 @glsl-include["fullscreen.glsl"]
 
 vec2 compute_iPos( vec2 iTexCoord ) {
-  float actual_screen_width = rubyOutputSize.x;
-  float actual_screen_height = rubyOutputSize.y;
-  float crt_width = rubyInputSize.x;
-  float crt_height = rubyInputSize.y;
+  float actual_screen_width = ScreenSize.x;
+  float actual_screen_height = ScreenSize.y;
+  float crt_width = LogicalSize.x;
+  float crt_height = LogicalSize.y;
 
-  float screen_width = scale * crt_width;
-  float screen_height = scale * crt_height;
+  float screen_width = Scale * crt_width;
+  float screen_height = Scale * crt_height;
 
   float inset_left = (actual_screen_width - screen_width) / 2.0;
   float inset_right = inset_left + screen_width;

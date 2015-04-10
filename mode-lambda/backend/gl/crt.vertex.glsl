@@ -122,11 +122,11 @@ void main()
 
   // Texture coords.
   texCoord = iTexCoord;
-  ilfac = vec2(1.0,floor(rubyInputSize.y/200.0));
+  ilfac = vec2(1.0,floor(LogicalSize.y/200.0));
 
   // The size of one texel, in texture-coordinates.
-  one = ilfac / rubyInputSize;
+  one = ilfac / LogicalSize;
 
   // Resulting X pixel-coordinate of the pixel we're drawing.
-  mod_factor = texCoord.x * rubyInputSize.x * rubyOutputSize.x / rubyInputSize.x;			
+  mod_factor = texCoord.x * LogicalSize.x * ScreenSize.x / LogicalSize.x;			
 }
