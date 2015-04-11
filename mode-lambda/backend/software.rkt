@@ -160,7 +160,7 @@
     ;; sprite
     (define (geometry-shader s)
       (match-define (sprite-data dx dy mx my theta a.0 spr-idx pal-idx layer 
-                                 r g b _ _) s)
+                                 r g b _ _ _ _) s)
       (match-define (layer-data Lcx Lcy Lhw Lhh Lmx Lmy Ltheta
                                 _ _ _ wrap-x? wrap-y?)
                     (or (vector-ref layer-config layer)

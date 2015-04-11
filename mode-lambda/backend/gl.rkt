@@ -15,6 +15,8 @@
                   ctype-sizeof
                   _float))
 
+;; xxx use more unsafe and specialized math?
+
 (define-syntax-rule (glsl-include p) (include-template p))
 
 (define FULLSCREEN_VERTS 6)
@@ -124,8 +126,8 @@
 
       (define layer-dfbo (make-delayed-fbo LAYERS))
 
-      ;; Two triangles, three vertices per triangle
-      (define DrawnMult (* 2 3))
+      ;; Three axis-coefficients, Two axes, Two triangles, three vertices per triangle
+      (define DrawnMult (* (expt 3 2) 2 3))
 
       (define (make-sprite-draw!)
         (define layer-vao (glGen glGenVertexArrays))
@@ -138,16 +140,23 @@
         (define actual-update!
           (let ()
             (define (install-object! i o)
-              (define-syntax-rule (point-install! Horiz Vert j ...)
-                (begin
-                  (set-sprite-data-horiz! o Horiz)
-                  (set-sprite-data-vert! o Vert)
-                  (cvector-set! SpriteData (+ (* i DrawnMult) j) o)
-                  ...))
-              (point-install! -1 +1 0)
-              (point-install! +1 +1 1 4)
-              (point-install! -1 -1 2 3)
-              (point-install! +1 -1 5))
+              (define which 0)
+              (for* ([xc (in-range -1 +2)]
+                     [yc (in-range -1 +2)])
+                (define-syntax-rule (point-install! Horiz Vert)
+                  (begin
+                    (set-sprite-data-xcoeff! o xc)
+                    (set-sprite-data-ycoeff! o yc)
+                    (set-sprite-data-horiz! o Horiz)
+                    (set-sprite-data-vert! o Vert)
+                    (cvector-set! SpriteData (+ (* i DrawnMult) which) o)
+                    (set! which (+ 1 which))))                
+                (point-install! -1 +1)
+                (point-install! +1 +1)
+                (point-install! -1 -1)
+                (point-install! -1 -1)
+                (point-install! +1 +1)
+                (point-install! +1 -1)))
 
             (define (install-objects! t)
               (tree-fold (λ (offset o)

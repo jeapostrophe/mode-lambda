@@ -74,9 +74,10 @@
    [r _byte]         ;; 9
    [g _byte]         ;; 10
    [b _byte]         ;; 11
-   ;; These are shorts for padding
-   [horiz _short]    ;; 12
-   [vert _short]     ;; 13
+   [horiz _int8]     ;; 12
+   [vert _int8]      ;; 13
+   [xcoeff _int8]    ;; 14
+   [ycoeff _int8]    ;; 15
    ))
 
 (define (tree-for f t)

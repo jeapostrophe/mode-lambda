@@ -241,12 +241,14 @@
         '()
         (λ ()
           (list (star@ 0.0 0.0 255 255 255)
+                ;; the purple star in the upper left
                 (star@ (fl- (fl* 1.0 (fl/ (fx->fl W) 4.0)) (fl* 4.0 (fx->fl W)))
                        (fl* 1.0 (fl/ (fx->fl H) 4.0))
                        128 0 255)
                 (star@ (fl* 1.0 (fl/ (fx->fl W) 2.0))
                        (fl* 1.0 (fl/ (fx->fl H) 2.0))
                        255 0 255)
+                ;; the magenta star in the lower right
                 (star@ (fl+ (fl* 3.0 (fl/ (fx->fl W) 4.0)) (fl* 4.0 (fx->fl W)))
                        (fl* 3.0 (fl/ (fx->fl H) 4.0))
                        255 0 128)

@@ -14,6 +14,10 @@ out vec2 TexCoord;
 out float Palette;
 out float Layer;
 
+// xxx many things are flipped such that up is down and down is up
+// (the stars are in the wrong spot (red is on bottom) and the tiles
+// are messed up too.)
+
 void main(void)
 {
   @glsl-include["layer.glsl"]
@@ -40,21 +44,41 @@ void main(void)
 
   Color = vec4(r / 255.0, g / 255.0, b / 255.0, a);
 
-    mat4 Transform =
+  mat4 Transform =
       glScale(w * 0.5 * mx * Lmx, h * 0.5 * my * Lmy, 1.0 )
     * glRotate(theta, 0.0, 0.0, 1.0)
     * glTranslate(dx, dy, 0.0)
     // xxx These might be Lhw and Lhh
     * glTranslate(-1.0 * LogicalSize.x / 2.0, -1.0 * LogicalSize.y / 2.0, 0.0)
     * glRotate(Ltheta, 0.0, 0.0, 1.0)
-    * glTranslate(Lcx, Lcy, 0.0)
+    * glTranslate(Lcx, Lcy, 0.0);
+  
+  vec4 almostPosn =
+      vec4(horiz, vert, 0.0, 1.0)
+    * Transform;
+
+  if (xcoeff != 0) {
+    if (wrapxp == 1.0) {
+      //  in: x = W/4 - 4W, coeff = +1
+      almostPosn.x = almostPosn.x + float(xcoeff) * Lw;
+      // out: x = W/4 - 4W + 1W = W/4 - 3W
+    } else {
+      almostPosn.w = 0;
+    }
+  }
+  if (ycoeff != 0) {
+    if (wrapyp == 1.0) {
+      almostPosn.y = almostPosn.y + float(ycoeff) * Lh;
+    } else {
+      almostPosn.w = 0;
+    }
+  }
+
+  gl_Position =
+      almostPosn
     * glOrtho(0.0, LogicalSize.x,
               0.0, LogicalSize.y,
               1.0, -1.0);
-  
-  gl_Position =
-      vec4(horiz, vert, 0.0, 1.0)
-    * Transform;
   TexCoord =
     vec2(tx + ((horiz + 1.0)/+2.0) * w,
          ty + (( vert - 1.0)/-2.0) * h);

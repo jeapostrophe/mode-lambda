@@ -117,7 +117,7 @@
   (define VertexShaderId (glCreateShader GL_VERTEX_SHADER))
   (glShaderSource VertexShaderId 1 (vector VertexShader) (s32vector))
   (glCompileShader VertexShaderId)
-  (print-shader-log glGetShaderInfoLog 'VertexShader VertexShaderId)
+  (print-shader-log glGetShaderInfoLog ProgramId VertexShaderId)
   (glAttachShader ProgramId VertexShaderId))
 
 ;; COPIED FROM opengl/main
@@ -143,12 +143,13 @@
   (match _type
     [(== _float) "float"]
     [(or (== _byte) (== _ushort)) "uint"]
-    [(== _short) "int"]))
+    [(or (== _int8) (== _short)) "int"]))
 
 (define (ctype->gl-type _type)
   (match _type
     [(== _float) GL_FLOAT]
     [(== _byte) GL_UNSIGNED_BYTE]
+    [(== _int8) GL_BYTE]
     [(== _ushort) GL_UNSIGNED_SHORT]
     [(== _short) GL_SHORT]))
 
@@ -181,7 +182,7 @@
 
 (define (glLinkProgram&check ProgramId)
   (glLinkProgram ProgramId)
-  (print-shader-log glGetProgramInfoLog 'Program ProgramId))
+  (print-shader-log glGetProgramInfoLog ProgramId ProgramId))
 
 (define (make-target-texture width height)
   (define myTexture (glGen glGenTextures))

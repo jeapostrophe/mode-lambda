@@ -1,3 +1,15 @@
+float jmod(float a, float n) {
+  return a - (n * floor(a / n));
+}
+
+float wrap(float v, float c, float hrng) {
+  if (isinf(hrng)) {
+    return v;
+  } else {
+    return (c + ((jmod(v, (2.0 * hrng))) - hrng));
+  }
+}
+
 mat4 glScale( float mx, float my, float mz ) {
   return mat4(  mx, 0.0, 0.0, 0.0,
                0.0,  my, 0.0, 0.0,
