@@ -1,3 +1,10 @@
+mat4 glScale( float mx, float my, float mz ) {
+  return mat4(  mx, 0.0, 0.0, 0.0,
+               0.0,  my, 0.0, 0.0,
+               0.0, 0.0,  mz, 0.0,
+               0.0, 0.0, 0.0, 1.0 );
+}
+
 mat4 glOrtho( float left, float right, float bottom, float top, float nearVal, float farVal ) {
   float t_x = - (right + left) / (right - left);
   float t_y = - (top + bottom) / (top - bottom);

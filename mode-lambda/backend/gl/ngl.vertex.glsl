@@ -39,9 +39,9 @@ void main(void)
   float ty = in_TexCoord.w;
 
   Color = vec4(r / 255.0, g / 255.0, b / 255.0, a);
-  
-  gl_Position =
-      vec4(horiz * w * 0.5 * mx * Lmx, vert * h * 0.5 * my * Lmy, 0.0, 1.0)
+
+    mat4 Transform =
+      glScale(w * 0.5 * mx * Lmx, h * 0.5 * my * Lmy, 1.0 )
     * glRotate(theta, 0.0, 0.0, 1.0)
     * glTranslate(dx, dy, 0.0)
     // xxx These might be Lhw and Lhh
@@ -51,6 +51,10 @@ void main(void)
     * glOrtho(0.0, LogicalSize.x,
               0.0, LogicalSize.y,
               1.0, -1.0);
+  
+  gl_Position =
+      vec4(horiz, vert, 0.0, 1.0)
+    * Transform;
   TexCoord =
     vec2(tx + ((horiz + 1.0)/+2.0) * w,
          ty + (( vert - 1.0)/-2.0) * h);
