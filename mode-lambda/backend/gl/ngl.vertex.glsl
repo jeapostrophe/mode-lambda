@@ -14,9 +14,21 @@ out vec2 TexCoord;
 out float Palette;
 out float Layer;
 
-// xxx many things are flipped such that up is down and down is up
-// (the stars are in the wrong spot (red is on bottom) and the tiles
-// are messed up too.)
+// Real points: upper blue, right green, middle pink, left red, bottom
+// yellow, left lower corner white
+
+float compute_wrap(float x, int xcoeff, float Lw) {
+  return x + float(xcoeff) * Lw;
+
+  /*
+    float m = jmod(x, Lw);
+  if (m == x) {
+    return x + float(xcoeff) * Lw;
+  } else {
+    return m;
+  }
+  */
+}
 
 void main(void)
 {
@@ -59,16 +71,14 @@ void main(void)
 
   if (xcoeff != 0) {
     if (wrapxp == 1.0) {
-      //  in: x = W/4 - 4W, coeff = +1
-      almostPosn.x = almostPosn.x + float(xcoeff) * Lw;
-      // out: x = W/4 - 4W + 1W = W/4 - 3W
+      almostPosn.x = compute_wrap(almostPosn.x, xcoeff, Lw);
     } else {
       almostPosn.w = 0;
     }
   }
   if (ycoeff != 0) {
     if (wrapyp == 1.0) {
-      almostPosn.y = almostPosn.y + float(ycoeff) * Lh;
+      almostPosn.y = compute_wrap(almostPosn.y, ycoeff, Lh);
     } else {
       almostPosn.w = 0;
     }
@@ -78,10 +88,11 @@ void main(void)
       almostPosn
     * glOrtho(0.0, LogicalSize.x,
               0.0, LogicalSize.y,
-              1.0, -1.0);
+              1.0, -1.0)
+    * glScale(1.0, -1.0, 1.0);
   TexCoord =
     vec2(tx + ((horiz + 1.0)/+2.0) * w,
-         ty + (( vert - 1.0)/-2.0) * h);
+         ty + (( vert + 1.0)/+2.0) * h);
   Palette = pal;
   Layer = layer;
 }
