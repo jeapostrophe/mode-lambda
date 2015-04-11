@@ -102,7 +102,7 @@
   (define render (stage-draw/dc csd W H))
   (vector ns csd render))
 
-(define (go renderi mode)
+(define (go renderi mode spin?)
   (match-define (vector ns csd render) renderi)
   (define (random-vector-ref l)
     (vector-ref l (random (vector-length l))))
@@ -194,23 +194,30 @@
                (λ ()
                  '())
                (λ ()
+                 (define cur-theta
+                   (if spin?
+                       (fl* (fl/
+                             (fx->fl
+                              (fxmodulo (fxquotient
+                                         (current-milliseconds)
+                                         100)
+                                        360))
+                             360.0)
+                            (fl* 2.0 pi))
+                       0.0))
+                 (define center
+                   (+ (make-rectangular (fx->fl (/ W 2)) (fx->fl (/ H 2)))
+                      (make-polar (flmin (fl/ (fx->fl W) 4.0)
+                                         (fl/ (fx->fl H) 4.0))
+                                  cur-theta)))
                  (vector
-                  ;; xxx experiment with "driving" the background
-                  (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
+                  (layer (real-part center) (imag-part center)
                          #:mode7 2.0
                          #:horizon 0.0
                          #:fov (fl* 8.0 (fl/ (fx->fl W) (fx->fl H))))
                   #f #f #f
                   (layer (fx->fl (/ W 2)) (fl+ (fx->fl (/ H 2)) 25.0)
-                         #;#;
-                         #:theta (fl* (fl/
-                                       (fx->fl
-                                        (fxmodulo (fxquotient
-                                                   (current-milliseconds)
-                                                   10)
-                                                  360))
-                                       360.0)
-                                      (fl* 2.0 pi)))
+                         #:theta cur-theta)
                   #f #f
                   (layer (fx->fl (/ W 2)) (fx->fl (/ H 2))
                          #:mx 2.0 #:my 2.0))))]
@@ -258,7 +265,7 @@
     (render (lct) s (dt))))
 
 (struct one
-  (renderi mode rt)
+  (renderi mode rt spin?)
   #:methods gen:word
   [(define (word-fps w)
      60.0)
@@ -273,6 +280,11 @@
            (and (key-event? e)
                 (eq? 'escape (key-event-code e))))
        #f]
+      [(and (key-event? e)
+            (eq? #\s (key-event-code e)))
+       (update-rt
+        (struct-copy one w
+                     [spin? (not (one-spin? w))]))]
       [(key-event? e)
        (define old (one-mode w))
        (define new
@@ -297,13 +309,14 @@
 (define (update-rt w)
   (struct-copy one w
                [rt (go (one-renderi w)
-                       (one-mode w))]))
+                       (one-mode w)
+                       (one-spin? w))]))
 
 (module+ main
   (require racket/cmdline
            (prefix-in gl: mode-lambda/backend/gl)
            (prefix-in soft: mode-lambda/backend/software))
-  
+
   (define CONFIGS
     (hash "gl" (vector gl:gui-mode gl:stage-draw/dc)
           "soft" (vector soft:gui-mode soft:stage-draw/dc)))
@@ -325,7 +338,7 @@
   (current-pseudo-random-generator
    (vector->pseudo-random-generator
     (vector 0 0 1 0 0 1)))
-  
+
   (gl:gl-filter-mode the-mode)
 
   (match-define (vector gui-mode stage-draw/dc) (hash-ref CONFIGS the-config))
@@ -334,4 +347,5 @@
    (λ ()
      (fiat-lux (update-rt (one (prepare-renderi stage-draw/dc)
                                "blocks"
+                               #f
                                #f))))))
