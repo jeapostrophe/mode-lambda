@@ -177,7 +177,6 @@
                        (vector-ref block-styles block)
                        #:pal-idx (vector-ref color-schemes block))))))
 
-       ;; xxx these are very light in the GL version
        (define foreground-sprites
          (for*/list ([x (in-range (quotient W 8))]
                      [y (in-range (quotient H 8))])
@@ -186,7 +185,7 @@
              (sprite (fl+ 4.0 (fx->fl (fx* 8 x)))
                      (fl+ 4.0 (fx->fl (fx* 8 y)))
                      (vector-ref block-styles 1)
-                     #:a 0.25
+                     #:a 0.50
                      #:layer 7
                      #:pal-idx (palette-idx csd 'med0)))))
 

@@ -302,7 +302,7 @@
           (if (fx= 0 pal-idx)
               (pixel-ref atlas-bs atlas-size #f tx ty i)
               (pixel-ref pal-bs PALETTE-DEPTH #f
-                         (pixel-ref atlas-bs atlas-size #f tx ty 2)
+                         (/ (pixel-ref atlas-bs atlas-size #f tx ty 2) 14)
                          pal-idx
                          i))))
       (define-cr ca 0)
