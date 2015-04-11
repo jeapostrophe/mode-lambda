@@ -317,17 +317,21 @@
            (prefix-in soft: mode-lambda/backend/software))
 
   (define CONFIGS
-    (hash "gl" (vector gl:gui-mode gl:stage-draw/dc)
-          "soft" (vector soft:gui-mode soft:stage-draw/dc)))
-  (define the-mode 'std)
+    (hash "gl"
+          (vector gl:gui-mode gl:stage-draw/dc)
+          "soft"
+          (vector soft:gui-mode soft:stage-draw/dc)))
   (define the-config "gl")
 
   (command-line
    #:once-any
+   ["--save" sbp "Set save path for software"
+    (soft:software-bitmap-path sbp)]
+   #:once-any
    ["--std" "Use std gl filter"
-    (set! the-mode 'std)]
+    (gl:gl-filter-mode 'std)]
    ["--crt" "Use crt gl filter"
-    (set! the-mode 'crt)]
+    (gl:gl-filter-mode 'crt)]
    #:once-any
    ["--gl" "Use gl version"
     (set! the-config "gl")]
@@ -338,13 +342,11 @@
    (vector->pseudo-random-generator
     (vector 0 0 1 0 0 1)))
 
-  (gl:gl-filter-mode the-mode)
-
   (match-define (vector gui-mode stage-draw/dc) (hash-ref CONFIGS the-config))
   (call-with-chaos
    (make-gui #:mode gui-mode)
    (λ ()
      (fiat-lux (update-rt (one (prepare-renderi stage-draw/dc)
-                               "blocks"
+                               "wrapping" #;"blocks"
                                #f
                                #f))))))

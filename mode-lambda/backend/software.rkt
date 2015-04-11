@@ -430,6 +430,10 @@
     combined-bs))
 
 (require mode-lambda/backend/lib)
+
+(define software-bitmap-path 
+  (make-parameter #f))
+
 (define gui-mode 'draw)
 (define (stage-draw/dc csd width height)
   (define render (stage-render csd width height))
@@ -437,11 +441,14 @@
     (define sprite-tree (cons static-st dynamic-st))
     (define bs (render layer-config sprite-tree))
     (define bm (argb-bytes->bitmap width height bs))
+    (when (software-bitmap-path)
+      (save-bitmap! bm (software-bitmap-path)))
     (λ (w h dc)
       (draw-bitmap! w width h height bm dc))))
 
 (provide
  (contract-out
   [gui-mode symbol?]
+  [software-bitmap-path (parameter/c path-string?)]
   [stage-render (stage-backend/c render/c)]
   [stage-draw/dc (stage-backend/c draw/dc/c)]))

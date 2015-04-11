@@ -65,43 +65,6 @@
 (define (count-objects t)
   (tree-fold (λ (count o) (add1 count)) 0 t))
 
-(define (pair->fpair w h)
-  (f32vector (* 1.0 w) (* 1.0 h)))
-(define (set-uniform-fpair! program-id uniform-name the-fpair)
-  (glUniform2fv (glGetUniformLocation program-id uniform-name) 1 the-fpair))
-(struct scale-info (logical scale scaled texture screen))
-(define (set-uniform-scale-info! program-id si)
-  (match-define (scale-info logical scale scaled texture screen) si)
-  (set-uniform-fpair! program-id "LogicalSize" logical)
-  (glUniform1f (glGetUniformLocation program-id "Scale") scale)
-  (set-uniform-fpair! program-id "ScaledSize" scaled)
-  (set-uniform-fpair! program-id "TextureSize" texture)
-  (set-uniform-fpair! program-id "ScreenSize" screen))
-
-(define (set-viewport/fpair! the-fp)
-  (define width (inexact->exact (f32vector-ref the-fp 0)))
-  (define height (inexact->exact (f32vector-ref the-fp 1)))
-  (glViewport 0 0 width height))
-
-(struct delayed-fbo (tex-count [texs #:mutable] [fbo #:mutable]))
-(define (make-delayed-fbo tex-count)
-  (delayed-fbo tex-count #f #f))
-(define (initialize-dfbo! dfbo the-si)
-  (define the-fp (scale-info-texture the-si))
-  (define tex-width (inexact->exact (f32vector-ref the-fp 0)))
-  (define tex-height (inexact->exact (f32vector-ref the-fp 1)))
-  
-  (match-define (delayed-fbo tex-count texs fbo) dfbo)
-  (when fbo
-    (glDeleteFramebuffers 1 (u32vector fbo)))
-  (when texs
-    (glDeleteTextures (length texs) (list->u32vector texs)))
-  (define new-texs
-    (for/list ([i (in-range tex-count)])
-      (make-target-texture tex-width tex-height)))
-  (set-delayed-fbo-texs! dfbo new-texs)
-  (set-delayed-fbo-fbo! dfbo (make-fbo new-texs)))
-
 (define (make-draw csd width height screen-mode)
   (eprintf "You are using OpenGL ~a\n" (gl-version))
 
@@ -114,7 +77,6 @@
   (define update-layer-config!
     (let ()
       (define last-layer-config #f)
-
       (λ (layer-config)
         (unless (equal? layer-config last-layer-config)
           (set! last-layer-config layer-config)
@@ -124,6 +86,7 @@
 
   (define render-layers!
     (let ()
+      ;; xxx allow these to be updated
       (define SpriteAtlasId (make-2dtexture))
       (with-texture (GL_TEXTURE0 SpriteAtlasId)
         (load-texture/bytes atlas-size atlas-size atlas-bs))
