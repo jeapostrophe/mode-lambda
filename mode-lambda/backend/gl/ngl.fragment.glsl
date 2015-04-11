@@ -24,7 +24,7 @@ void main(void)
   if ( Palette == 0.0 ) {
     PixelColor = SpriteColor;
   } else {
-    float PaletteOffset = SpriteColor.g * 255;
+    float PaletteOffset = SpriteColor.g * 255.0 / 14.0;
     ivec2 PalCoord_uv = ivec2( PaletteOffset, Palette );
     PixelColor = texelFetch(PaletteAtlasTex, PalCoord_uv, 0 );
   }

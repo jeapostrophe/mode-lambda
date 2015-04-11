@@ -72,7 +72,6 @@
   (define ns
     (append
      (let ()
-       ;; xxx the block borders look wrong
        (add-palette!/file sd 'block-pal (build-path p "blocks" "pal.png"))
        (define (add! i)
          (define n (string->symbol (format "Block~a" i)))

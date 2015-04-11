@@ -124,7 +124,11 @@
                               spr (bytes->list from-sprite) pal
                               (map bytes->list (hash-keys lookup)))
                        0)))
-         (bytes-set! to-atlas o-green which)
+         (bytes-set! to-atlas o-green 
+                     ;; This used to just be WHICH, but it can't
+                     ;; because the numbers are too small to be
+                     ;; represented as floats.
+                     (* 14 which))
          (bytes-set! to-atlas o-blue
                      (inexact->exact (floor (* 255 (/ which PALETTE-DEPTH)))))
          (bytes-copy! atlas-bs
