@@ -161,7 +161,8 @@
 
       (define layer-dfbo (make-delayed-fbo LAYERS))
 
-      (define DrawnMult 6)
+      ;; Two triangles, three vertices per triangle
+      (define DrawnMult (* 2 3))
 
       (define (make-sprite-draw!)
         (define layer-vao (glGen glGenVertexArrays))

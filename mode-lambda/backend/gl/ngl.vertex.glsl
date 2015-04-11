@@ -23,6 +23,12 @@ void main(void)
   // bools. it's not normally possible to "discard" a vertex, but i
   // could set the alpha to 0 or i could set w to 0, so it is
   // projected out to infinity.
+  //
+  // Another way is to set the dimensions of wrapped layer textures to
+  // be different than everything else and wrapped...? But I don't
+  // think that will work because the stuff "offscreen" out of the
+  // view port will never be drawn so it won't even go into the
+  // texture to be repeated.
 
   vec4 in_TexCoord =
     texelFetch(SpriteIndexTex, ivec2(0, spr), 0);
