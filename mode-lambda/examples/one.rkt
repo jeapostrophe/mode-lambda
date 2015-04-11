@@ -202,6 +202,7 @@
                          #:fov (fl* 8.0 (fl/ (fx->fl W) (fx->fl H))))
                   #f #f #f
                   (layer (fx->fl (/ W 2)) (fl+ (fx->fl (/ H 2)) 25.0)
+                         #;#;
                          #:theta (fl* (fl/
                                        (fx->fl
                                         (fxmodulo (fxquotient
