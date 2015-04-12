@@ -249,6 +249,9 @@
 
         ;; I am nervous that this doesn't work for sprites that
         ;; are so big they will end up on both sides of the screen.
+        ;;
+        ;; xxx update this wrt the gl shader (provide less for
+        ;; wrapping sprites)
         (for* ([xs (in-list (list (vector #t (λ (x) 0.0))
                                   (vector wrap-x? measure-x)))]
                [ys (in-list (list (vector #t (λ (y) 0.0))

@@ -17,6 +17,9 @@
 
 (define (random-byte) (random 256))
 
+(define (flmod a n)
+   (fl- a (fl* n (flfloor (fl/ a n)))))
+
 (define-runtime-path here ".")
 
 (define (parse-blocks p)
@@ -242,14 +245,16 @@
         (λ ()
           (list (star@ 0.0 0.0 255 255 255)
                 ;; the purple star in the upper left
-                (star@ (fl- (fl* 1.0 (fl/ (fx->fl W) 4.0)) (fl* 4.0 (fx->fl W)))
+                (star@ (flmod (fl- (fl* 1.0 (fl/ (fx->fl W) 4.0)) (fl* 4.0 (fx->fl W)))
+                              (fx->fl W))
                        (fl* 1.0 (fl/ (fx->fl H) 4.0))
                        128 0 255)
                 (star@ (fl* 1.0 (fl/ (fx->fl W) 2.0))
                        (fl* 1.0 (fl/ (fx->fl H) 2.0))
                        255 0 255)
                 ;; the magenta star in the lower right
-                (star@ (fl+ (fl* 3.0 (fl/ (fx->fl W) 4.0)) (fl* 4.0 (fx->fl W)))
+                (star@ (flmod (fl+ (fl* 3.0 (fl/ (fx->fl W) 4.0)) (fl* 4.0 (fx->fl W)))
+                              (fx->fl W))
                        (fl* 3.0 (fl/ (fx->fl H) 4.0))
                        255 0 128)
                 (star@ 0.0 (fl* (fl/ 1.0 4.0) (fx->fl H)) 255 0 0)

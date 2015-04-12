@@ -14,37 +14,13 @@ out vec2 TexCoord;
 out float Palette;
 out float Layer;
 
-// Real points: upper blue, right green, middle pink, left red, bottom
-// yellow, left lower corner white
-
 float compute_wrap(float x, int xcoeff, float Lw) {
   return x + float(xcoeff) * Lw;
-
-  /*
-    float m = jmod(x, Lw);
-  if (m == x) {
-    return x + float(xcoeff) * Lw;
-  } else {
-    return m;
-  }
-  */
 }
 
 void main(void)
 {
   @glsl-include["layer.glsl"]
-  // xxx use wrapxp and wrapyp -- the software renderer uses these to
-  // decide whether to mess with the points. i really need to generate
-  // 4 times more vertices and add two more parameters that are
-  // bools. it's not normally possible to "discard" a vertex, but i
-  // could set the alpha to 0 or i could set w to 0, so it is
-  // projected out to infinity.
-  //
-  // Another way is to set the dimensions of wrapped layer textures to
-  // be different than everything else and wrapped...? But I don't
-  // think that will work because the stuff "offscreen" out of the
-  // view port will never be drawn so it won't even go into the
-  // texture to be repeated.
 
   vec4 in_TexCoord =
     texelFetch(SpriteIndexTex, ivec2(0, spr), 0);
