@@ -1,7 +1,8 @@
 #lang racket/base
 (require ffi/cvector
          ffi/unsafe/cvector
-         ffi/vector
+         (only-in ffi/vector
+                  list->s32vector)
          mode-lambda/backend/gl/util
          mode-lambda/backend/lib
          mode-lambda/core
@@ -11,11 +12,14 @@
          web-server/templates
          opengl
          scheme/nest
+         racket/require
+         (for-syntax racket/base)
+         (filtered-in
+          (λ (name) (regexp-replace #rx"unsafe-" name ""))
+          racket/unsafe/ops)
          (only-in ffi/unsafe
                   ctype-sizeof
                   _float))
-
-;; xxx use more unsafe and specialized math?
 
 (define-syntax-rule (glsl-include p) (include-template p))
 
@@ -65,7 +69,7 @@
   index-bin)
 
 (define (count-objects t)
-  (tree-fold (λ (count o) (add1 count)) 0 t))
+  (tree-fold (λ (count o) (fx+ 1 count)) 0 t))
 
 (define (make-draw csd width height screen-mode)
   (eprintf "You are using OpenGL ~a\n" (gl-version))
@@ -149,8 +153,8 @@
                     (set-sprite-data-ycoeff! o yc)
                     (set-sprite-data-horiz! o Horiz)
                     (set-sprite-data-vert! o Vert)
-                    (cvector-set! SpriteData (+ (* i DrawnMult) which) o)
-                    (set! which (+ 1 which))))                
+                    (cvector-set! SpriteData (fx+ (fx* i DrawnMult) which) o)
+                    (set! which (fx+ 1 which))))                
                 (point-install! -1 +1)
                 (point-install! +1 +1)
                 (point-install! -1 -1)
@@ -161,7 +165,7 @@
             (define (install-objects! t)
               (tree-fold (λ (offset o)
                            (install-object! offset o)
-                           (add1 offset))
+                           (fx+ 1 offset))
                          0 t))
 
             (define SpriteData-count 0)
@@ -231,7 +235,7 @@
           (nest
            ([with-vertexarray (layer-vao)]
             [with-vertex-attributes ((length _sprite-data:info))])
-           (glDrawArrays GL_TRIANGLES 0 (* DrawnMult obj-count)))))
+           (glDrawArrays GL_TRIANGLES 0 (fx* DrawnMult obj-count)))))
 
       (define draw-static! (make-sprite-draw!))
       (define draw-dynamic! (make-sprite-draw!))
