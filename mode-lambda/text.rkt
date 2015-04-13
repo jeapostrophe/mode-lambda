@@ -20,7 +20,8 @@
       (add-sprite!/value sd char-id char-v)
       (values c char-id)))
   (*ml-font char->char-id))
-;; xxx this could be a lot more complicated, with colors and stuff
+
+;; MAYBE this could be a lot more complicated, with colors and stuff
 ;; like that.
 (define (make-text-renderer f csd)
   (match-define (*ml-font char->char-id) f)

@@ -1,6 +1,4 @@
-mode-lambda - sprite-based 2D graphics engine (wip)
-
-XXX make chaos/gui/mode-lambda
+mode-lambda - sprite-based 2D graphics engine
 
 MAYBE:
 - parents for localized rotation? (skeletal animation)
