@@ -241,6 +241,9 @@
 (provide
  (contract-out
   [GRAY color?]
+  [argb
+   (-> byte? byte? byte? byte?
+       color?)]
   [color?
    (-> any/c
        boolean?)]

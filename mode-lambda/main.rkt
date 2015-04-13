@@ -251,6 +251,8 @@
 
 (provide
  (contract-out
+  [PALETTE-DEPTH
+   exact-nonnegative-integer?]
   [default-layer-config
     vector?]
   [make-sprite-db

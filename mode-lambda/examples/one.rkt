@@ -381,7 +381,6 @@
    (define (word-tick w)
      w)])
 
-
 (define (update-rt w)
   (struct-copy one w
                [rt (go (one-renderi w)
