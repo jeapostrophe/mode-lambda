@@ -1,11 +1,12 @@
 mode-lambda - sprite-based 2D graphics engine (wip)
 
 XXX add text rendering
-XXX add something like pict-finders
-XXX change screen effect (crt/flat) interface
-XXX ensure that layers can be used effectively for minimap
-XXX make animated gif creator
 XXX make chaos/gui/mode-lambda
-XXX rotation about a different origin
-XXX parents for localized rotation? (skeletal animation)
 XXX trim/reposition inside a sprite (could be used for "blowing up" something?)
+
+MAYBE:
+- parents for localized rotation? (skeletal animation)
+- rotation about a different origin
+- make animated gif creator (add screenshots to GL)
+- ensure that layers can be used effectively for minimap
+- add something like pict-finders

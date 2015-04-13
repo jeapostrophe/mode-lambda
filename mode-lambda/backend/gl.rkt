@@ -130,7 +130,8 @@
 
       (define layer-dfbo (make-delayed-fbo LAYERS))
 
-      ;; Three axis-coefficients, Two axes, Two triangles, three vertices per triangle
+      ;; Three axis-coefficients ^ Two axes * Two triangles * three
+      ;; vertices per triangle
       (define DrawnMult (* (expt 3 2) 2 3))
 
       (define (make-sprite-draw!)
@@ -147,14 +148,13 @@
               (define which 0)
               (for* ([xc (in-range -1 +2)]
                      [yc (in-range -1 +2)])
-                (define-syntax-rule (point-install! Horiz Vert)
-                  (begin
-                    (set-sprite-data-xcoeff! o xc)
-                    (set-sprite-data-ycoeff! o yc)
-                    (set-sprite-data-horiz! o Horiz)
-                    (set-sprite-data-vert! o Vert)
-                    (cvector-set! SpriteData (fx+ (fx* i DrawnMult) which) o)
-                    (set! which (fx+ 1 which))))                
+                (define (point-install! Horiz Vert)
+                  (set-sprite-data-xcoeff! o xc)
+                  (set-sprite-data-ycoeff! o yc)
+                  (set-sprite-data-horiz! o Horiz)
+                  (set-sprite-data-vert! o Vert)
+                  (cvector-set! SpriteData (fx+ (fx* i DrawnMult) which) o)
+                  (set! which (fx+ 1 which)))                
                 (point-install! -1 +1)
                 (point-install! +1 +1)
                 (point-install! -1 -1)

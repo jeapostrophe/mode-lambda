@@ -1,6 +1,8 @@
 #lang racket/base
 (require racket/runtime-path
          racket/match
+         racket/class
+         racket/draw
          racket/flonum
          racket/fixnum
          racket/math
@@ -18,7 +20,7 @@
 (define (random-byte) (random 256))
 
 (define (flmod a n)
-   (fl- a (fl* n (flfloor (fl/ a n)))))
+  (fl- a (fl* n (flfloor (fl/ a n)))))
 
 (define-runtime-path here ".")
 
@@ -47,6 +49,61 @@
 (set! W (* GB-SNES-SCALE 16))
 (set! H (* GB-SNES-SCALE 9))
 (define cw-slots (* 3 7))
+
+;; Fonts & Text Rendering
+(struct *ml-font (char->char-id))
+(define *ALL-ASCII*
+  (for/fold ([l '()]) ([i (in-range 256)])
+    (define c (integer->char i))
+    (if (or (char=? #\space c) (char-graphic? c))
+        (cons c l)
+        l)))
+(define (load-font!/font% sd f-id f%
+                          #:alphabet [alphabet *ALL-ASCII*])
+  (local-require (prefix-in pict: pict))
+  (define char->char-id
+    (for/hasheq ([c (in-list alphabet)])
+      (define ci (char->integer c))
+      (define char-id (string->symbol (format "font:~a:~v" f-id ci)))
+      (define char-v (pict:text (string c) f%))
+      (add-sprite!/value sd char-id char-v)
+      (values c char-id)))
+  (*ml-font char->char-id))
+;; xxx this could be a lot more complicated, with colors and stuff
+;; like that.
+(define (make-text-renderer f csd)
+  (match-define (*ml-font char->char-id) f)
+  (λ (text tx ty
+           #:layer [layer 0]
+           #:r [r 0]
+           #:g [g 0]
+           #:b [b 0]
+           #:a [a 1.0])
+    (define idxs
+      (for/list ([c (in-string text)])
+        (define ci (hash-ref char->char-id c))
+        (define idx (sprite-idx csd ci))
+        (printf "~v -> ~v -> ~v\n" c ci idx)
+        idx))
+    (define-values (width height)
+      (for/fold ([w 0] [h 0]) ([i (in-list idxs)])
+        (values (+ w (sprite-width csd i))
+                (max h (sprite-height csd i)))))
+    (define sx (- tx (/ width 2.0)))
+    (define y (+ ty (/ height 2.0)))
+    (printf "~v\n" (vector width height sx y))
+    (define-values (lx st)
+      (for/fold ([sx sx] [st #f])
+                ([i (in-list idxs)])
+        (define w (sprite-width csd i))
+        (define x (+ sx (/ w 2.0)))
+        (values (+ sx w)
+                (cons (sprite x y i
+                              #:layer layer
+                              #:r r #:g g #:b b #:a a)
+                      st))))
+    (printf "~v ~v\n" lx st)
+    st))
 
 (define (prepare-renderi stage-draw/dc)
   (define p (build-path here "edb"))
@@ -98,15 +155,18 @@
        (add-sprite!/file sd n (build-path sprs f))
        n)))
 
+  (define the-font
+    (load-font!/font% sd 'the-font (make-object font% 12.0 'roman)))
+
   (define original-csd (compile-sprite-db sd))
   (define csd-p (build-path here "csd"))
   (save-csd! original-csd csd-p)
   (define csd (load-csd csd-p))
   (define render (stage-draw/dc csd W H))
-  (vector ns csd render))
+  (vector ns csd render (make-text-renderer the-font csd)))
 
 (define (go renderi mode spin?)
-  (match-define (vector ns csd render) renderi)
+  (match-define (vector ns csd render the-font) renderi)
   (define (random-vector-ref l)
     (vector-ref l (random (vector-length l))))
   (define (random-list-ref l)
@@ -235,6 +295,15 @@
                          #:hw (fl/ (fx->fl W) 8.0) #:hh (fl/ (fx->fl H) 8.0)
                          #:mx 0.5 #:my 0.5)
                   #f #f #f #f #f #f #f)))]
+      ["text"
+       (values
+        (the-font "Hello World!"
+                  #:r 255 #:g 255 #:b 255
+                  (fx->fl (/ W 2)) (fx->fl (/ H 2)))
+        (λ ()
+          '())
+        (λ ()
+          default-layer-config))]
       ["wrapping"
        (define (star@ x y r g b)
          (sprite x y (sprite-idx csd 'star)
@@ -282,32 +351,33 @@
    (define (word-event w e)
      (define closed? #f)
      (cond
-      [(or (eq? e 'close)
-           (and (key-event? e)
-                (eq? 'escape (key-event-code e))))
-       #f]
-      [(and (key-event? e)
-            (eq? #\s (key-event-code e)))
-       (update-rt
-        (struct-copy one w
-                     [spin? (not (one-spin? w))]))]
-      [(key-event? e)
-       (define old (one-mode w))
-       (define new
-         (match (key-event-code e)
-           [#\r "rand"]
-           [#\g "grid"]
-           [#\b "blocks"]
-           [#\t "tile"]
-           [#\w "wrapping"]
-           [_ old]))
-       (if (equal? old new)
-           w
-           (update-rt
-            (struct-copy one w
-                         [mode new])))]
-      [else
-       w]))
+       [(or (eq? e 'close)
+            (and (key-event? e)
+                 (eq? 'escape (key-event-code e))))
+        #f]
+       [(and (key-event? e)
+             (eq? #\s (key-event-code e)))
+        (update-rt
+         (struct-copy one w
+                      [spin? (not (one-spin? w))]))]
+       [(key-event? e)
+        (define old (one-mode w))
+        (define new
+          (match (key-event-code e)
+            [#\r "rand"]
+            [#\g "grid"]
+            [#\b "blocks"]
+            [#\t "tile"]
+            [#\w "wrapping"]
+            [#\x "text"]
+            [_ old]))
+        (if (equal? old new)
+            w
+            (update-rt
+             (struct-copy one w
+                          [mode new])))]
+       [else
+        w]))
    (define (word-tick w)
      w)])
 
@@ -354,6 +424,6 @@
    (make-gui #:mode gui-mode)
    (λ ()
      (fiat-lux (update-rt (one (prepare-renderi stage-draw/dc)
-                               "wrapping" #;"blocks"
+                               "text" #;"blocks"
                                #f
                                #f))))))

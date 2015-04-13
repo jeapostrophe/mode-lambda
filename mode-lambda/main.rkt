@@ -146,6 +146,15 @@
 (define (palette-idx csd pal)
   (hash-ref (compiled-sprite-db-pal->idx csd) pal #f))
 
+(define (sprite-width csd idx)
+  (match-define (vector w h tx ty)
+    (vector-ref (compiled-sprite-db-idx->w*h*tx*ty csd) idx))
+  w)
+(define (sprite-height csd idx)
+  (match-define (vector w h tx ty)
+    (vector-ref (compiled-sprite-db-idx->w*h*tx*ty csd) idx))
+  h)
+
 (define (write-png-bytes! bs w h p)
   (local-require racket/draw
                  racket/class)
@@ -242,6 +251,8 @@
 
 (provide
  (contract-out
+  [default-layer-config
+    vector?]
   [make-sprite-db
    (-> sprite-db?)]
   [sprite-db?
@@ -293,6 +304,12 @@
   [palette-idx
    (-> compiled-sprite-db? symbol?
        (or/c #f ushort?))]
+  [sprite-width
+   (-> compiled-sprite-db? ushort?
+       ushort?)]
+  [sprite-height
+   (-> compiled-sprite-db? ushort?
+       ushort?)]
   [sprite
    (->* (flonum? flonum? ushort?)
         (#:layer

@@ -29,6 +29,8 @@
 
 (define default-layer
   (make-layer-data 0.0 0.0 0.0 0.0 1.0 1.0 0.0 0.0 0.0 1.0 #f #f))
+(define default-layer-config
+  (make-vector LAYERS #f))
 
 ;; Mode7 Docs:
 ;; - http://www.coranac.com/tonc/text/mode7.htm
