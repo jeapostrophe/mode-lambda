@@ -241,6 +241,9 @@
 (provide
  (contract-out
   [GRAY color?]
+  [TRANSPARENT color?]
+  [BLACK color?]
+  [WHITE color?]
   [argb
    (-> byte? byte? byte? byte?
        color?)]
@@ -250,11 +253,32 @@
   [color->palette
    (-> color?
        (listof color?))]
+  [color->tint
+   (-> color? exact-nonnegative-integer?
+       (listof color?))]
+  [color->shades
+   (-> color? exact-nonnegative-integer?
+       (listof color?))]
   [color-wheel
    (->* (exact-nonnegative-integer?)
         (#:s (real-in 0.0 1.0)
-             #:b (real-in 0.0 1.0))
+         #:b (real-in 0.0 1.0))
         (listof color?))]
+  [complement-idxs
+   (-> exact-nonnegative-integer?
+       (listof (vector/c exact-nonnegative-integer? exact-nonnegative-integer?)))]
+  [analogous-idxs
+   (-> exact-nonnegative-integer?
+       (listof (vector/c exact-nonnegative-integer? exact-nonnegative-integer?
+                         exact-nonnegative-integer?)))]
+  [triadic-idxs
+   (-> exact-nonnegative-integer?
+       (listof (vector/c exact-nonnegative-integer? exact-nonnegative-integer?
+                         exact-nonnegative-integer?)))]
+  [split-complementary-idxs
+   (-> exact-nonnegative-integer?
+       (listof (vector/c exact-nonnegative-integer? exact-nonnegative-integer?
+                         exact-nonnegative-integer?)))]
   [tetradic-idxs
    (-> exact-nonnegative-integer?
        (listof (vector/c exact-nonnegative-integer? exact-nonnegative-integer?
