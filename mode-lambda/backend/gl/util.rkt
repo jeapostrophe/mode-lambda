@@ -139,6 +139,18 @@
       (bytes-set! pixels (+ 3 offset) alpha))))
 ;; </COPIED>
 
+(define (rgba->argb! pixels)
+  (for ((i (in-range (/ (bytes-length pixels) 4))))
+    (let* ((offset (* 4 i))
+           (  red (bytes-ref pixels (+ 0 offset)))
+           (green (bytes-ref pixels (+ 1 offset)))
+           ( blue (bytes-ref pixels (+ 2 offset)))
+           (alpha (bytes-ref pixels (+ 3 offset))))
+      (bytes-set! pixels (+ 0 offset) alpha)
+      (bytes-set! pixels (+ 1 offset) red)
+      (bytes-set! pixels (+ 2 offset) green)
+      (bytes-set! pixels (+ 3 offset) blue))))
+
 (define (ctype->glsl-type _type)
   (match _type
     [(== _float) "float"]

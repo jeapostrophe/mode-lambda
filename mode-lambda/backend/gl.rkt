@@ -74,6 +74,8 @@
 (define (make-draw csd width height screen-mode)
   (eprintf "You are using OpenGL ~a\n" (gl-version))
 
+  (define shot-dir (gl-screenshot-dir))
+
   (match-define
    (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
                        pal-size pal-bs pal->idx)
@@ -361,12 +363,31 @@
       (define TextureSize (pair->fpair tex-width tex-height))
       (define ScreenSize (pair->fpair screen-width screen-height))
       (set! the-scale-info
-            (scale-info LogicalSize scale ScaledSize TextureSize ScreenSize)))
+            (scale-info LogicalSize scale ScaledSize TextureSize ScreenSize))
+      (printf "~v\n" (vector (vector width height) scale (vector sca-width sca-height)
+                             (vector tex-width tex-height)
+                             (vector screen-width screen-height))))
     (update-layer-config! layer-config)
     (define LayerTargets
       (render-layers! update-scale? the-scale-info static-st dynamic-st))
     (define combine-tex
       (combine-layers! update-scale? the-scale-info LayerTargets))
+    (when shot-dir
+      (local-require ffi/vector
+                     racket/file)
+      (define the-fp (scale-info-texture the-scale-info))
+      (define w (inexact->exact (f32vector-ref the-fp 0)))
+      (define h (inexact->exact (f32vector-ref the-fp 1)))
+      (define bs (make-bytes (* 4 w h)))
+      (make-directory* shot-dir)
+      (for ([i (in-naturals)]
+            [t (in-list (cons combine-tex LayerTargets))])
+        (with-texture (GL_TEXTURE0 t)
+          (glGetTexImage GL_TEXTURE_2D 0 GL_RGBA GL_UNSIGNED_BYTE bs))
+        (rgba->argb! bs)
+        (define p (build-path shot-dir (format "~a.png" i)))
+        (define bm (argb-bytes->bitmap w h bs))
+        (save-bitmap! bm p)))
     (draw-screen! update-scale? the-scale-info combine-tex)))
 
 (define (stage-draw/dc csd width height)
@@ -385,10 +406,12 @@
               (send glctx swap-buffers))))))
 
 (define gl-filter-mode (make-parameter 'std))
+(define gl-screenshot-dir (make-parameter #f))
 
 (define gui-mode 'gl-core)
 (provide
  (contract-out
   [gl-filter-mode (parameter/c symbol?)]
+  [gl-screenshot-dir (parameter/c path-string?)]
   [gui-mode symbol?]
   [stage-draw/dc (stage-backend/c draw/dc/c)]))
