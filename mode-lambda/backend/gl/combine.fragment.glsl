@@ -2,12 +2,12 @@
 @glsl-include["lib.glsl"]
 
 uniform sampler2D LayerTargets[@LAYERS];
+uniform sampler2D LayerConfigTex;
 uniform float Scale;
 uniform vec2 LogicalSize;
+uniform vec2 TextureSize;
 
-in vec2 texCoord;
-flat in vec4 L_CY_HH_CX_HW[@LAYERS];
-flat in vec3 L_M7_H_F[@LAYERS];
+in vec2 iTexCoord;
 
 out vec4 oFragColor;
 
@@ -26,36 +26,31 @@ float compute_e(float ax, float hwidth, float fov, float pz, float Lcx, float Lh
     return -1.0;
   } else {
     float wx = wrap(rx, Lcx, Lhw);
-    float ix = round(wx);
-    return ix;
+    //float ix = round(wx);
+    return wx;
   }
 }
 
 void main() {
-  float ax = texCoord.x;
-  float ay = texCoord.y;
-  
   float height = LogicalSize.y;
   float hheight = height / 2.0;
   float width = LogicalSize.x;
   float hwidth = width / 2.0;
 
+  float ax = iTexCoord.x * width;
+  float ay = height - iTexCoord.y * height;
+
   vec4 fin_Color = vec4(0.0, 0.0, 0.0, 1.0);
   for (int layer = 0 ; layer < @LAYERS ; layer++) {
-    float Lcy = L_CY_HH_CX_HW[layer].x;
-    float Lhh = L_CY_HH_CX_HW[layer].y;
-    float Lcx = L_CY_HH_CX_HW[layer].z;
-    float Lhw = L_CY_HH_CX_HW[layer].w;
-    float mode7coeff = L_M7_H_F[layer].x;
-    float horizon = L_M7_H_F[layer].y;
-    float fov = L_M7_H_F[layer].z;
-    
+    @glsl-include["layer.glsl"]
     float ay_horiz = horizon - ay;
     float pz = compute_pz(mode7coeff, ay_horiz);
     float ey = compute_e(ay, hheight, fov, pz, Lcy, Lhh);
     float ex = compute_e(ax, hwidth, fov, pz, Lcx, Lhw);
-    vec4 lay_Color = ctexture(LayerTargets[layer],
-                              Scale * vec2(ex, (abs(ey - height))));
+    vec4 lay_Color =
+      texture(LayerTargets[layer],
+              vec2((2.0 * (Scale * ex) + 1.0) / (2.0 * TextureSize.x),
+                   (2.0 * (Scale * abs(ey - height) + 1.0)) / (2.0 * TextureSize.y)));
     if ((! (pz <= 0.0))
         && (0.0 <= ey && ey <= height)
         && (0.0 <= ex && ex <= width)) {

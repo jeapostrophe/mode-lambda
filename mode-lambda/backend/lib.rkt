@@ -34,8 +34,8 @@
 
 (define (compute-nice-scale w W h H)
   (* 1.0
-     (min (quotient* w W)
-          (quotient* h H))))
+     (min (quotient w W)
+          (quotient h H))))
 
 (define (draw-bitmap! w W h H bm dc)
   (send dc set-background "black")
