@@ -19,7 +19,7 @@ in float Layer;
 void main(void)
 {
   vec4 PixelColor;
-  vec4 SpriteColor = ctexture(SpriteAtlasTex, TexCoord);
+  vec4 SpriteColor = texture(SpriteAtlasTex, TexCoord);
 
   if ( Palette == 0.0 ) {
     PixelColor = SpriteColor;

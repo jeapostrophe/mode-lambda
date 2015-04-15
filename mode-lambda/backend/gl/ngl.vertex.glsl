@@ -1,6 +1,7 @@
 #version 410
 @glsl-include["lib.glsl"]
 
+uniform sampler2D SpriteAtlasTex; 
 uniform sampler2D SpriteIndexTex;
 
 @cstruct-info->glsl-in[_sprite-data:info]
@@ -66,9 +67,13 @@ void main(void)
               0.0, LogicalSize.y,
               1.0, -1.0)
     * glScale(1.0, -1.0, 1.0);
+
+  ivec2 atlasSize = textureSize(SpriteAtlasTex, 0);
+  
   TexCoord =
     vec2(tx + ((horiz + 1.0)/+2.0) * w,
-         ty + (( vert + 1.0)/+2.0) * h);
+         ty + (( vert + 1.0)/+2.0) * h)
+    / float(atlasSize.x);
   Palette = pal;
   Layer = layer;
 }
