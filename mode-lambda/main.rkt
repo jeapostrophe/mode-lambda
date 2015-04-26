@@ -251,6 +251,8 @@
 
 (provide
  (contract-out
+  [LAYERS
+   exact-nonnegative-integer?]
   [PALETTE-DEPTH
    exact-nonnegative-integer?]
   [default-layer-config

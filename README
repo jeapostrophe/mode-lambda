@@ -9,3 +9,8 @@ MAYBE:
 - ensure that layers can be used effectively for minimap
 - add something like pict-finders
 - trim/reposition inside a sprite (could be used for "blowing up" something?)
+- make effects compatible with retroarch (or just get a much better crt effect)
+- support full retina resolution: https://developer.apple.com/library/mac/documentation/GraphicsAnimation/Conceptual/HighResolutionOSX/CapturingScreenContents/CapturingScreenContents.html#//apple_ref/doc/uid/TP40012302-CH10-SW33 [or not because we just scale anyways]
+
+- better crt?
+http://gamasutra.com/blogs/KylePittman/20150420/241442/CRT_Simulation_in_Super_Win_the_Game.php?utm_source=feedburner&utm_medium=feed&utm_campaign=Feed%3A+GamasutraFeatureArticles+%28Gamasutra+Feature+Articles%29
