@@ -1,7 +1,7 @@
 mode-lambda - sprite-based 2D graphics engine
 
 xxx write docs
-xxx get-bonus is MUCH slower
+xxx get-bonus is MUCH slower in full-screen
 
 MAYBE:
 - parents for localized rotation? (skeletal animation)

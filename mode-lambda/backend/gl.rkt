@@ -130,7 +130,9 @@
         (glUniform1i (glGetUniformLocation layer-program "LayerConfigTex")
                      (gl-texture-index GL_TEXTURE3)))
 
-      (define layer-dfbo (make-delayed-fbo LAYERS))
+      (define layer-dfbos
+        (for/list ([i (in-range 2)])
+          (make-delayed-fbo LAYERS)))
 
       ;; Three axis-coefficients ^ Two axes * Two triangles * three
       ;; vertices per triangle
@@ -204,8 +206,7 @@
                        (* SpriteData-count
                           DrawnMult)))
 
-                (printf "install ")
-                (time (install-objects! objects))
+                (install-objects! objects)
                 (glUnmapBuffer GL_ARRAY_BUFFER))
               early-count)))
 
@@ -233,10 +234,17 @@
 
       (define draw-static! (make-sprite-draw!))
       (define draw-dynamic! (make-sprite-draw!))
+      (define front? #f)
 
       (λ (update-scale? the-scale-info static-st dynamic-st)
         (when update-scale?
-          (initialize-dfbo! layer-dfbo the-scale-info))
+          (for ([layer-dfbo (in-list layer-dfbos)])
+            (initialize-dfbo! layer-dfbo the-scale-info)))
+
+        (define layer-dfbo
+          (list-ref layer-dfbos
+                    (if front? 0 1)))
+        (set! front? (not front?))
 
         (nest
          ([with-framebuffer ((delayed-fbo-fbo layer-dfbo))]
@@ -280,11 +288,19 @@
 
       (define combine-vao (glGen glGenVertexArrays))
 
-      (define combine-dfbo (make-delayed-fbo 1))
+      (define combine-dfbos
+        (for/list ([i (in-range 2)])
+          (make-delayed-fbo 1)))
+      (define front? #f)
 
       (λ (update-scale? the-scale-info LayerTargets)
         (when update-scale?
-          (initialize-dfbo! combine-dfbo the-scale-info))
+          (for ([combine-dfbo (in-list combine-dfbos)])
+            (initialize-dfbo! combine-dfbo the-scale-info)))
+
+        (define combine-dfbo
+          (list-ref combine-dfbos (if front? 0 1)))
+        (set! front? (not front?))
 
         (nest
          ([with-framebuffer ((delayed-fbo-fbo combine-dfbo))]
