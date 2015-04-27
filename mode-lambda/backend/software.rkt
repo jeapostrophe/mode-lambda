@@ -159,8 +159,10 @@
     ;; create more vertex data: 4 wraps * 2 triangles * 3 verts * 1
     ;; sprite
     (define (geometry-shader s)
+      (local-require ffi/cvector)
       (match-define (sprite-data dx dy mx my theta a.0 spr-idx pal-idx layer 
-                                 r g b _ _ _ _) s)
+                                 r g b _ _ _ _)
+        (cvector-ref s 0))
       (match-define (layer-data Lcx Lcy Lhw Lhh Lmx Lmy Ltheta
                                 _ _ _ wrap-x? wrap-y?)
                     (or (vector-ref layer-config layer)

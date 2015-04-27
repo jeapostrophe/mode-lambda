@@ -149,38 +149,9 @@
             (local-require ffi/unsafe)
             (define which 0)
 
-            (define-syntax-rule (static-for [id (val ...)] body)
-              (begin (let ([id val]) body) ...))
-            
-            (define-syntax-rule (point-install! (which ...) o)
-              (begin
-                ;; (cvector-set! SpriteData which o)
-                ;; This is 5 ms faster:
-                (memcpy SpriteData-ptr which o 1 _sprite-data)
-                ...))
-
             (define (install-object! o)
-              ;; We need to start and end on -1
-              (set-sprite-data-horiz! o -1)
-              (static-for
-               [xc (-1 0 +1)]
-               (begin (set-sprite-data-xcoeff! o xc)
-                      (static-for
-                       [yc (-1 0 +1)]
-                       (begin (set-sprite-data-ycoeff! o yc)
-                              ;; -1 +1
-                              (set-sprite-data-vert! o +1)
-                              (point-install! ((fx+ which 0)) o)
-                              ;; +1 +1
-                              (set-sprite-data-horiz! o +1)
-                              (point-install! ((fx+ which 1) (fx+ which 4)) o)
-                              ;; +1 -1
-                              (set-sprite-data-vert! o -1)
-                              (point-install! ((fx+ which 5)) o)
-                              ;; -1 -1
-                              (set-sprite-data-horiz! o -1)
-                              (point-install! ((fx+ which 2) (fx+ which 3)) o)
-                              (set! which (fx+ 6 which)))))))
+              (memcpy SpriteData-ptr which (cvector-ptr o) DrawnMult _sprite-data)
+              (set! which (fx+ which DrawnMult)))
 
             (define (install-objects! t)
               (set! which 0)

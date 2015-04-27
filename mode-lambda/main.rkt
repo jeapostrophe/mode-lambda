@@ -124,7 +124,7 @@
                               spr (bytes->list from-sprite) pal
                               (map bytes->list (hash-keys lookup)))
                        0)))
-         (bytes-set! to-atlas o-green 
+         (bytes-set! to-atlas o-green
                      ;; This used to just be WHICH, but it can't
                      ;; because the numbers are too small to be
                      ;; represented as floats.
@@ -178,9 +178,9 @@
   (write v write-v)
   (close-output-port write-v)
   (call-with-output-file
-      p #:exists 'replace
-      (λ (write-v-bs/gz)
-        (gzip-through-ports read-v-bs write-v-bs/gz #f (current-seconds)))))
+    p #:exists 'replace
+    (λ (write-v-bs/gz)
+      (gzip-through-ports read-v-bs write-v-bs/gz #f (current-seconds)))))
 (define (file->value/gunzip p)
   (define-values (read-v write-v-bs) (make-pipe))
   (call-with-input-file p
@@ -193,9 +193,9 @@
   (local-require racket/file)
   (make-directory* p)
   (match-define
-   (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
-                       pal-size pal-bs pal->idx)
-   csd)
+    (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
+                        pal-size pal-bs pal->idx)
+    csd)
   (write-png-bytes! atlas-bs atlas-size atlas-size (build-path p "sprites.png"))
   (write-png-bytes! pal-bs PALETTE-DEPTH pal-size (build-path p "palettes.png"))
   (write-to-file/gzip
@@ -207,7 +207,7 @@
   (define-values (atlas-size _atlas-size atlas-bs)
     (read-img-bytes (build-path p "sprites.png")))
   (match-define (vector spr->idx idx->w*h*tx*ty pal->idx)
-                (file->value/gunzip (build-path p "csd.rktd.gz")))
+    (file->value/gunzip (build-path p "csd.rktd.gz")))
   (define-values (_pal-depth pal-size pal-bs)
     (read-img-bytes (build-path p "palettes.png")))
   (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
@@ -223,7 +223,47 @@
                 #:mx [mx 1.0]
                 #:my [my 1.0]
                 #:theta [theta 0.0])
-  (make-sprite-data dx dy mx my theta a spr-idx pal-idx layer r g b 0 0 0 0))
+  ;; HACK This is a ridiculous hack to make the GL renderer
+  ;; faster. The GL renderer has to make a bunch of different versions
+  ;; of the same sprite-data object. I used to have the one produced
+  ;; here and then perform a bunch of modifications to get it into the
+  ;; right shape and then install that in. This took about 25ms. I
+  ;; found some optimizations that got it down to about 5-7ms. Doing
+  ;; this, drops it down to about 0ms. SO, worth it!
+  (local-require ffi/unsafe
+                 racket/fixnum
+                 ffi/cvector)
+  (define v (make-cvector _sprite-data (* (expt 3 2) 2 3)))
+  (define o
+    (make-sprite-data dx dy mx my theta a spr-idx pal-idx layer r g b 0 0 0 0))
+  (define which 0)
+  (define-syntax-rule (point-install! (which ...) o)
+    (begin (memcpy (cvector-ptr v) which o 1 _sprite-data)
+           ...))
+  (define-syntax-rule (static-for [id (val ...)] body)
+    (begin (let ([id val]) body) ...))
+  ;; We need to start and end on -1
+  (set-sprite-data-horiz! o -1)
+  (static-for
+   [xc (-1 0 +1)]
+   (begin (set-sprite-data-xcoeff! o xc)
+          (static-for
+           [yc (-1 0 +1)]
+           (begin (set-sprite-data-ycoeff! o yc)
+                  ;; -1 +1
+                  (set-sprite-data-vert! o +1)
+                  (point-install! ((fx+ which 0)) o)
+                  ;; +1 +1
+                  (set-sprite-data-horiz! o +1)
+                  (point-install! ((fx+ which 1) (fx+ which 4)) o)
+                  ;; +1 -1
+                  (set-sprite-data-vert! o -1)
+                  (point-install! ((fx+ which 5)) o)
+                  ;; -1 -1
+                  (set-sprite-data-horiz! o -1)
+                  (point-install! ((fx+ which 2) (fx+ which 3)) o)
+                  (set! which (fx+ 6 which))))))
+  v)
 
 (define (layer cx cy
                #:hw [hw +inf.0]
@@ -322,10 +362,10 @@
          #:pal-idx ushort?
          #:mx flonum? #:my flonum?
          #:theta flonum?)
-        sprite-data?)]
+        any/c)]
   [layer
    (->* (flonum? flonum?)
-        (#:hw 
+        (#:hw
          flonum?
          #:hh flonum?
          #:wrap-x? boolean?
