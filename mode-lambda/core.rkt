@@ -64,22 +64,22 @@
 
 (define-cstruct&list 
   _sprite-data _sprite-data:info
-  ([dx _float]       ;; 0
-   [dy _float]       ;; 1
-   [mx _float]       ;; 2
-   [my _float]       ;; 3
-   [theta _float]    ;; 4
-   [a _float]        ;; 5
-   [spr _ushort]     ;; 6
-   [pal _ushort]     ;; 7
-   [layer _byte]     ;; 8
-   [r _byte]         ;; 9
-   [g _byte]         ;; 10
-   [b _byte]         ;; 11
-   [horiz _int8]     ;; 12
-   [vert _int8]      ;; 13
-   [xcoeff _int8]    ;; 14
-   [ycoeff _int8]    ;; 15
+  ([dx _float]       ;; 0            0
+   [dy _float]       ;; 1            4
+   [mx _float]       ;; 2            8
+   [my _float]       ;; 3           12
+   [theta _float]    ;; 4           16
+   [a _float]        ;; 5           20
+   [spr _ushort]     ;; 6           24
+   [pal _ushort]     ;; 7           26
+   [layer _byte]     ;; 8           28
+   [r _byte]         ;; 9           29
+   [g _byte]         ;; 10          30
+   [b _byte]         ;; 11          31
+   [horiz _int8]     ;; 12          32
+   [vert _int8]      ;; 13          33
+   [xcoeff _int8]    ;; 14          34
+   [ycoeff _int8]    ;; 15          35
    ))
 
 (define (tree-for f t)

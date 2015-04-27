@@ -32,9 +32,9 @@
   (for ([i (in-naturals)]
         [lc (in-vector layer-config)])
     (match-define
-     (layer-data Lcx Lcy Lhw Lhh Lmx Lmy Ltheta
-                 mode7-coeff horizon fov wrap-x? wrap-y?)
-     (or lc default-layer))
+      (layer-data Lcx Lcy Lhw Lhh Lmx Lmy Ltheta
+                  mode7-coeff horizon fov wrap-x? wrap-y?)
+      (or lc default-layer))
     (for ([o (in-naturals)]
           [v (in-list (list Lcx Lcy Lhw Lhh Lmx Lmy Ltheta
                             mode7-coeff horizon fov
@@ -77,9 +77,9 @@
   (define shot-dir (gl-screenshot-dir))
 
   (match-define
-   (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
-                       pal-size pal-bs pal->idx)
-   csd)
+    (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
+                        pal-size pal-bs pal->idx)
+    csd)
 
   (define LayerConfigId (make-2dtexture))
   (define update-layer-config!
@@ -148,27 +148,36 @@
           (let ()
             (local-require ffi/unsafe)
             (define which 0)
-            (define-syntax-rule (point-install! (which ...) xc yc o Horiz Vert)
+            (define-syntax-rule (point-install! (which ...) o)
               (begin
-                (set-sprite-data-xcoeff! o xc)
-                (set-sprite-data-ycoeff! o yc)
-                (set-sprite-data-horiz! o Horiz)
-                (set-sprite-data-vert! o Vert)
                 ;; (cvector-set! SpriteData which o)
                 ;; This is 5 ms faster:
                 (memcpy SpriteData-ptr which o 1 _sprite-data)
                 ...))
-            
+
             (define (install-object! o)
+              ;; We need to start and end on -1
+              (set-sprite-data-horiz! o -1)
               (set! which
-                    (for*/fold ([which which])
-                               ([xc (in-range -1 +2)]
-                                [yc (in-range -1 +2)])
-                      (point-install! ((fx+ which 0)) xc yc o -1 +1)
-                      (point-install! ((fx+ which 1) (fx+ which 4)) xc yc o +1 +1)
-                      (point-install! ((fx+ which 2) (fx+ which 3)) xc yc o -1 -1)
-                      (point-install! ((fx+ which 5)) xc yc o +1 -1)
-                      (fx+ 6 which))))
+                    (for/fold ([which which])
+                              ([xc (in-range -1 +2)])
+                      (set-sprite-data-xcoeff! o xc)
+                      (for/fold ([which which])
+                                ([yc (in-range -1 +2)])
+                        (set-sprite-data-ycoeff! o yc)
+                        ;; -1 +1
+                        (set-sprite-data-vert! o +1)
+                        (point-install! ((fx+ which 0)) o)
+                        ;; +1 +1
+                        (set-sprite-data-horiz! o +1)
+                        (point-install! ((fx+ which 1) (fx+ which 4)) o)
+                        ;; +1 -1
+                        (set-sprite-data-vert! o -1)
+                        (point-install! ((fx+ which 5)) o)
+                        ;; -1 -1
+                        (set-sprite-data-horiz! o -1)
+                        (point-install! ((fx+ which 2) (fx+ which 3)) o)
+                        (fx+ 6 which)))))
 
             (define (install-objects! t)
               (set! which 0)
@@ -232,14 +241,14 @@
             (define last-count 0)
             (λ (objects)
               (cond
-               [(eq? last-objects objects)
-                last-count]
-               [else
-                (set! last-objects objects)
-                (define early-count
-                  (actual-update! objects))
-                (set! last-count early-count)
-                early-count]))))
+                [(eq? last-objects objects)
+                 last-count]
+                [else
+                 (set! last-objects objects)
+                 (define early-count
+                   (actual-update! objects))
+                 (set! last-count early-count)
+                 early-count]))))
 
         (λ (objects)
           (define obj-count (update! objects))
@@ -360,7 +369,7 @@
     (define scale
       (compute-nice-scale screen-width width screen-height height))
     (define update-scale?
-      (not (and the-scale-info 
+      (not (and the-scale-info
                 (= (scale-info-scale the-scale-info)
                    scale))))
     (when update-scale?
