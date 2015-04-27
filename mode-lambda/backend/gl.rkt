@@ -146,33 +146,38 @@
 
         (define actual-update!
           (let ()
-            (define (install-object! i o)
-              (define which 0)
-              (for* ([xc (in-range -1 +2)]
-                     [yc (in-range -1 +2)])
-                (define (point-install! Horiz Vert)
-                  (set-sprite-data-xcoeff! o xc)
-                  (set-sprite-data-ycoeff! o yc)
-                  (set-sprite-data-horiz! o Horiz)
-                  (set-sprite-data-vert! o Vert)
-                  (cvector-set! SpriteData (fx+ (fx* i DrawnMult) which) o)
-                  (set! which (fx+ 1 which)))                
-                (point-install! -1 +1)
-                (point-install! +1 +1)
-                (point-install! -1 -1)
-                (point-install! -1 -1)
-                (point-install! +1 +1)
-                (point-install! +1 -1)))
+            (local-require ffi/unsafe)
+            (define which 0)
+            (define-syntax-rule (point-install! (which ...) xc yc o Horiz Vert)
+              (begin
+                (set-sprite-data-xcoeff! o xc)
+                (set-sprite-data-ycoeff! o yc)
+                (set-sprite-data-horiz! o Horiz)
+                (set-sprite-data-vert! o Vert)
+                ;; (cvector-set! SpriteData which o)
+                ;; This is 5 ms faster:
+                (memcpy SpriteData-ptr which o 1 _sprite-data)
+                ...))
+            
+            (define (install-object! o)
+              (set! which
+                    (for*/fold ([which which])
+                               ([xc (in-range -1 +2)]
+                                [yc (in-range -1 +2)])
+                      (point-install! ((fx+ which 0)) xc yc o -1 +1)
+                      (point-install! ((fx+ which 1) (fx+ which 4)) xc yc o +1 +1)
+                      (point-install! ((fx+ which 2) (fx+ which 3)) xc yc o -1 -1)
+                      (point-install! ((fx+ which 5)) xc yc o +1 -1)
+                      (fx+ 6 which))))
 
             (define (install-objects! t)
-              (tree-fold (λ (offset o)
-                           (install-object! offset o)
-                           (fx+ 1 offset))
-                         0 t))
+              (set! which 0)
+              (tree-for install-object! t))
 
             (define SpriteData-count 0)
             (define *initialize-count* (* 2 512))
             (define SpriteData #f)
+            (define SpriteData-ptr #f)
 
             (λ (objects)
               (define early-count (count-objects objects))
@@ -189,32 +194,35 @@
                                 #f
                                 GL_STREAM_DRAW))
 
+                (set! SpriteData-ptr
+                      (glMapBufferRange
+                       GL_ARRAY_BUFFER
+                       0
+                       (* SpriteData-count
+                          DrawnMult
+                          (ctype-sizeof _sprite-data))
+                       (bitwise-ior
+                        ;; We are overriding everything (this would be wrong if
+                        ;; we did the caching "optimization" I imagine)
+                        GL_MAP_INVALIDATE_RANGE_BIT
+                        GL_MAP_INVALIDATE_BUFFER_BIT
+
+                        ;; We are not doing complex queues, so don't block other
+                        ;; operations (but it doesn't seem to improve performance
+                        ;; by having this option)
+                        ;; GL_MAP_UNSYNCHRONIZED_BIT
+
+                        ;; We are writing
+                        GL_MAP_WRITE_BIT)))
                 (set! SpriteData
                       (make-cvector*
-                       (glMapBufferRange
-                        GL_ARRAY_BUFFER
-                        0
-                        (* SpriteData-count
-                           DrawnMult
-                           (ctype-sizeof _sprite-data))
-                        (bitwise-ior
-                         ;; We are overriding everything (this would be wrong if
-                         ;; we did the caching "optimization" I imagine)
-                         GL_MAP_INVALIDATE_RANGE_BIT
-                         GL_MAP_INVALIDATE_BUFFER_BIT
-
-                         ;; We are not doing complex queues, so don't block other
-                         ;; operations (but it doesn't seem to improve performance
-                         ;; by having this option)
-                         ;; GL_MAP_UNSYNCHRONIZED_BIT
-
-                         ;; We are writing
-                         GL_MAP_WRITE_BIT))
+                       SpriteData-ptr
                        _sprite-data
                        (* SpriteData-count
                           DrawnMult)))
 
-                (install-objects! objects)
+                (printf "install ")
+                (time (install-objects! objects))
                 (glUnmapBuffer GL_ARRAY_BUFFER))
               early-count)))
 
@@ -228,7 +236,8 @@
                 last-count]
                [else
                 (set! last-objects objects)
-                (define early-count (actual-update! objects))
+                (define early-count
+                  (actual-update! objects))
                 (set! last-count early-count)
                 early-count]))))
 
