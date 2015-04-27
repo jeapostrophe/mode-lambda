@@ -148,6 +148,10 @@
           (let ()
             (local-require ffi/unsafe)
             (define which 0)
+
+            (define-syntax-rule (static-for [id (val ...)] body)
+              (begin (let ([id val]) body) ...))
+            
             (define-syntax-rule (point-install! (which ...) o)
               (begin
                 ;; (cvector-set! SpriteData which o)
@@ -158,26 +162,25 @@
             (define (install-object! o)
               ;; We need to start and end on -1
               (set-sprite-data-horiz! o -1)
-              (set! which
-                    (for/fold ([which which])
-                              ([xc (in-range -1 +2)])
-                      (set-sprite-data-xcoeff! o xc)
-                      (for/fold ([which which])
-                                ([yc (in-range -1 +2)])
-                        (set-sprite-data-ycoeff! o yc)
-                        ;; -1 +1
-                        (set-sprite-data-vert! o +1)
-                        (point-install! ((fx+ which 0)) o)
-                        ;; +1 +1
-                        (set-sprite-data-horiz! o +1)
-                        (point-install! ((fx+ which 1) (fx+ which 4)) o)
-                        ;; +1 -1
-                        (set-sprite-data-vert! o -1)
-                        (point-install! ((fx+ which 5)) o)
-                        ;; -1 -1
-                        (set-sprite-data-horiz! o -1)
-                        (point-install! ((fx+ which 2) (fx+ which 3)) o)
-                        (fx+ 6 which)))))
+              (static-for
+               [xc (-1 0 +1)]
+               (begin (set-sprite-data-xcoeff! o xc)
+                      (static-for
+                       [yc (-1 0 +1)]
+                       (begin (set-sprite-data-ycoeff! o yc)
+                              ;; -1 +1
+                              (set-sprite-data-vert! o +1)
+                              (point-install! ((fx+ which 0)) o)
+                              ;; +1 +1
+                              (set-sprite-data-horiz! o +1)
+                              (point-install! ((fx+ which 1) (fx+ which 4)) o)
+                              ;; +1 -1
+                              (set-sprite-data-vert! o -1)
+                              (point-install! ((fx+ which 5)) o)
+                              ;; -1 -1
+                              (set-sprite-data-horiz! o -1)
+                              (point-install! ((fx+ which 2) (fx+ which 3)) o)
+                              (set! which (fx+ 6 which)))))))
 
             (define (install-objects! t)
               (set! which 0)
