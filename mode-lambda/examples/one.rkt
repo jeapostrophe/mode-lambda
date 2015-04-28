@@ -102,7 +102,7 @@
        n)))
 
   (define the-font
-    (load-font!/font% sd 'the-font (make-object font% 20.0 "Triplicate T4c" 'modern)))
+    (load-font!/font% sd 'the-font (make-object font% 12.0 "Triplicate T4c" 'modern)))
 
   (define original-csd (compile-sprite-db sd))
   (define csd-p (build-path here "csd"))
