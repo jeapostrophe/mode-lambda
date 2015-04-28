@@ -102,7 +102,7 @@
        n)))
 
   (define the-font
-    (load-font!/font% sd 'the-font (make-object font% 12.0 "Triplicate T4c" 'modern)))
+    (load-font!/font% sd 'the-font (make-object font% 14.0 "Triplicate T4c" 'modern)))
 
   (define original-csd (compile-sprite-db sd))
   (define csd-p (build-path here "csd"))
@@ -247,8 +247,8 @@
       ["text"
        (define (mlist-ref l x)
          (list-ref l (modulo x (length l))))
-       (define ROWS 10)
-       (define COLS 20)
+       (define ROWS 20)
+       (define COLS 30)
        (values
         (for*/list ([x (in-range COLS)]
                     [y (in-range ROWS)])
