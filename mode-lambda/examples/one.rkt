@@ -102,7 +102,7 @@
        n)))
 
   (define the-font
-    (load-font!/font% sd 'the-font (make-object font% 12.0 'modern)))
+    (load-font!/font% sd 'the-font (make-object font% 20.0 "Triplicate T4c" 'modern)))
 
   (define original-csd (compile-sprite-db sd))
   (define csd-p (build-path here "csd"))
@@ -245,11 +245,18 @@
                          #:mx 0.5 #:my 0.5)
                   #f #f #f #f #f #f #f)))]
       ["text"
+       (define (mlist-ref l x)
+         (list-ref l (modulo x (length l))))
+       (define ROWS 10)
+       (define COLS 20)
        (values
-        (the-font "Hello World!"
-                  #:r 255 #:g 255 #:b 255
-                  #:mx 5.0 #:my 5.0
-                  (fx->fl (/ W 2)) (fx->fl (/ H 2)))
+        (for*/list ([x (in-range COLS)]
+                    [y (in-range ROWS)])
+          (define c (mlist-ref *ALL-ASCII* (+ (* y COLS) x)))
+          (the-font (string c)
+                    #:r 255 #:g 255 #:b 255
+                    (fl* (fl+ 0.5 (fx->fl x)) (fl/ (fx->fl W) (fx->fl COLS)))
+                    (fl* (fl+ 0.5 (fx->fl y)) (fl/ (fx->fl H) (fx->fl ROWS)))))
         (λ ()
           '())
         (λ ()

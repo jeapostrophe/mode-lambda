@@ -57,5 +57,6 @@
                       st))))
     st))
 
-(provide load-font!/font%
+(provide *ALL-ASCII*
+         load-font!/font%
          make-text-renderer)
