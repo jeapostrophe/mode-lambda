@@ -121,20 +121,23 @@
     (random-list-ref ns))
   (define (random-spr-idx)
     (sprite-idx csd (random-spr)))
+  (define (random-sprite)
+    (sprite (* W (random)) (* H (random))
+            #:r (random-byte) #:g (random-byte) #:b (random-byte)
+            #:a (+ 0.5 (* 0.5 (random)))
+            (random-spr-idx)
+            #:mx (* (random) 2) #:my (* (random) 2)
+            #:theta (* (random) 2 pi)))
   (define-values
     (s dt lct)
     (match mode
       ["rand"
        (values
-        '()
+        (for/list ([i (in-range W)])
+          (random-sprite))
         (λ ()
-          (for/list ([i (in-range (* 2 W))])
-            (sprite (* W (random)) (* H (random))
-                    #:r (random-byte) #:g (random-byte) #:b (random-byte)
-                    #:a (+ 0.5 (* 0.5 (random)))
-                    (random-spr-idx)
-                    #:mx (* (random) 2) #:my (* (random) 2)
-                    #:theta (* (random) 2 pi))))
+          (for/list ([i (in-range W)])
+            (random-sprite)))
         (λ ()
           (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)))
                   #f #f #f #f #f #f #f)))]
