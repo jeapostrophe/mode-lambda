@@ -14,9 +14,8 @@
          scheme/nest
          racket/require
          (for-syntax racket/base)
-         (filtered-in
-          (λ (name) (regexp-replace #rx"unsafe-" name ""))
-          racket/unsafe/ops)
+         racket/flonum
+         racket/fixnum
          (only-in ffi/unsafe
                   ctype-sizeof
                   _float))
@@ -71,7 +70,9 @@
 (define (count-objects t)
   (tree-fold (λ (count o) (fx+ 1 count)) 0 t))
 
-(define (make-draw csd width height screen-mode)
+(define (make-draw csd width.fx height.fx screen-mode)
+  (define width (fx->fl width.fx))
+  (define height (fx->fl height.fx))
   (eprintf "You are using OpenGL ~a\n" (gl-version))
 
   (define shot-dir (gl-screenshot-dir))
@@ -136,7 +137,7 @@
 
       ;; Three axis-coefficients ^ Two axes * Two triangles * three
       ;; vertices per triangle
-      (define DrawnMult (* (expt 3 2) 2 3))
+      (define DrawnMult (fx* (fx* 3 3) (fx* 2 3)))
 
       (define (make-sprite-draw!)
         (define layer-vao (glGen glGenVertexArrays))
@@ -160,18 +161,18 @@
               (tree-for install-object! t))
 
             (define SpriteData-count 0)
-            (define *initialize-count* (* 2 512))
+            (define *initialize-count* (fx* 2 512))
             (define SpriteData #f)
             (define SpriteData-ptr #f)
 
             (λ (objects)
               (define early-count (count-objects objects))
-              (define SpriteData-count:new (max *initialize-count* early-count))
+              (define SpriteData-count:new (fxmax *initialize-count* early-count))
               (with-arraybuffer (layer-vbo)
                 (unless (>= SpriteData-count SpriteData-count:new)
                   (set! SpriteData-count
-                        (max (* 2 SpriteData-count)
-                             SpriteData-count:new))
+                        (fxmax (fx* 2 SpriteData-count)
+                               SpriteData-count:new))
                   (glBufferData GL_ARRAY_BUFFER
                                 (* SpriteData-count
                                    DrawnMult
@@ -183,9 +184,9 @@
                       (glMapBufferRange
                        GL_ARRAY_BUFFER
                        0
-                       (* SpriteData-count
-                          DrawnMult
-                          (ctype-sizeof _sprite-data))
+                       (fx* SpriteData-count
+                            (fx* DrawnMult
+                                 (ctype-sizeof _sprite-data)))
                        (bitwise-ior
                         ;; We are overriding everything (this would be wrong if
                         ;; we did the caching "optimization" I imagine)
@@ -203,8 +204,8 @@
                       (make-cvector*
                        SpriteData-ptr
                        _sprite-data
-                       (* SpriteData-count
-                          DrawnMult)))
+                       (fx* SpriteData-count
+                            DrawnMult)))
 
                 (install-objects! objects)
                 (glUnmapBuffer GL_ARRAY_BUFFER))
@@ -284,7 +285,7 @@
                       LAYERS
                       (list->s32vector
                        (for/list ([i (in-range LAYERS)])
-                         (+ 1 i)))))
+                         (fx+ 1 i)))))
 
       (define combine-vao (glGen glGenVertexArrays))
 
@@ -355,19 +356,21 @@
   (define LogicalSize (pair->fpair width height))
 
   (define the-scale-info #f)
-  (λ (screen-width screen-height layer-config static-st dynamic-st)
+  (λ (screen-width.fx screen-height.fx layer-config static-st dynamic-st)
+    (define screen-width (fx->fl screen-width.fx))
+    (define screen-height (fx->fl screen-height.fx))
     (define scale
-      (compute-nice-scale screen-width width screen-height height))
+      (compute-nice-scale screen-width.fx width.fx screen-height.fx height.fx))
     (define update-scale?
       (not (and the-scale-info
-                (= (scale-info-scale the-scale-info)
-                   scale))))
+                (fl= (scale-info-scale the-scale-info)
+                     scale))))
     (when update-scale?
-      (define sca-width (* scale width))
-      (define sca-height (* scale height))
+      (define sca-width (fl* scale width))
+      (define sca-height (fl* scale height))
       (define ScaledSize (pair->fpair sca-width sca-height))
-      (define tex-width (inexact->exact (ceiling sca-width)))
-      (define tex-height (inexact->exact (ceiling sca-height)))
+      (define tex-width (flceiling sca-width))
+      (define tex-height (flceiling sca-height))
       (define TextureSize (pair->fpair tex-width tex-height))
       (define ScreenSize (pair->fpair screen-width screen-height))
       (set! the-scale-info
@@ -384,9 +387,9 @@
       (local-require ffi/vector
                      racket/file)
       (define the-fp (scale-info-texture the-scale-info))
-      (define w (inexact->exact (f32vector-ref the-fp 0)))
-      (define h (inexact->exact (f32vector-ref the-fp 1)))
-      (define bs (make-bytes (* 4 w h)))
+      (define w (fl->fx (f32vector-ref the-fp 0)))
+      (define h (fl->fx (f32vector-ref the-fp 1)))
+      (define bs (make-bytes (fx* 4 (fx* w h))))
       (make-directory* shot-dir)
       (for ([i (in-naturals)]
             [t (in-list (cons combine-tex LayerTargets))])

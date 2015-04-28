@@ -1,6 +1,8 @@
 #lang racket/base
 (require mode-lambda/core
          racket/draw
+         racket/fixnum
+         racket/flonum
          racket/contract/base
          racket/class)
 
@@ -20,22 +22,22 @@
   (define-values (q r) (quotient/remainder x y))
   (define (recur r i max-i)
     (cond
-     [(= i max-i)
-      0]
-     [else
-      (define d (expt 2 (* -1 i)))
-      (define dy (* d y))
-      (cond
-       [(> dy r)
-        (recur r (add1 i) max-i)]
-       [else
-        (+ d (recur (- r dy) (add1 i) max-i))])]))
+      [(= i max-i)
+       0]
+      [else
+       (define d (expt 2 (* -1 i)))
+       (define dy (* d y))
+       (cond
+         [(> dy r)
+          (recur r (add1 i) max-i)]
+         [else
+          (+ d (recur (- r dy) (add1 i) max-i))])]))
   (+ q (recur r 1 5)))
 
 (define (compute-nice-scale w W h H)
-  (* 1.0
-     (min (quotient w W)
-          (quotient h H))))
+  (fx->fl
+   (fxmin (fxquotient w W)
+          (fxquotient h H))))
 
 (define (draw-bitmap! w W h H bm dc)
   (send dc set-background "black")

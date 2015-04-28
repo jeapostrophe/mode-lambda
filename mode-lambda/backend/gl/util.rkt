@@ -220,7 +220,7 @@
   (expt 2 (integer-length (inexact->exact (ceiling x)))))
 
 (define (pair->fpair w h)
-  (f32vector (* 1.0 w) (* 1.0 h)))
+  (f32vector w h))
 (define (set-uniform-fpair! program-id uniform-name the-fpair)
   (glUniform2fv (glGetUniformLocation program-id uniform-name) 1 the-fpair))
 (struct scale-info (logical scale scaled texture screen))

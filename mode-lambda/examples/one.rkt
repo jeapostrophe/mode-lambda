@@ -374,6 +374,6 @@
    (make-gui #:mode gui-mode)
    (λ ()
      (fiat-lux (update-rt (one (prepare-renderi stage-draw/dc)
-                               "rand" #;"blocks"
+                               "text" #;"blocks"
                                #f
                                #f))))))
