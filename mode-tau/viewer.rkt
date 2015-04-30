@@ -33,9 +33,8 @@
   (define gdb (make-glyph-db))
   (define the-font
     (load-font! gdb
-                #:size 24.0
+                #:size 13.0
                 #:face "Triplicate T4c"
-                #:smoothing 'smoothed
                 #:family 'modern))
   (define cgdb (compile-glyph-db gdb))
 
@@ -44,6 +43,7 @@
   (define font-height (glyph-height cgdb a-char))
   (define render (stage-render cgdb))
   (render
+   255 255 255
    (for/list ([line (in-list (string-split s "\n"))]
               [row (in-naturals)])
      (for/list ([char (in-string line)]
@@ -51,8 +51,7 @@
        (glyph (fl* (fl+ 0.5 (fx->fl col)) font-width)
               (fl* (fl+ 0.5 (fx->fl row)) font-height)
               (font-glyph-idx the-font cgdb char)
-              #:fgr 255 #:fgg   0 #:fgb 0
-              #:bgr   0 #:bgg 255 #:bgb 0)))))
+              #:fgr 0 #:fgg   0 #:fgb 0)))))
 
 (module+ main
   (call-with-chaos

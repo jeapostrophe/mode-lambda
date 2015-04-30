@@ -22,7 +22,6 @@
   (compile-sprite-db sd))
 (define (font-glyph-idx the-font cgdb char)
   (font-char-idx the-font cgdb char))
-;; xxx fl?
 (define (glyph-width sd ci)
   (fx->fl (sprite-width sd ci)))
 (define (glyph-height sd ci)
@@ -57,7 +56,7 @@
                ;; xxx add COLOR arg
                #:fgr [fgr 0] #:fgb [fgb 0] #:fgg [fgg 0]
                ;; xxx add COLOR arg
-               #:bgr [bgr 0] #:bgb [bgb 0] #:bgg [bgg 0])
+               #:bgr [bgr 255] #:bgb [bgb 255] #:bgg [bgg 255])
   ;; FIXME figure out how to abstract this hack from mode-lambda/main
   (define v (make-cvector _glyph-data VertsPerGlyph))
   (define o (make-glyph-data dx dy glyph-idx fgr fgg fgb bgr bgg bgb -1 +1))
@@ -123,17 +122,19 @@
   (define update!
     (make-update-vbo-buffer-with-objects! VertsPerGlyph _glyph-data tau-vbo))
 
-  (λ (w h glyphs)
+  (λ (w h bgr bgg bgb glyphs)
     (define obj-count (update! glyphs))
     (nest
      ([with-texture (GL_TEXTURE0 SpriteAtlasId)]
       [with-texture (GL_TEXTURE1 SpriteIndexId)]
       [with-program (tau-program)])
-     ;; xxx add background color config
-     (glClearColor 0.0 0.0 0.0 0.0)
+     (glClearColor (fl/ (fx->fl bgr) 255.0)
+                   (fl/ (fx->fl bgg) 255.0)
+                   (fl/ (fx->fl bgb) 255.0) 1.0)
      (glClear GL_COLOR_BUFFER_BIT)
      (glViewport 0 0 w h)
-     (set-uniform-fpair! tau-program "Viewport" (pair->fpair (fx->fl w) (fx->fl h)))
+     (set-uniform-fpair! tau-program "Viewport"
+                         (pair->fpair (fx->fl w) (fx->fl h)))
      (nest
       ([with-vertexarray (tau-vao)]
        [with-vertex-attributes ((length _glyph-data:info))])
@@ -143,7 +144,7 @@
   stage-render
   make-render
   (gdb) ()
-  (glyphs))
+  (bgr bgg bgb glyphs))
 
 (provide stage-render
          glyph

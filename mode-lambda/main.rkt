@@ -12,7 +12,10 @@
 (define (in->bm in)
   (local-require racket/draw
                  racket/class)
-  (define bm (read-bitmap in))
+  (define bm
+    (if (or (path-string? in) (input-port? in))
+        (read-bitmap in)
+        in))
   (define w (send bm get-width))
   (define h (send bm get-height))
   (define bs (make-bytes (* w h 4)))
@@ -307,7 +310,12 @@
    (-> sprite-db? (-> sprite-attributes?)
        void?)]
   [add-sprite!/bm
-   (->* (sprite-db? symbol? (-> (or path-string? input-port?)))
+   (->* (sprite-db? symbol?
+                    (-> (or/c path-string? input-port?
+                              (let ()
+                                (local-require racket/class
+                                               racket/gui/base)
+                                (is-a?/c bitmap%)))))
         (#:palette (or/c #f symbol?))
         void?)]
   [add-sprite!/file
