@@ -11,6 +11,7 @@
          (only-in (combine-in racket/fixnum
                               racket/flonum)
                   flvector)
+         "../util.rkt"
          racket/match
          racket/math
          racket/performance-hint

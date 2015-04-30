@@ -6,6 +6,7 @@
          mode-lambda/backend/gl/util
          mode-lambda/backend/lib
          mode-lambda/core
+         mode-lambda/sprite-index
          racket/contract
          racket/list
          racket/match
@@ -19,8 +20,6 @@
          (only-in ffi/unsafe
                   ctype-sizeof
                   _float))
-
-(define-syntax-rule (glsl-include p) (include-template p))
 
 (define FULLSCREEN_VERTS 6)
 
@@ -45,30 +44,6 @@
        (+ (* LAYER-VALUES lc-bytes-per-value i)
           (* lc-bytes-per-value o)))))
   lc-bs)
-
-(define INDEX-VALUES 4)
-(define (sprite-index->bytes idx->w*h*tx*ty)
-  (define sprite-index-count
-    (vector-length idx->w*h*tx*ty))
-  (define index-bytes-per-value (ctype-sizeof _float))
-  (define index-bin
-    (make-bytes (* INDEX-VALUES index-bytes-per-value
-                   sprite-index-count)))
-  (for ([vec (in-vector idx->w*h*tx*ty)]
-        [i (in-naturals)])
-    (for ([v (in-vector vec)]
-          [o (in-naturals)])
-      (real->floating-point-bytes
-       v index-bytes-per-value
-       (system-big-endian?) index-bin
-       (+ (* INDEX-VALUES
-             index-bytes-per-value
-             i)
-          (* index-bytes-per-value o)))))
-  index-bin)
-
-(define (count-objects t)
-  (tree-fold (λ (count o) (fx+ 1 count)) 0 t))
 
 (define (make-draw csd width.fx height.fx screen-mode)
   (define width (fx->fl width.fx))
@@ -148,68 +123,7 @@
          (define-attribs/cstruct-info _sprite-data:info))
 
         (define actual-update!
-          (let ()
-            (local-require ffi/unsafe)
-            (define which 0)
-
-            (define (install-object! o)
-              (memcpy SpriteData-ptr which (cvector-ptr o) DrawnMult _sprite-data)
-              (set! which (fx+ which DrawnMult)))
-
-            (define (install-objects! t)
-              (set! which 0)
-              (tree-for install-object! t))
-
-            (define SpriteData-count 0)
-            (define *initialize-count* (fx* 2 512))
-            (define SpriteData #f)
-            (define SpriteData-ptr #f)
-
-            (λ (objects)
-              (define early-count (count-objects objects))
-              (define SpriteData-count:new (fxmax *initialize-count* early-count))
-              (with-arraybuffer (layer-vbo)
-                (unless (>= SpriteData-count SpriteData-count:new)
-                  (set! SpriteData-count
-                        (fxmax (fx* 2 SpriteData-count)
-                               SpriteData-count:new))
-                  (glBufferData GL_ARRAY_BUFFER
-                                (* SpriteData-count
-                                   DrawnMult
-                                   (ctype-sizeof _sprite-data))
-                                #f
-                                GL_STREAM_DRAW))
-
-                (set! SpriteData-ptr
-                      (glMapBufferRange
-                       GL_ARRAY_BUFFER
-                       0
-                       (fx* SpriteData-count
-                            (fx* DrawnMult
-                                 (ctype-sizeof _sprite-data)))
-                       (bitwise-ior
-                        ;; We are overriding everything (this would be wrong if
-                        ;; we did the caching "optimization" I imagine)
-                        GL_MAP_INVALIDATE_RANGE_BIT
-                        GL_MAP_INVALIDATE_BUFFER_BIT
-
-                        ;; We are not doing complex queues, so don't block other
-                        ;; operations (but it doesn't seem to improve performance
-                        ;; by having this option)
-                        ;; GL_MAP_UNSYNCHRONIZED_BIT
-
-                        ;; We are writing
-                        GL_MAP_WRITE_BIT)))
-                (set! SpriteData
-                      (make-cvector*
-                       SpriteData-ptr
-                       _sprite-data
-                       (fx* SpriteData-count
-                            DrawnMult)))
-
-                (install-objects! objects)
-                (glUnmapBuffer GL_ARRAY_BUFFER))
-              early-count)))
+          (make-update-vbo-buffer-with-objects! DrawnMult _sprite-data layer-vbo))
 
         (define update!
           (let ()
@@ -401,20 +315,12 @@
         (save-bitmap! bm p)))
     (draw-screen! update-scale? the-scale-info combine-tex)))
 
-(define (stage-draw/dc csd width height)
-  (define draw #f)
-  (λ (layer-config static-st dynamic-st)
-    (λ (w h dc)
-      (local-require racket/class)
-      (define glctx (send dc get-gl-context))
-      (unless glctx
-        (error 'draw "Could not initialize OpenGL!"))
-      (send glctx call-as-current
-            (λ ()
-              (unless draw
-                (set! draw (make-draw csd width height (gl-filter-mode))))
-              (draw w h layer-config static-st dynamic-st)
-              (send glctx swap-buffers))))))
+(define-make-delayed-render
+  stage-draw/dc
+  make-draw
+  (csd width height)
+  ((gl-filter-mode))
+  (layer-config static-st dynamic-st))
 
 (define gl-filter-mode (make-parameter 'std))
 (define gl-screenshot-dir (make-parameter #f))

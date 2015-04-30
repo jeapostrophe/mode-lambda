@@ -2,7 +2,8 @@
 (require racket/match
          racket/contract/base
          racket/list
-         (except-in ffi/unsafe ->))
+         (except-in ffi/unsafe ->)
+         mode-lambda/util)
 
 (define PALETTE-DEPTH 16)
 
@@ -58,10 +59,6 @@
 ;; (coeff = 3.0) If Z increases away from horizon, then it is
 ;; a cylinder and we want the absolute value of the distance
 
-(define-syntax-rule (define-cstruct&list struct-id info-id ([field _type] ...))
-  (begin (define-cstruct struct-id ([field _type] ...))
-         (define info-id (list (cons 'field _type) ...))))
-
 (define-cstruct&list 
   _sprite-data _sprite-data:info
   ([dx _float]       ;; 0            0
@@ -81,26 +78,6 @@
    [xcoeff _int8]    ;; 14          34
    [ycoeff _int8]    ;; 15          35
    ))
-
-(define (tree-for f t)
-  (match t
-    [(or #f (? void?) '()) (void)]
-    [(cons a d)
-     (tree-for f a)
-     (tree-for f d)]
-    [_
-     (f t)]))
-
-(define (tree-fold f ret t)
-  (match t
-    [(or #f (? void?) '()) ret]
-    [(cons a d)
-     (tree-fold f (tree-fold f ret a) d)]
-    [_
-     (f ret t)]))
-
-(define tree/c
-  any/c)
 
 (define layer-vector/c
   (apply vector/c (make-list LAYERS (or/c false/c layer-data?))))

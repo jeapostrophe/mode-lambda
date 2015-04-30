@@ -1,5 +1,6 @@
 #lang racket/base
 (require racket/match
+         racket/draw
          mode-lambda)
 
 (struct *ml-font (char->char-id))
@@ -9,8 +10,29 @@
     (if (or (char=? #\space c) (char-graphic? c))
         (cons c l)
         l)))
-(define (load-font!/font% sd f-id f%
-                          #:alphabet [alphabet *ALL-ASCII*])
+(define (load-font! sd
+                    #:size [size 12]
+                    #:face [face #f]
+                    #:family [family 'default]
+                    #:style [style 'normal]
+                    #:weight [weight 'normal]
+                    #:underlined? [underlined? #f]
+                    #:smoothing [smoothing 'default]
+                    #:size-in-pixels? [size-in-pixels? #f]
+                    #:hinting [hinting 'aligned]
+                    #:alphabet [alphabet *ALL-ASCII*])
+  (define f%
+    (make-font #:size size #:face face #:family family
+               #:style style #:weight weight #:underlined? underlined?
+               #:smoothing smoothing #:size-in-pixels? size-in-pixels?
+               #:hinting hinting))
+  (define f-id
+    (string->symbol
+     (format "~v"
+             `(make-font ,size ,face ,family
+                         ,style ,weight ,underlined?
+                         ,smoothing ,size-in-pixels?
+                         ,hinting))))
   (local-require (prefix-in pict: pict))
   (define char->char-id
     (for/hasheq ([c (in-list alphabet)])
@@ -20,6 +42,12 @@
       (add-sprite!/value sd char-id char-v)
       (values c char-id)))
   (*ml-font char->char-id))
+
+(define (font-char-idx f csd c)
+  (match-define (*ml-font char->char-id) f)
+  (define ci (hash-ref char->char-id c #f))
+  (or (and ci (sprite-idx csd ci))
+      0))
 
 ;; MAYBE this could be a lot more complicated, with colors and stuff
 ;; like that.
@@ -58,5 +86,6 @@
     st))
 
 (provide *ALL-ASCII*
-         load-font!/font%
+         load-font!
+         font-char-idx
          make-text-renderer)

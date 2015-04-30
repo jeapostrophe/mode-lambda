@@ -4,7 +4,11 @@
          racket/match
          web-server/templates
          ffi/vector
-         ffi/unsafe)
+         ffi/unsafe
+         ffi/cvector
+         ffi/unsafe/cvector)
+
+(define-syntax-rule (glsl-include p) (include-template p))
 
 (define (make-2dtexture)
   (define Id (glGen glGenTextures))
@@ -154,7 +158,7 @@
 (define (ctype->glsl-type _type)
   (match _type
     [(== _float) "float"]
-    [(or (== _byte) (== _ushort)) "uint"]
+    [(or (== _byte) (== _ushort) (== _uint32)) "uint"]
     [(or (== _int8) (== _short)) "int"]))
 
 (define (ctype->gl-type _type)
@@ -162,6 +166,7 @@
     [(== _float) GL_FLOAT]
     [(== _byte) GL_UNSIGNED_BYTE]
     [(== _int8) GL_BYTE]
+    [(== _uint32) GL_UNSIGNED_INT]
     [(== _ushort) GL_UNSIGNED_SHORT]
     [(== _short) GL_SHORT]))
 
@@ -255,6 +260,91 @@
       (make-target-texture tex-width tex-height)))
   (set-delayed-fbo-texs! dfbo new-texs)
   (set-delayed-fbo-fbo! dfbo (make-fbo new-texs)))
+
+(define-syntax-rule (define-make-delayed-render
+                      delayed-render
+                      make-real-render
+                      (static-arg ...)
+                      (init-arg ...)
+                      (dyn-arg ...))
+  (define (delayed-render static-arg ...)
+    (define draw #f)
+    (λ (dyn-arg ...)
+      (λ (w h dc)
+        (local-require racket/class)
+        (define glctx (send dc get-gl-context))
+        (unless glctx
+          (error 'draw "Could not initialize OpenGL!"))
+        (send glctx call-as-current
+              (λ ()
+                (unless draw
+                  (set! draw (make-real-render static-arg ... init-arg ...)))
+                (draw w h dyn-arg ...)
+                (send glctx swap-buffers)))))))
+
+(define (make-update-vbo-buffer-with-objects! DrawnMult _sprite-data layer-vbo)
+  (local-require racket/fixnum
+                 mode-lambda/util)
+  (define which 0)
+
+  (define (install-object! o)
+    (memcpy SpriteData-ptr which (cvector-ptr o) DrawnMult _sprite-data)
+    (set! which (fx+ which DrawnMult)))
+
+  (define (install-objects! t)
+    (set! which 0)
+    (tree-for install-object! t))
+
+  (define SpriteData-count 0)
+  (define *initialize-count* (fx* 2 512))
+  (define SpriteData #f)
+  (define SpriteData-ptr #f)
+
+  (λ (objects)
+    (define early-count (count-objects objects))
+    (define SpriteData-count:new (fxmax *initialize-count* early-count))
+    (with-arraybuffer (layer-vbo)
+      (unless (>= SpriteData-count SpriteData-count:new)
+        (set! SpriteData-count
+              (fxmax (fx* 2 SpriteData-count)
+                     SpriteData-count:new))
+        (glBufferData GL_ARRAY_BUFFER
+                      (* SpriteData-count
+                         DrawnMult
+                         (ctype-sizeof _sprite-data))
+                      #f
+                      GL_STREAM_DRAW))
+
+      (set! SpriteData-ptr
+            (glMapBufferRange
+             GL_ARRAY_BUFFER
+             0
+             (fx* SpriteData-count
+                  (fx* DrawnMult
+                       (ctype-sizeof _sprite-data)))
+             (bitwise-ior
+              ;; We are overriding everything (this would be wrong if
+              ;; we did the caching "optimization" I imagine)
+              GL_MAP_INVALIDATE_RANGE_BIT
+              GL_MAP_INVALIDATE_BUFFER_BIT
+
+              ;; We are not doing complex queues, so don't block other
+              ;; operations (but it doesn't seem to improve performance
+              ;; by having this option)
+              ;; GL_MAP_UNSYNCHRONIZED_BIT
+
+              ;; We are writing
+              GL_MAP_WRITE_BIT)))
+      (set! SpriteData
+            (make-cvector*
+             SpriteData-ptr
+             _sprite-data
+             (fx* SpriteData-count
+                  DrawnMult)))
+
+      (install-objects! objects)
+      (glUnmapBuffer GL_ARRAY_BUFFER))
+    early-count))
 
 (provide
  (all-defined-out))
