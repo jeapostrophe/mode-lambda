@@ -247,6 +247,10 @@
   [argb
    (-> byte? byte? byte? byte?
        color?)]
+  [alpha (-> color? byte?)]
+  [red (-> color? byte?)]
+  [green (-> color? byte?)]
+  [blue (-> color? byte?)]
   [color?
    (-> any/c
        boolean?)]
