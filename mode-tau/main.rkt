@@ -88,6 +88,7 @@
 
   (define SpriteAtlasId (make-2dtexture))
   (with-texture (GL_TEXTURE0 SpriteAtlasId)
+    ;; (eprintf "Uploading ~v kb to GPU\n" (/ (* atlas-size atlas-size) 1024))
     (load-texture/bytes atlas-size atlas-size atlas-bs))
 
   (define SpriteIndexId (make-2dtexture))
