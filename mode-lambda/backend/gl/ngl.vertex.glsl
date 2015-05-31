@@ -19,8 +19,18 @@ float compute_wrap(float x, int xcoeff, float Lw) {
   return x + float(xcoeff) * Lw;
 }
 
+const ivec4 vertexSpec[@VERTEX_SPEC_SIZE] =
+  ivec4[@VERTEX_SPEC_SIZE]( @VERTEX_SPEC );
+
 void main(void)
 {
+  int spec_idx = gl_InstanceID * 3 + (gl_VertexID % 3);
+  ivec4 spec_v = vertexSpec[spec_idx];
+  int xcoeff = spec_v.x;
+  int ycoeff = spec_v.y;
+  int horiz = spec_v.z;
+  int vert = spec_v.w;
+  
   @glsl-include["layer.glsl"]
 
   vec4 in_TexCoord =

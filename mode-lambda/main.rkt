@@ -226,47 +226,7 @@
                 #:mx [mx 1.0]
                 #:my [my 1.0]
                 #:theta [theta 0.0])
-  ;; HACK This is a ridiculous hack to make the GL renderer
-  ;; faster. The GL renderer has to make a bunch of different versions
-  ;; of the same sprite-data object. I used to have the one produced
-  ;; here and then perform a bunch of modifications to get it into the
-  ;; right shape and then install that in. This took about 25ms. I
-  ;; found some optimizations that got it down to about 5-7ms. Doing
-  ;; this, drops it down to about 0ms. SO, worth it!
-  (local-require ffi/unsafe
-                 racket/fixnum
-                 ffi/cvector)
-  (define v (make-cvector _sprite-data (* (expt 3 2) 2 3)))
-  (define o
-    (make-sprite-data dx dy mx my theta a spr-idx pal-idx layer r g b 0 0 0 0))
-  (define which 0)
-  (define-syntax-rule (point-install! (which ...) o)
-    (begin (memcpy (cvector-ptr v) which o 1 _sprite-data)
-           ...))
-  (define-syntax-rule (static-for [id (val ...)] body)
-    (begin (let ([id val]) body) ...))
-  ;; We need to start and end on -1
-  (set-sprite-data-horiz! o -1)
-  (static-for
-   [xc (-1 0 +1)]
-   (begin (set-sprite-data-xcoeff! o xc)
-          (static-for
-           [yc (-1 0 +1)]
-           (begin (set-sprite-data-ycoeff! o yc)
-                  ;; -1 +1
-                  (set-sprite-data-vert! o +1)
-                  (point-install! ((fx+ which 0)) o)
-                  ;; +1 +1
-                  (set-sprite-data-horiz! o +1)
-                  (point-install! ((fx+ which 1) (fx+ which 4)) o)
-                  ;; +1 -1
-                  (set-sprite-data-vert! o -1)
-                  (point-install! ((fx+ which 5)) o)
-                  ;; -1 -1
-                  (set-sprite-data-horiz! o -1)
-                  (point-install! ((fx+ which 2) (fx+ which 3)) o)
-                  (set! which (fx+ 6 which))))))
-  v)
+  (make-sprite-data dx dy mx my theta a spr-idx pal-idx layer r g b))
 
 (define (layer cx cy
                #:hw [hw +inf.0]
@@ -299,7 +259,7 @@
   [PALETTE-DEPTH
    exact-nonnegative-integer?]
   [default-layer-config
-    vector?]
+    layer-vector/c]
   [make-sprite-db
    (-> sprite-db?)]
   [sprite-db?

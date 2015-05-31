@@ -73,10 +73,6 @@
    [r _byte]         ;; 9           29
    [g _byte]         ;; 10          30
    [b _byte]         ;; 11          31
-   [horiz _int8]     ;; 12          32
-   [vert _int8]      ;; 13          33
-   [xcoeff _int8]    ;; 14          34
-   [ycoeff _int8]    ;; 15          35
    ))
 
 (define layer-vector/c

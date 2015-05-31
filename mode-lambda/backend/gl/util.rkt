@@ -288,7 +288,8 @@
   (define which 0)
 
   (define (install-object! o)
-    (memcpy SpriteData-ptr which (cvector-ptr o) DrawnMult _sprite-data)
+    (for ([i (in-range DrawnMult)])
+      (cvector-set! SpriteData (fx+ which i) o))
     (set! which (fx+ which DrawnMult)))
 
   (define (install-objects! t)
@@ -296,7 +297,7 @@
     (tree-for install-object! t))
 
   (define SpriteData-count 0)
-  (define *initialize-count* (fx* 2 512))
+  (define *initialize-count* (fx* DrawnMult 512))
   (define SpriteData #f)
   (define SpriteData-ptr #f)
 

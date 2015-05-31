@@ -161,9 +161,8 @@
     ;; sprite
     (define (geometry-shader s)
       (local-require ffi/cvector)
-      (match-define (sprite-data dx dy mx my theta a.0 spr-idx pal-idx layer 
-                                 r g b _ _ _ _)
-        (cvector-ref s 0))
+      (match-define (sprite-data dx dy mx my theta a.0 spr-idx pal-idx layer r g b)
+        s)
       (match-define (layer-data Lcx Lcy Lhw Lhh Lmx Lmy Ltheta
                                 _ _ _ wrap-x? wrap-y?)
                     (or (vector-ref layer-config layer)
@@ -456,5 +455,4 @@
  (contract-out
   [gui-mode symbol?]
   [software-bitmap-path (parameter/c path-string?)]
-  [stage-render (stage-backend/c render/c)]
   [stage-draw/dc (stage-backend/c draw/dc/c)]))

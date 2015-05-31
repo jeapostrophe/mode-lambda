@@ -45,6 +45,17 @@
           (* lc-bytes-per-value o)))))
   lc-bs)
 
+(define VERTEX_SPEC_SIZE (* (expt 3 2) 2 3))
+(define VERTEX_SPEC
+  (add-between
+   (for*/list ([xc '(-1 0 +1)]
+               [yc '(-1 0 +1)]
+               [h*v '((-1 +1) (+1 +1) (-1 -1)
+                      (-1 -1) (+1 +1) (+1 -1))])
+     (match-define (list h v) h*v)
+     (list "ivec4(" xc "," yc "," h "," v ")"))
+   ","))
+
 (define (make-draw csd width.fx height.fx screen-mode)
   (define width (fx->fl width.fx))
   (define height (fx->fl height.fx))
@@ -110,9 +121,8 @@
         (for/list ([i (in-range 2)])
           (make-delayed-fbo LAYERS)))
 
-      ;; Three axis-coefficients ^ Two axes * Two triangles * three
-      ;; vertices per triangle
-      (define DrawnMult (fx* (fx* 3 3) (fx* 2 3)))
+      ;; Three verts per triangle
+      (define DrawnMult 3)
 
       (define (make-sprite-draw!)
         (define layer-vao (glGen glGenVertexArrays))
@@ -145,7 +155,12 @@
           (nest
            ([with-vertexarray (layer-vao)]
             [with-vertex-attributes ((length _sprite-data:info))])
-           (glDrawArrays GL_TRIANGLES 0 (fx* DrawnMult obj-count)))))
+           (glDrawArraysInstanced GL_TRIANGLES 0
+                                  ;; DrawnMult verts per triangle
+                                  (fx* DrawnMult obj-count)
+                                  ;; Three axis-coefficients ^ Two
+                                  ;; axes * Two triangles
+                                  (fx* (expt 3 2) 2)))))
 
       (define draw-static! (make-sprite-draw!))
       (define draw-dynamic! (make-sprite-draw!))
