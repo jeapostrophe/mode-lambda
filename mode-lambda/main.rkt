@@ -2,6 +2,7 @@
 (require racket/match
          racket/contract/base
          (except-in ffi/unsafe ->)
+         mode-lambda/color
          "core.rkt")
 
 (struct sprite-db (sprite-loaders-box palettes))
@@ -292,8 +293,7 @@
   [add-palette!
    (-> sprite-db?
        symbol?
-       (let () (local-require gfx/color)
-            (listof color?))
+       (listof color?)
        void?)]
   [add-palette!/file
    (-> sprite-db? symbol? path-string?

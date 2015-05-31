@@ -11,8 +11,8 @@
          racket/string
          file/untar
          file/gunzip
-         gfx/color
          mode-lambda
+         mode-lambda/color
          mode-lambda/text
          lux
          lux/chaos/gui

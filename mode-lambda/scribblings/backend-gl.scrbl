@@ -5,7 +5,7 @@
                     racket/contract/base
                     mode-lambda/backend/gl]]
 
-@title{Backend: OpenGL}
+@title{mode-lambda gl: premier backend}
 @defmodule[mode-lambda/backend/gl]
 
 This is the production backend for @racketmodname[mode-lambda]. It is

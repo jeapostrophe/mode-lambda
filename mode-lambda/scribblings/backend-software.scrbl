@@ -5,7 +5,7 @@
                     racket/contract/base
                     mode-lambda/backend/software]]
 
-@title{Backend: Software}
+@title{mode-lambda software: discount backend}
 @defmodule[mode-lambda/backend/software]
 
 This is the reference backend for @racketmodname[mode-lambda]. It is
