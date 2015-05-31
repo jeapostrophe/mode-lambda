@@ -9,11 +9,6 @@ high-performance 2D graphics.
 
 @local-table-of-contents[]
 
-@section{mode-lambda color: basic color theory}
-@defmodule[mode-lambda/color]
-
-XXX
-
 @section{mode-lambda edition: amazing graphics}
 @defmodule[mode-lambda]
 @require[(only-in mode-lambda/core
@@ -57,6 +52,11 @@ be @racket[(* 4 w h)] long. If @tt{pal} is not false, then the palette
          void?]{
                 
 Adds the sprite returned by @racket[load-spr] to @racket[db].}
+
+XXX
+
+@section{mode-lambda color: basic color theory}
+@defmodule[mode-lambda/color]
 
 XXX
 
