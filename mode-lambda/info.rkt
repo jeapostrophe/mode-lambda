@@ -1,2 +1,2 @@
 #lang info
-(define scribblings '(("mode-lambda.scrbl" ())))
+(define scribblings '(("scribblings/mode-lambda.scrbl" ())))

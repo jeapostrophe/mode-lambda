@@ -3,6 +3,10 @@
          mode-lambda)
 
 (struct *ml-font (char->char-id))
+
+(define (font? x)
+  (*ml-font? x))
+
 (define *ALL-ASCII*
   (for/fold ([l '()]) ([i (in-range 256)])
     (define c (integer->char i))
@@ -105,6 +109,7 @@
     st))
 
 (provide *ALL-ASCII*
+         font?
          load-font!
          font-char-idx
          make-text-renderer)

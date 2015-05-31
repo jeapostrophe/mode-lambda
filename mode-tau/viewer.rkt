@@ -20,7 +20,7 @@
 (define a-char (font-glyph-idx the-font cgdb #\A))
 (define font-width (glyph-width cgdb a-char))
 (define font-height (glyph-height cgdb a-char))
-(define render (stage-render cgdb))
+(define render (stage-draw/dc cgdb))
 
 (struct viewer (w h s r)
   #:methods gen:word

@@ -142,12 +142,12 @@
       (glDrawArrays GL_TRIANGLES 0 (fx* VertsPerGlyph obj-count))))))
 
 (define-make-delayed-render
-  stage-render
+  stage-draw/dc
   make-render
   (gdb) ()
   (bgr bgg bgb glyphs))
 
-(provide stage-render
+(provide stage-draw/dc
          glyph
          make-glyph-db
          load-font!
