@@ -217,7 +217,7 @@
   (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
                       pal-size pal-bs pal->idx))
 
-(define (sprite dx dy spr-idx
+(define (sprite cx cy spr-idx
                 #:layer [layer 0]
                 #:r [r 0]
                 #:g [g 0]
@@ -227,7 +227,7 @@
                 #:mx [mx 1.0]
                 #:my [my 1.0]
                 #:theta [theta 0.0])
-  (make-sprite-data dx dy mx my theta a spr-idx pal-idx layer r g b))
+  (make-sprite-data cx cy mx my theta a spr-idx pal-idx layer r g b))
 
 (define (layer cx cy
                #:hw [hw +inf.0]
@@ -330,7 +330,7 @@
          #:pal-idx ushort?
          #:mx flonum? #:my flonum?
          #:theta flonum?)
-        any/c)]
+        sprite-data?)]
   [layer
    (->* (flonum? flonum?)
         (#:hw
