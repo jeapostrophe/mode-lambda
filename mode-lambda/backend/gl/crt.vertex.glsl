@@ -15,14 +15,14 @@ out float CRTgamma;
 out float monitorgamma;
 out vec2 overscan;
 out vec2 aspect;
-float d;
-float R;
+out float d;
+out float R;
 out float cornersize;
 out float cornersmooth;
 
-vec3 stretch;
-vec2 sinangle;
-vec2 cosangle;
+out vec3 stretch;
+out vec2 sinangle;
+out vec2 cosangle;
 
 out vec2 texCoord;
 out vec2 one;

@@ -10,16 +10,16 @@
 #version 330
 
 // Comment the next line to disable interpolation in linear gamma (and gain speed).
-//#define LINEAR_PROCESSING
+#define LINEAR_PROCESSING
 
 // Enable screen curvature.
 //#define CURVATURE
 
 // Enable 3x oversampling of the beam profile
-//#define OVERSAMPLE
+#define OVERSAMPLE
 
 // Use the older, purely gaussian beam profile
-#define USEGAUSSIAN
+//#define USEGAUSSIAN
 
 // Macros.
 #define FIX(c) max(abs(c), 1e-5);
@@ -131,6 +131,12 @@ vec4 scanlineWeights(float distance, vec4 color)
 
 void main()
 {
+  d;
+  stretch;
+  sinangle;
+  cosangle;
+  R;
+  
   // Here's a helpful diagram to keep in mind while trying to
   // understand the code:
   //
@@ -165,7 +171,7 @@ void main()
   vec2 ilvec = vec2(0.0,ilfac.y > 1.5 ? mod(float(rubyFrameCount),2.0) : 0.0);
   vec2 ratio_scale = (xy * LogicalSize - vec2(0.5) + ilvec)/ilfac;
 #ifdef OVERSAMPLE
-  float filter = fwidth(ratio_scale.y);
+  float ofilter = fwidth(ratio_scale.y);
 #endif
   vec2 uv_ratio = fract(ratio_scale);
 
@@ -212,10 +218,10 @@ void main()
   vec4 weights  = scanlineWeights(uv_ratio.y, col);
   vec4 weights2 = scanlineWeights(1.0 - uv_ratio.y, col2);
 #ifdef OVERSAMPLE
-  uv_ratio.y =uv_ratio.y+1.0/3.0*filter;
+  uv_ratio.y =uv_ratio.y+1.0/3.0*ofilter;
   weights = (weights+scanlineWeights(uv_ratio.y, col))/3.0;
   weights2=(weights2+scanlineWeights(abs(1.0-uv_ratio.y), col2))/3.0;
-  uv_ratio.y =uv_ratio.y-2.0/3.0*filter;
+  uv_ratio.y =uv_ratio.y-2.0/3.0*ofilter;
   weights=weights+scanlineWeights(abs(uv_ratio.y), col)/3.0;
   weights2=weights2+scanlineWeights(abs(1.0-uv_ratio.y), col2)/3.0;
 #endif
