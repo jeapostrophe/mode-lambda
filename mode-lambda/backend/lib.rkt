@@ -34,15 +34,30 @@
           (+ d (recur (- r dy) (add1 i) max-i))])]))
   (+ q (recur r 1 5)))
 
-(define (compute-nice-scale w W h H)
+(define (compute-nice-scale par w W h H)
   (fx->fl
-   (fxmin (fxquotient w W)
+   (fxmin (fxquotient w (fl->fx (flceiling (fl* par (fx->fl W)))))
           (fxquotient h H))))
+
+(module+ test
+  (define CRT-W 640)
+  (define CRT-H 480)
+  (define NES-W 256)
+  (define NES-H 240)
+  (define pixel-aspect-ratio (fl/ 8.0 7.0))
+  
+  (define the-scale
+    (compute-nice-scale pixel-aspect-ratio
+                        CRT-W NES-W
+                        CRT-H NES-H))
+  (list 'the-scale the-scale)
+  (list 'y-scale the-scale)
+  (list 'x-scale (* pixel-aspect-ratio the-scale)))
 
 (define (draw-bitmap! w W h H bm dc)
   (send dc set-background "black")
   (send dc clear)
-  (define scale (compute-nice-scale w W h H))
+  (define scale (compute-nice-scale 1.0 w W h H))
   (define SW (* scale W))
   (define SH (* scale H))
   (define x (/ (/ (- w SW) 2) scale))
@@ -76,7 +91,8 @@
        (is-a?/c dc<%>)
        void?)]
   [compute-nice-scale
-   (-> exact-nonnegative-integer? exact-nonnegative-integer?
+   (-> real?
+       exact-nonnegative-integer? exact-nonnegative-integer?
        exact-nonnegative-integer? exact-nonnegative-integer?
        real?)]
   [draw/dc/c

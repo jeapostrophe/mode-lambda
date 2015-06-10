@@ -3,7 +3,8 @@
 
 uniform sampler2D LayerTargets[@LAYERS];
 uniform sampler2D LayerConfigTex;
-uniform float Scale;
+uniform float XScale;
+uniform float YScale;
 uniform vec2 LogicalSize;
 uniform vec2 TextureSize;
 
@@ -49,8 +50,8 @@ void main() {
     float ex = compute_e(ax, hwidth, fov, pz, Lcx, Lhw);
     vec4 lay_Color =
       texture(LayerTargets[layer],
-              vec2((2.0 * (Scale * ex) + 1.0) / (2.0 * TextureSize.x),
-                   (2.0 * (Scale * abs(ey - height) + 1.0)) / (2.0 * TextureSize.y)));
+              vec2((2.0 * (XScale * ex) + 1.0) / (2.0 * TextureSize.x),
+                   (2.0 * (YScale * abs(ey - height) + 1.0)) / (2.0 * TextureSize.y)));
     if ((! (pz <= 0.0))
         && (0.0 <= ey && ey <= height)
         && (0.0 <= ex && ex <= width)) {

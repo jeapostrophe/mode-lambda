@@ -1,7 +1,8 @@
 uniform vec2 LogicalSize;
 uniform vec2 ScreenSize;
 uniform vec2 TextureSize;
-uniform float Scale;
+uniform float XScale;
+uniform float YScale;
 
 @glsl-include["fullscreen.glsl"]
 
@@ -11,8 +12,8 @@ vec2 compute_iPos( vec2 iTexCoord ) {
   float crt_width = LogicalSize.x;
   float crt_height = LogicalSize.y;
 
-  float screen_width = Scale * crt_width;
-  float screen_height = Scale * crt_height;
+  float screen_width = XScale * crt_width;
+  float screen_height = YScale * crt_height;
 
   float inset_left = (actual_screen_width - screen_width) / 2.0;
   float inset_right = inset_left + screen_width;

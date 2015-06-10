@@ -288,23 +288,47 @@
   (λ (screen-width.fx screen-height.fx layer-config static-st dynamic-st)
     (define screen-width (fx->fl screen-width.fx))
     (define screen-height (fx->fl screen-height.fx))
+    ;; If this were 8/7, then we'd have the same PAR as the NES on a
+    ;; CRT and thus get non-square pixels. The problem with this is
+    ;; that I get non-uniform pixel sizes as we go across the screen,
+    ;; so it looks really bad. So for now I'll leave it at 1.0, but I
+    ;; have the dormant code here to come back to it.
+    ;;
+    ;; What I'd really like is a screen so big that I can draw each
+    ;; pixels as an 8x7 rectangle. On a 1080 screen, that's 240x154,
+    ;; which is too small. A UHD screen would give 480x308, which
+    ;; would be big enough for a full NES screen. Of course, drawing
+    ;; that way would have to be done differently, including
+    ;; differently specifying the center of sprites, which would
+    ;; stink.
+    (define CRT-PIXEL-ASPECT-RATIO? #f)
+    (define pixel-aspect-ratio
+      (if CRT-PIXEL-ASPECT-RATIO?
+          (fl/ 8.0 7.0)
+          1.0))
     (define scale
-      (compute-nice-scale screen-width.fx width.fx screen-height.fx height.fx))
+      (compute-nice-scale pixel-aspect-ratio
+                          screen-width.fx width.fx
+                          screen-height.fx height.fx))
     (define update-scale?
       (not (and the-scale-info
-                (fl= (scale-info-scale the-scale-info)
+                (fl= (scale-info-y-scale the-scale-info)
                      scale))))
     (when update-scale?
-      (define sca-width (fl* scale width))
-      (define sca-height (fl* scale height))
+      (define x-scale (fl* pixel-aspect-ratio scale))
+      (define y-scale scale)
+      (define sca-width (fl* x-scale width))
+      (define sca-height (fl* y-scale height))
       (define ScaledSize (pair->fpair sca-width sca-height))
       (define tex-width (flceiling sca-width))
       (define tex-height (flceiling sca-height))
       (define TextureSize (pair->fpair tex-width tex-height))
       (define ScreenSize (pair->fpair screen-width screen-height))
       (set! the-scale-info
-            (scale-info LogicalSize scale ScaledSize TextureSize ScreenSize))
-      (printf "~v\n" (vector (vector width height) scale (vector sca-width sca-height)
+            (scale-info LogicalSize x-scale y-scale ScaledSize TextureSize ScreenSize))
+      (printf "~v\n" (vector (vector width height)
+                             (vector x-scale y-scale)
+                             (vector sca-width sca-height)
                              (vector tex-width tex-height)
                              (vector screen-width screen-height))))
     (update-layer-config! layer-config)
