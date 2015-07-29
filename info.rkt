@@ -1,5 +1,11 @@
 #lang info
 (define collection 'multi)
-(define deps '("lux"
+(define deps '("gui-lib"
+               "scheme-lib"
+               "web-server-lib"
+               "lux"
                "base" "srfi-lite-lib" "draw-lib" "opengl" "htdp-lib" "pict-lib" "draw-lib"))
-(define build-deps '("rackunit-lib"))
+(define build-deps '("draw-doc"
+                     "racket-doc"
+                     "scribble-lib"
+                     "rackunit-lib"))
