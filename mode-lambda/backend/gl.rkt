@@ -21,7 +21,7 @@
                   ctype-sizeof
                   _float))
 
-(define FULLSCREEN_VERTS 6)
+(define FULLSCREEN_VERTS 4)
 
 (define LAYER-VALUES 12)
 (define (layer-config->bytes layer-config)
@@ -244,7 +244,7 @@
          (glClearColor 0.0 0.0 0.0 0.0)
          (glClear GL_COLOR_BUFFER_BIT)
          (set-viewport/fpair! (scale-info-texture the-scale-info))
-         (glDrawArrays GL_TRIANGLES 0 FULLSCREEN_VERTS))
+         (glDrawArrays GL_TRIANGLE_STRIP 0 FULLSCREEN_VERTS))
 
         (first (delayed-fbo-texs combine-dfbo)))))
 
@@ -282,7 +282,7 @@
          (glClearColor 0.0 0.0 0.0 0.0)
          (glClear GL_COLOR_BUFFER_BIT)
          (set-viewport/fpair! (scale-info-screen the-scale-info))
-         (glDrawArrays GL_TRIANGLES 0 FULLSCREEN_VERTS)))))
+         (glDrawArrays GL_TRIANGLE_STRIP 0 FULLSCREEN_VERTS)))))
 
   (define LogicalSize (pair->fpair width height))
 
