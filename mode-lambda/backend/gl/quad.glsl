@@ -1,4 +1,4 @@
-#define VERTS @FULLSCREEN_VERTS
+#define VERTS @QUAD_VERTS
 
 const vec2 coordData[VERTS] =
   vec2[VERTS]( vec2(0.0, 1.0),

@@ -1,6 +1,6 @@
 #version 330 core
 @glsl-include["lib.glsl"]
-@glsl-include["fullscreen.glsl"]
+@glsl-include["quad.glsl"]
 
 uniform sampler2D LayerTargets[@LAYERS];
 uniform sampler2D LayerConfigTex;

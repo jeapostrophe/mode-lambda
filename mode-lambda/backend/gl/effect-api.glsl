@@ -4,7 +4,7 @@ uniform vec2 TextureSize;
 uniform float XScale;
 uniform float YScale;
 
-@glsl-include["fullscreen.glsl"]
+@glsl-include["quad.glsl"]
 
 vec2 compute_iPos( vec2 iTexCoord ) {
   float actual_screen_width = ScreenSize.x;
