@@ -5,7 +5,7 @@
 out vec2 texCoord;
 
 void main() {
-  vec2 iTexCoord = compute_iTexCoord();
+  vec2 iTexCoord = compute_full_iTexCoord();
 
   gl_Position =
       vec4(compute_iPos( iTexCoord ), 0.0, 1.0)

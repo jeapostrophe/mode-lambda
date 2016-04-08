@@ -1,5 +1,6 @@
 #version 410
 @glsl-include["lib.glsl"]
+@glsl-include["quad.glsl"]
 
 uniform sampler2D SpriteAtlasTex; 
 uniform sampler2D SpriteIndexTex;
@@ -19,17 +20,18 @@ float compute_wrap(float x, int xcoeff, float Lw) {
   return x + float(xcoeff) * Lw;
 }
 
-const ivec4 vertexSpec[@VERTEX_SPEC_SIZE] =
-  ivec4[@VERTEX_SPEC_SIZE]( @VERTEX_SPEC );
+const ivec2 vertexSpec[@INSTANCES_PER_SPR] =
+  ivec2[@INSTANCES_PER_SPR]( @VERTEX_SPEC );
 
 void main(void)
 {
-  int spec_idx = gl_InstanceID * 3 + (gl_VertexID % 3);
-  ivec4 spec_v = vertexSpec[spec_idx];
+  int spec_idx = gl_InstanceID % @INSTANCES_PER_SPR ;
+  ivec2 spec_v = vertexSpec[spec_idx];
   int xcoeff = spec_v.x;
   int ycoeff = spec_v.y;
-  int horiz = spec_v.z;
-  int vert = spec_v.w;
+  vec2 hv = compute_center_iTexCoord();
+  float horiz = hv.x;
+  float vert = hv.y;
   
   @glsl-include["layer.glsl"]
 

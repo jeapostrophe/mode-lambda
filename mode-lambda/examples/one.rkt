@@ -138,12 +138,20 @@
     (s dt lct)
     (match mode
       ["rand"
+       (define how-many-randoms 10)
+       (define which-random 0)
+       (define randoms
+         (build-vector how-many-randoms
+                       (λ (i)
+                         (for/list ([i (in-range (* 10 W))])
+                           (random-sprite)))))
        (values
         (for/list ([i (in-range W)])
           (random-sprite))
         (λ ()
-          (for/list ([i (in-range (* 10 W))])
-            (random-sprite)))
+          (local-require racket/unsafe/ops)
+          (set! which-random (modulo (add1 which-random) how-many-randoms))
+          (unsafe-vector*-ref randoms which-random))
         (λ ()
           (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)))
                   #f #f #f #f #f #f #f)))]

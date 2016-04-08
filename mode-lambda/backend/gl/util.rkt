@@ -181,7 +181,7 @@
     (match-define (cons id _type) f)
     (glBindAttribLocation ProgramId i (symbol->string id))))
 
-(define (define-attribs/cstruct-info fields)
+(define (define-attribs/cstruct-info divisor fields)
   (define total-size (apply + (map (compose1 ctype-sizeof cdr) fields)))
   (for/fold ([byte-offset 0])
             ([i (in-naturals)]
@@ -192,6 +192,7 @@
     (define gl-type (ctype->gl-type _type))
     ((if int? glVertexAttribIPointer* glVertexAttribPointer)
      i 1 gl-type #f total-size byte-offset)
+    (glVertexAttribDivisor i divisor)
     (+ byte-offset this-size)))
 
 (define (glVertexAttribIPointer* index size type normalized stride pointer)
@@ -250,7 +251,7 @@
   (define the-fp (scale-info-texture the-si))
   (define tex-width (inexact->exact (f32vector-ref the-fp 0)))
   (define tex-height (inexact->exact (f32vector-ref the-fp 1)))
-  
+
   (match-define (delayed-fbo tex-count texs fbo) dfbo)
   (when fbo
     (glDeleteFramebuffers 1 (u32vector fbo)))
@@ -283,22 +284,28 @@
                 (draw w h dyn-arg ...)
                 (send glctx swap-buffers)))))))
 
-(define (make-update-vbo-buffer-with-objects! DrawnMult _sprite-data layer-vbo)
+(define-syntax-rule (print-ms-time label e)
+  (let ([before (current-inexact-milliseconds)])
+    (begin0
+        e
+      (let ([after (current-inexact-milliseconds)])
+        (printf "~a time ~a\n" label (- after before))))))
+
+(define (make-update-vbo-buffer-with-objects! _sprite-data layer-vbo)
   (local-require racket/fixnum
                  mode-lambda/util)
   (define which 0)
 
   (define (install-object! o)
-    (for ([i (in-range DrawnMult)])
-      (cvector-set! SpriteData (fx+ which i) o))
-    (set! which (fx+ which DrawnMult)))
+    (cvector-set! SpriteData which o)
+    (set! which (fx+ which 1)))
 
   (define (install-objects! t)
     (set! which 0)
     (tree-for install-object! t))
 
   (define SpriteData-count 0)
-  (define *initialize-count* (fx* DrawnMult 512))
+  (define *initialize-count* 512)
   (define SpriteData #f)
   (define SpriteData-ptr #f)
 
@@ -310,20 +317,22 @@
         (set! SpriteData-count
               (fxmax (fx* 2 SpriteData-count)
                      SpriteData-count:new))
+        (define new-size
+          (* SpriteData-count
+             (ctype-sizeof _sprite-data)))
+        #;(eprintf "Allocating ~a on GPU\n" new-size)
         (glBufferData GL_ARRAY_BUFFER
-                      (* SpriteData-count
-                         DrawnMult
-                         (ctype-sizeof _sprite-data))
+                      new-size
                       #f
                       GL_STREAM_DRAW))
+
 
       (set! SpriteData-ptr
             (glMapBufferRange
              GL_ARRAY_BUFFER
              0
              (fx* SpriteData-count
-                  (fx* DrawnMult
-                       (ctype-sizeof _sprite-data)))
+                  (ctype-sizeof _sprite-data))
              (bitwise-ior
               ;; We are overriding everything (this would be wrong if
               ;; we did the caching "optimization" I imagine)
@@ -341,8 +350,7 @@
             (make-cvector*
              SpriteData-ptr
              _sprite-data
-             (fx* SpriteData-count
-                  DrawnMult)))
+             SpriteData-count))
 
       (install-objects! objects)
       (glUnmapBuffer GL_ARRAY_BUFFER))

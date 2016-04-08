@@ -45,16 +45,14 @@
           (* lc-bytes-per-value o)))))
   lc-bs)
 
-(define VERTEX_SPEC_SIZE (* (expt 3 2) 2 3))
+(define VERTEX_SPEC_L
+  (for*/list ([xc '(-1 0 +1)]
+              [yc '(-1 0 +1)])
+    (list "ivec2(" xc "," yc ")")))
+(define INSTANCES_PER_SPR
+  (length VERTEX_SPEC_L))
 (define VERTEX_SPEC
-  (add-between
-   (for*/list ([xc '(-1 0 +1)]
-               [yc '(-1 0 +1)]
-               [h*v '((-1 +1) (+1 +1) (-1 -1)
-                      (-1 -1) (+1 +1) (+1 -1))])
-     (match-define (list h v) h*v)
-     (list "ivec4(" xc "," yc "," h "," v ")"))
-   ","))
+  (add-between VERTEX_SPEC_L ","))
 
 (define (make-draw csd width.fx height.fx screen-mode)
   (define width (fx->fl width.fx))
@@ -121,19 +119,16 @@
         (for/list ([i (in-range 2)])
           (make-delayed-fbo LAYERS)))
 
-      ;; Three verts per triangle
-      (define DrawnMult 3)
-
       (define (make-sprite-draw!)
         (define layer-vao (glGen glGenVertexArrays))
         (define layer-vbo (glGen glGenBuffers))
         (nest
          ([with-vertexarray (layer-vao)]
           [with-arraybuffer (layer-vbo)])
-         (define-attribs/cstruct-info _sprite-data:info))
+         (define-attribs/cstruct-info INSTANCES_PER_SPR _sprite-data:info))
 
         (define actual-update!
-          (make-update-vbo-buffer-with-objects! DrawnMult _sprite-data layer-vbo))
+          (make-update-vbo-buffer-with-objects! _sprite-data layer-vbo))
 
         (define update!
           (let ()
@@ -155,14 +150,9 @@
           (nest
            ([with-vertexarray (layer-vao)]
             [with-vertex-attributes ((length _sprite-data:info))])
-           ;; XXX glDrawElementsInstanced may be able to be used to
-           ;; only have the six vertices a single time
-           (glDrawArraysInstanced GL_TRIANGLES 0
-                                  ;; DrawnMult verts per triangle
-                                  (fx* DrawnMult obj-count)
-                                  ;; Three axis-coefficients ^ Two
-                                  ;; axes * Two triangles
-                                  (fx* (expt 3 2) 2)))))
+           (glDrawArraysInstanced GL_TRIANGLE_STRIP 0
+                                  QUAD_VERTS
+                                  (fx* INSTANCES_PER_SPR obj-count)))))
 
       (define draw-static! (make-sprite-draw!))
       (define draw-dynamic! (make-sprite-draw!))

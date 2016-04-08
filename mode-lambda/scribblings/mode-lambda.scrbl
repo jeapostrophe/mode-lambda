@@ -100,12 +100,12 @@ programs should factor their graphics into static and dynamic pieces
 for performance.
 
 @ML is extremely memory efficient. Each sprite instance consumes 32
-bytes on the CPU and 96 bytes on the GPU. If a GPU supported one
-gigabyte per second memory transfer, then about 180,000 sprites would
-be supported. Given that most GPUs support many gigabytes per second
+bytes on the CPU and the GPU. If a GPU supported one gigabyte per
+second memory transfer, then about 550,000 sprites would be supported
+at 60 FPS. Given that most GPUs support many gigabytes per second
 memory transfer rates, this means that performance is almost always
 dominated by the @ML client's preparation of the sprite trees and @ML
-can be treated as free.
+rendering can be treated as free.
 
 @section{mode-lambda edition: amazing graphics}
 @defmodule[mode-lambda]
