@@ -364,7 +364,7 @@
           "soft"
           (vector soft:gui-mode soft:stage-draw/dc)))
   (define the-config "gl")
-
+  (define the-display "blocks")
   
   (for-each
    (λ (x)
@@ -383,6 +383,9 @@
      ""))
 
   (command-line
+   #:once-each
+   ["--display" disp "Change initial display"
+    (set! the-display disp)]
    #:once-any
    ["--save" sbp "Set save path for software"
     (soft:software-bitmap-path sbp)]
@@ -406,6 +409,6 @@
    (make-gui #:mode gui-mode)
    (λ ()
      (fiat-lux (update-rt (one (prepare-renderi stage-draw/dc)
-                               "blocks"
+                               the-display
                                #f
                                #t))))))
