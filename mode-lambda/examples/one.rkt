@@ -18,6 +18,8 @@
          lux/chaos/gui
          lux/chaos/gui/key)
 
+(define vomit? #t)
+
 (define (random-byte) (random 256))
 
 (define (flmod a n)
@@ -140,7 +142,7 @@
         (for/list ([i (in-range W)])
           (random-sprite))
         (λ ()
-          (for/list ([i (in-range W)])
+          (for/list ([i (in-range (* 10 W))])
             (random-sprite)))
         (λ ()
           (vector (layer (fx->fl (/ W 2)) (fx->fl (/ H 2)))
@@ -215,7 +217,9 @@
                              (fx->fl
                               (fxmodulo (fxquotient
                                          (current-milliseconds)
-                                         100)
+                                         (if vomit?
+                                             10
+                                             100))
                                         360))
                              360.0)
                             (fl* 2.0 pi))
@@ -361,6 +365,23 @@
           (vector soft:gui-mode soft:stage-draw/dc)))
   (define the-config "gl")
 
+  
+  (for-each
+   (λ (x)
+     (printf "~a\n" x))
+   '("You can press these keys:"
+     "\tr - show random sprites, notice that some of them are static"
+     "\tg - show sprits in a grid"
+     "\tb - show a pretty scene"
+     "\tt - show a single sprite tiled around"
+     "\tw - show a few sprites wrapped around a torus"
+     "\tx - show some text"
+     ""
+     "\ts - turn on/off spinning for b mode"
+     ""
+     "Look at my source code!"
+     ""))
+
   (command-line
    #:once-any
    ["--save" sbp "Set save path for software"
@@ -385,6 +406,6 @@
    (make-gui #:mode gui-mode)
    (λ ()
      (fiat-lux (update-rt (one (prepare-renderi stage-draw/dc)
-                               "text" #;"blocks"
+                               "blocks"
                                #f
-                               #f))))))
+                               #t))))))

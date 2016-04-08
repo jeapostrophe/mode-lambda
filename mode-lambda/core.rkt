@@ -27,6 +27,8 @@
    [fov _float]
    [wrap-x? _bool]
    [wrap-y? _bool]))
+(module+ test
+  (printf "layer-data size: ~v bytes\n" (ctype-sizeof _layer-data)))
 
 (define default-layer
   (make-layer-data 0.0 0.0 0.0 0.0 1.0 1.0 0.0 0.0 0.0 1.0 #f #f))
@@ -74,6 +76,9 @@
    [g _byte]         ;; 10          30
    [b _byte]         ;; 11          31
    ))
+
+(module+ test
+  (printf "sprite-data size: ~v bytes\n" (ctype-sizeof _sprite-data)))
 
 (define layer-vector/c
   (apply vector/c (make-list LAYERS (or/c false/c layer-data?))))

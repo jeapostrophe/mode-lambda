@@ -1,5 +1,9 @@
 mode-lambda - sprite-based 2D graphics engine
 
+Try running...
+
+racket -l mode-lambda/examples/one
+
 MAYBE:
 - parents for localized rotation? (skeletal animation)
 - rotation about a different origin

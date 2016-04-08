@@ -155,6 +155,8 @@
           (nest
            ([with-vertexarray (layer-vao)]
             [with-vertex-attributes ((length _sprite-data:info))])
+           ;; XXX glDrawElementsInstanced may be able to be used to
+           ;; only have the six vertices a single time
            (glDrawArraysInstanced GL_TRIANGLES 0
                                   ;; DrawnMult verts per triangle
                                   (fx* DrawnMult obj-count)
