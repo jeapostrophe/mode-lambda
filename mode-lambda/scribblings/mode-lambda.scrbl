@@ -7,8 +7,10 @@
 @title{mode-lambda: the best 2D graphics of the 90s, today!}
 @author{Jay McCarthy}
 
-The @racketmodname[mode-lambda] package provides a set of libraries for creating
-high-performance 2D graphics.
+The @racketmodname[mode-lambda] package provides a set of libraries
+for creating high-performance 2D graphics. Try running
+@exec{racket -l mode-lambda/examples/one} to see what it can
+do.
 
 @local-table-of-contents[]
 
