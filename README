@@ -16,3 +16,8 @@ MAYBE:
 
 - better crt?
 http://gamasutra.com/blogs/KylePittman/20150420/241442/CRT_Simulation_in_Super_Win_the_Game.php?utm_source=feedburner&utm_medium=feed&utm_campaign=Feed%3A+GamasutraFeatureArticles+%28Gamasutra+Feature+Articles%29
+
+- Look at GLium: https://github.com/tomaka/glium
+
+- Use Persistent Mapping (requires 4.5): https://www.opengl.org/wiki/Buffer_Object#Persistent_mapping
+- Use Bindless textures? https://www.opengl.org/wiki/Bindless_Texture

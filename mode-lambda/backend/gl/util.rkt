@@ -107,13 +107,15 @@
 (define-syntax-rule (define-shader-source id path)
   (define id (include-template path)))
 
-(define (print-shader-log glGetShaderInfoLog shader-name shader-id)
+(define (print-shader-log glGetShaderInfoLog shader-name shader-id shader-source)
   (define-values (infoLen infoLog)
     (glGetShaderInfoLog shader-id 1024))
   (unless (zero? infoLen)
     (eprintf "Log of shader(~a):\n~a\n"
              shader-name
              (subbytes infoLog 0 infoLen))
+    (eprintf "Shader source follows:\n~a\n"
+             shader-source)
     (eprintf "Exiting...\n")
     (exit 1)))
 
@@ -121,7 +123,7 @@
   (define VertexShaderId (glCreateShader GL_VERTEX_SHADER))
   (glShaderSource VertexShaderId 1 (vector VertexShader) (s32vector))
   (glCompileShader VertexShaderId)
-  (print-shader-log glGetShaderInfoLog ProgramId VertexShaderId)
+  (print-shader-log glGetShaderInfoLog ProgramId VertexShaderId VertexShader)
   (glAttachShader ProgramId VertexShaderId))
 
 ;; COPIED FROM opengl/main
@@ -200,7 +202,7 @@
 
 (define (glLinkProgram&check ProgramId)
   (glLinkProgram ProgramId)
-  (print-shader-log glGetProgramInfoLog ProgramId ProgramId))
+  (print-shader-log glGetProgramInfoLog ProgramId ProgramId "[inside linking]"))
 
 (define (make-target-texture width height)
   (define myTexture (glGen glGenTextures))
