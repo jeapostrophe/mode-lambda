@@ -43,7 +43,7 @@ void main(void)
   float tx = in_TexCoord.z;
   float ty = in_TexCoord.w;
 
-  Color = vec4(r / 255.0, g / 255.0, b / 255.0, a);
+  Color = vec4(float(r) / 255.0, float(g) / 255.0, float(b) / 255.0, a);
 
   mat4 Transform =
       glScale(w * 0.5 * mx * Lmx, h * 0.5 * my * Lmy, 1.0 )
