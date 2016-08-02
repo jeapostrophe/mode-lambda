@@ -5,6 +5,10 @@
          (except-in ffi/unsafe ->)
          mode-lambda/util)
 
+(define (ushort? x)
+  (and (exact-nonnegative-integer? x)
+       (<= 0 x 65535)))
+
 (define PALETTE-DEPTH 16)
 
 (struct compiled-sprite-db

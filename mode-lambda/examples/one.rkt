@@ -12,6 +12,7 @@
          file/untar
          file/gunzip
          mode-lambda
+         mode-lambda/static
          mode-lambda/color
          mode-lambda/text
          lux

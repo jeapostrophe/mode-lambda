@@ -434,7 +434,8 @@
 
     combined-bs))
 
-(require mode-lambda/backend/lib)
+(require mode-lambda/backend/lib
+         mode-lambda/shot)
 
 (define software-bitmap-path 
   (make-parameter #f))

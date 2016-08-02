@@ -1,5 +1,6 @@
 #lang racket/base
 (require racket/match
+         mode-lambda/static
          mode-lambda)
 
 (struct *ml-font (char->char-id))

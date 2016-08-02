@@ -59,7 +59,7 @@
   (define height (fx->fl height.fx))
   (eprintf "You are using OpenGL ~a\n" (gl-version))
 
-  (define shot-dir (gl-screenshot-dir))
+  (define shot! (gl-screenshot!))
 
   (match-define
     (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
@@ -328,22 +328,19 @@
       (render-layers! update-scale? the-scale-info static-st dynamic-st))
     (define combine-tex
       (combine-layers! update-scale? the-scale-info LayerTargets))
-    (when shot-dir
+    (when shot!
       (local-require ffi/vector
                      racket/file)
       (define the-fp (scale-info-texture the-scale-info))
       (define w (fl->fx (f32vector-ref the-fp 0)))
       (define h (fl->fx (f32vector-ref the-fp 1)))
       (define bs (make-bytes (fx* 4 (fx* w h))))
-      (make-directory* shot-dir)
       (for ([i (in-naturals)]
             [t (in-list (cons combine-tex LayerTargets))])
         (with-texture (GL_TEXTURE0 t)
           (glGetTexImage GL_TEXTURE_2D 0 GL_RGBA GL_UNSIGNED_BYTE bs))
         (rgba->argb! bs)
-        (define p (build-path shot-dir (format "~a.png" i)))
-        (define bm (argb-bytes->bitmap w h bs))
-        (save-bitmap! bm p)))
+        (shot! i w h bs)))
     (draw-screen! update-scale? the-scale-info combine-tex)))
 
 (define-make-delayed-render
@@ -354,12 +351,16 @@
   (layer-config static-st dynamic-st))
 
 (define gl-filter-mode (make-parameter 'std))
-(define gl-screenshot-dir (make-parameter #f))
+(define gl-screenshot! (make-parameter #f))
 
 (define gui-mode 'gl-core)
 (provide
  (contract-out
   [gl-filter-mode (parameter/c symbol?)]
-  [gl-screenshot-dir (parameter/c path-string?)]
+  [gl-screenshot! (parameter/c (-> exact-nonnegative-integer?
+                                   exact-nonnegative-integer?
+                                   exact-nonnegative-integer?
+                                   bytes?
+                                   void?))]
   [gui-mode symbol?]
   [stage-draw/dc (stage-backend/c draw/dc/c)]))
