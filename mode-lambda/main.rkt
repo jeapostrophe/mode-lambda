@@ -3,6 +3,7 @@
          racket/contract/base
          (except-in ffi/unsafe ->)
          file/gunzip
+         racket/file
          mode-lambda/color
          "core.rkt")
 
@@ -20,22 +21,24 @@
     (vector-ref (compiled-sprite-db-idx->w*h*tx*ty csd) idx))
   h)
 
-(define (file->value/gunzip p)
+(define (read/bytes/gunzip bs)
   (define-values (read-v write-v-bs) (make-pipe))
-  (call-with-input-file p
-    (λ (read-v-bs/gz)
-      (gunzip-through-ports read-v-bs/gz write-v-bs)))
+  (define read-v-bs/gz (open-input-bytes bs))
+  (gunzip-through-ports read-v-bs/gz write-v-bs)
   (close-output-port write-v-bs)
   (read read-v))
 
-(define (load-csd p)
+(define (load-csd/bs bs)
   (match-define
     (vector 1 spr->idx idx->w*h*tx*ty pal->idx
             atlas-bs atlas-size
             pal-bs pal-size)
-    (file->value/gunzip (build-path p "csd.rktd.gz")))
+    (read/bytes/gunzip bs))
   (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
                       pal-size pal-bs pal->idx))
+
+(define (load-csd p)
+  (load-csd/bs (file->bytes (build-path p "csd.rktd.gz"))))
 
 (define (sprite cx cy spr-idx
                 #:layer [layer 0]
@@ -73,6 +76,9 @@
   [compiled-sprite-db?
    (-> any/c
        boolean?)]
+  [load-csd/bs
+   (-> bytes?
+       compiled-sprite-db?)]
   [load-csd
    (-> path-string?
        compiled-sprite-db?)]
