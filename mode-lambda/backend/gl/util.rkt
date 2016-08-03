@@ -2,6 +2,7 @@
 (require opengl
          racket/list
          racket/match
+         racket/string
          web-server/templates
          ffi/vector
          ffi/unsafe
@@ -111,9 +112,17 @@
   (define-values (infoLen infoLog)
     (glGetShaderInfoLog shader-id 1024))
   (unless (zero? infoLen)
-    (eprintf "Log of shader(~a):\n~a\n"
-             shader-name
-             (subbytes infoLog 0 infoLen))
+    (eprintf "Log of shader(~a):\n" shader-name)
+    (define real-log (bytes->string/utf-8 (subbytes infoLog 0 infoLen)))
+    (define shader-lines (string-split shader-source "\n"))
+    (for ([l (in-list (string-split real-log "\n"))])
+      (eprintf "\t~a\n" l)
+      (match (regexp-match #rx"^0\\(([0-9]*?)\\) : " l)
+        [(list _ ns)
+         (eprintf "\t\t=> ~a\n"
+                  (list-ref shader-lines (sub1 (string->number ns))))]
+        [_
+         (void)]))
     (eprintf "Shader source follows:\n~a\n"
              shader-source)
     (eprintf "Exiting...\n")
@@ -123,7 +132,8 @@
   (define VertexShaderId (glCreateShader GL_VERTEX_SHADER))
   (glShaderSource VertexShaderId 1 (vector VertexShader) (s32vector))
   (glCompileShader VertexShaderId)
-  (print-shader-log glGetShaderInfoLog ProgramId VertexShaderId VertexShader)
+  (unless (glGetShaderiv VertexShaderId GL_COMPILE_STATUS)
+    (print-shader-log glGetShaderInfoLog ProgramId VertexShaderId VertexShader))
   (glAttachShader ProgramId VertexShaderId))
 
 ;; COPIED FROM opengl/main
@@ -202,7 +212,8 @@
 
 (define (glLinkProgram&check ProgramId)
   (glLinkProgram ProgramId)
-  (print-shader-log glGetProgramInfoLog ProgramId ProgramId "[inside linking]"))
+  (unless (glGetProgramiv ProgramId GL_LINK_STATUS)
+    (print-shader-log glGetProgramInfoLog ProgramId ProgramId "[inside linking]")))
 
 (define (make-target-texture width height)
   (define myTexture (glGen glGenTextures))
