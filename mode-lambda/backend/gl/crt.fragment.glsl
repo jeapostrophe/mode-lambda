@@ -7,7 +7,6 @@
     Software Foundation; either version 2 of the License, or (at your option)
     any later version.
 */
-#version 330
 
 // Comment the next line to disable interpolation in linear gamma (and gain speed).
 #define LINEAR_PROCESSING

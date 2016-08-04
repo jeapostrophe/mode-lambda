@@ -6,8 +6,8 @@ float Lcx = LC_CX_CY_HW_HH.x;
 float Lcy = LC_CX_CY_HW_HH.y;
 float Lhw = LC_CX_CY_HW_HH.z;
 float Lhh = LC_CX_CY_HW_HH.w;
-float Lw = 2 * Lhw;
-float Lh = 2 * Lhh;
+float Lw = 2.0 * Lhw;
+float Lh = 2.0 * Lhh;
 vec4 LC_MX_MY_THETA_MODE7COEEF =
   texelFetch(LayerConfigTex, ivec2(1, layer), 0);
 float Lmx = LC_MX_MY_THETA_MODE7COEEF.x;

@@ -7,7 +7,6 @@
     Software Foundation; either version 2 of the License, or (at your option)
     any later version.
 */
-#version 330 core
 @glsl-include["lib.glsl"]
 @glsl-include["effect-api.glsl"]
 

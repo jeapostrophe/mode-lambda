@@ -101,8 +101,9 @@
       (compile-shader GL_VERTEX_SHADER layer-program layer-vert)
       (compile-shader GL_FRAGMENT_SHADER layer-program layer-fragment)
 
-      (for ([i (in-range LAYERS)])
-        (glBindFragDataLocation layer-program i (format "out_Color~a" i)))
+      (unless (gl-es?)
+        (for ([i (in-range LAYERS)])
+          (glBindFragDataLocation layer-program i (format "out_Color~a" i))))
 
       (glLinkProgram&check layer-program)
       (with-program (layer-program)
@@ -356,6 +357,7 @@
 (define gui-mode 'gl-core)
 (provide
  (contract-out
+  [gl-backend-version (parameter/c (apply or/c valid-gl-backends))]
   [gl-filter-mode (parameter/c symbol?)]
   [gl-screenshot! (parameter/c (-> exact-nonnegative-integer?
                                    exact-nonnegative-integer?

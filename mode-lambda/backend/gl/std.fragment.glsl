@@ -1,4 +1,3 @@
-#version 330
 @glsl-include["lib.glsl"]
 
 uniform sampler2D CombinedTex;

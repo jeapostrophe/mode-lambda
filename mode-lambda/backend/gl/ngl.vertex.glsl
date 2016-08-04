@@ -1,4 +1,3 @@
-#version 410
 @glsl-include["lib.glsl"]
 @glsl-include["quad.glsl"]
 
@@ -62,14 +61,14 @@ void main(void)
     if (wrapxp == 1.0) {
       almostPosn.x = compute_wrap(almostPosn.x, xcoeff, Lw);
     } else {
-      almostPosn.w = 0;
+      almostPosn.w = 0.0;
     }
   }
   if (ycoeff != 0) {
     if (wrapyp == 1.0) {
       almostPosn.y = compute_wrap(almostPosn.y, ycoeff, Lh);
     } else {
-      almostPosn.w = 0;
+      almostPosn.w = 0.0;
     }
   }
 
@@ -86,6 +85,6 @@ void main(void)
     vec2(tx + ((horiz + 1.0)/+2.0) * w,
          ty + (( vert + 1.0)/+2.0) * h)
     / float(atlasSize.x);
-  Palette = pal;
-  Layer = layer;
+  Palette = float(pal);
+  Layer = float(layer);
 }

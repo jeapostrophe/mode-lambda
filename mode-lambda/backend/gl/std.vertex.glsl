@@ -1,4 +1,3 @@
-#version 330 core
 @glsl-include["lib.glsl"]
 @glsl-include["effect-api.glsl"]
 

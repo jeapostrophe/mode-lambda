@@ -9,6 +9,12 @@
          ffi/cvector
          ffi/unsafe/cvector)
 
+;; XXX maybe 410
+(define gl-backend-version (make-parameter '330))
+(define valid-gl-backends '(330 es3.2))
+(define (gl-es?)
+  (eq? 'es3.2 (gl-backend-version)))
+
 (define-syntax-rule (glsl-include p) (include-template p))
 
 (define (make-2dtexture)
@@ -130,7 +136,14 @@
 
 (define (compile-shader GL_VERTEX_SHADER ProgramId VertexShader)
   (define VertexShaderId (glCreateShader GL_VERTEX_SHADER))
-  (glShaderSource VertexShaderId 1 (vector VertexShader) (s32vector))
+  (glShaderSource VertexShaderId 1
+                  (vector
+                   (string-append (format "#version ~a\n"
+                                          (match (gl-backend-version)
+                                            ['330 "330 core"]
+                                            ['es3.2 "320 es"]))
+                                  VertexShader))
+                  (s32vector))
   (glCompileShader VertexShaderId)
   (unless (glGetShaderiv VertexShaderId GL_COMPILE_STATUS)
     (print-shader-log glGetShaderInfoLog ProgramId VertexShaderId VertexShader))

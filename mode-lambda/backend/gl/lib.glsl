@@ -1,3 +1,5 @@
+@when[(gl-es?)]{precision highp float;}
+
 float jmod(float a, float n) {
   return a - (n * floor(a / n));
 }
@@ -23,16 +25,16 @@ mat4 glOrtho( float left, float right, float bottom, float top, float nearVal, f
   float t_z = - (farVal + nearVal) / (farVal - nearVal);
   return mat4( 2.0 / right - left, 0.0, 0.0, t_x,
                0.0, 2.0 / top - bottom, 0.0, t_y,
-               0.0, 0.0, -2 / farVal - nearVal, t_z,
+               0.0, 0.0, -2.0 / farVal - nearVal, t_z,
                0.0, 0.0, 0.0, 1.0 );
 }
 
 mat4 glRotate( float angle, float x, float y, float z ) {
   float c = cos(angle);
   float s = sin(angle);
-  return mat4( x*x*(1-c) + c, x*y*(1-c) - z*s, x*z*(1-c) + y*s, 0.0,
-               y*x*(1-c) + z*s, y*y*(1-c) + c, y*z*(1-c) - x*s, 0.0,
-               x*z*(1-c) - y*s, y*z*(1-c) + x*s, z*z*(1-c)+c, 0.0,
+  return mat4( x*x*(1.0-c) + c, x*y*(1.0-c) - z*s, x*z*(1.0-c) + y*s, 0.0,
+               y*x*(1.0-c) + z*s, y*y*(1.0-c) + c, y*z*(1.0-c) - x*s, 0.0,
+               x*z*(1.0-c) - y*s, y*z*(1.0-c) + x*s, z*z*(1.0-c)+c, 0.0,
                0.0, 0.0, 0.0, 1.0);
 }
 
