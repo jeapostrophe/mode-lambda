@@ -297,6 +297,7 @@
                       (dyn-arg ...))
   (define (delayed-render static-arg ...)
     (define draw #f)
+    (define last-glctx #f)
     (λ (dyn-arg ...)
       (λ (w h dc)
         (local-require racket/class)
@@ -305,7 +306,11 @@
           (error 'draw "Could not initialize OpenGL!"))
         (send glctx call-as-current
               (λ ()
+                (unless (eq? glctx last-glctx)
+                  (eprintf "GL context changed\n")
+                  (set! draw #f))
                 (unless draw
+                  (set! last-glctx glctx)
                   (set! draw (make-real-render static-arg ... init-arg ...)))
                 (draw w h dyn-arg ...)
                 (send glctx swap-buffers)))))))
