@@ -10,8 +10,8 @@
          ffi/unsafe/cvector)
 
 ;; XXX maybe 410
-(define gl-backend-version (make-parameter '330))
-(define valid-gl-backends '(330 es3.2))
+(define gl-backend-version (make-parameter '3.3))
+(define valid-gl-backends '(3.3 es3.2))
 (define (gl-es?)
   (eq? 'es3.2 (gl-backend-version)))
 
@@ -140,7 +140,7 @@
                   (vector
                    (string-append (format "#version ~a\n"
                                           (match (gl-backend-version)
-                                            ['330 "330 core"]
+                                            ['3.3 "330 core"]
                                             ['es3.2 "320 es"]))
                                   VertexShader))
                   (s32vector))

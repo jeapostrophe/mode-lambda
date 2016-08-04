@@ -107,27 +107,16 @@ memory transfer rates, this means that performance is almost always
 dominated by the @ML client's preparation of the sprite trees and @ML
 rendering can be treated as free.
 
-@section{mode-lambda edition: amazing graphics}
-@defmodule[mode-lambda]
-@require[@for-label[mode-lambda
+@section{mode-lambda static: sprite libraries}
+@defmodule[mode-lambda/static]
+@require[@for-label[mode-lambda/static
                     file/convertible
                     racket/class
                     racket/gui/base]]
 
-@defthing[LAYERS exact-nonnegative-integer?]{
-
-The number of layers supported by
-@racketmodname[mode-lambda]. Currently @racket[#,LAYERS].}
-
-@defthing[PALETTE-DEPTH exact-nonnegative-integer?]{
-
-The number of colors in one palette supported by
-    @racketmodname[mode-lambda]. Currently @racket[#,PALETTE-DEPTH].}
-
-@defthing[default-layer-config layer-vector/c]{
-
-The default configuration of layers. You almost certainly don't want
-to use it.}
+Use this module to construct a database of sprites that your program
+will display. This can be run offline and the result saved
+persistently with @racket[save-csd!].
 
 @defproc[(make-sprite-db) sprite-db?]{
 
@@ -202,21 +191,52 @@ Adds the palette inside @racket[file], which is expected to be a
 1x@racket[PALETTE-DEPTH] bitmap to @racket[db] with the name
 @racket[n].}
 
+@defproc[(save-csd! [cdb compiled-sprite-db?]
+                    [path path-string?]
+                    [#:debug? debug? boolean? #f])
+         void?]{
+
+Saves the compiled database @racket[db] into the directory
+@racket[path] with the name @filepath{csd.rktd.gz}. If @racket[debug?]
+is @racket[#t], then the sprite atlas and palette is saved in the
+directory as PNG files.}
+
 @defproc[(compile-sprite-db [db sprite-db?])
          compiled-sprite-db?]{
 
 Compiles the database @racket[db].}
+
+@section{mode-lambda edition: amazing graphics}
+@defmodule[mode-lambda]
+@require[@for-label[mode-lambda]]
+
+Use this module to construct scenes for one of the backends. Connect
+it to @racketmodname[mode-lambda/static] with @racket[load-csd].
+
+@defthing[LAYERS exact-nonnegative-integer?]{
+
+The number of layers supported by
+@racketmodname[mode-lambda]. Currently @racket[#,LAYERS].}
+
+@defthing[PALETTE-DEPTH exact-nonnegative-integer?]{
+
+The number of colors in one palette supported by
+    @racketmodname[mode-lambda]. Currently @racket[#,PALETTE-DEPTH].}
+
+@defthing[default-layer-config layer-vector/c]{
+
+The default configuration of layers. You almost certainly don't want
+to use it.}
 
 @defproc[(compiled-sprite-db? [x any/c])
          boolean?]{
 
 Identifies values returned by @racket[compile-sprite-db].}
 
-@defproc[(save-csd! [cdb compiled-sprite-db?]
-                    [path path-string?])
-         void?]{
+@defproc[(load-csd/bs [bs bytes?])
+         compiled-sprite-db?]{
 
-Saves the compiled database @racket[db] into the directory @racket[path].}
+Loads the compiled database from the bytes @racket[bs].}
 
 @defproc[(load-csd [path path-string?])
          compiled-sprite-db?]{
@@ -428,3 +448,16 @@ created with the sprite parameters given in the optional arguments.}
 @include-section["backend-gl.scrbl"]
 @include-section["backend-software.scrbl"]
 
+@section{mode-lambda shot: screenshot helpers}
+@defmodule[mode-lambda/shot]
+@require[@for-label[mode-lambda/shot
+                    mode-lambda/backend/gl]]
+
+@defproc[(screenshot-in-dir! [p path-string?])
+         (-> exact-nonnegative-integer?
+             exact-nonnegative-integer?
+             exact-nonnegative-integer?
+             bytes?
+             void?)]{
+
+Saves the screenshots that @racket[gl-screenshot!] generates in @racket[p].}

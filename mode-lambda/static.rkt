@@ -229,5 +229,6 @@
    (-> sprite-db?
        compiled-sprite-db?)]
   [save-csd!
-   (-> compiled-sprite-db? path-string?
-       void?)]))
+   (->* (compiled-sprite-db? path-string?)
+        (#:debug? boolean?)
+        void?)]))

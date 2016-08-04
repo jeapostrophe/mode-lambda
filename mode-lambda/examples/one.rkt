@@ -113,7 +113,7 @@
 
   (define original-csd (compile-sprite-db sd))
   (define csd-p (build-path here "csd"))
-  (save-csd! original-csd csd-p)
+  (save-csd! original-csd csd-p #:debug? #t)
   (define csd (load-csd csd-p))
   (define render (stage-draw/dc csd W H))
   (vector ns csd render (make-text-renderer the-font csd)))
