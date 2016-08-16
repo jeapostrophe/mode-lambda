@@ -276,12 +276,20 @@ Returns the height of @racket[spr-idx] in @racket[cdb].}
                  [#:b b byte? 0]
                  [#:a a flonum? 1.0]
                  [#:pal-idx pal-idx exact-nonnegative-integer? 0]
-                 [#:mx mx flonum? 1.0]
-                 [#:my my flonum? 1.0]
+                 [#:m m flonum? 1.0]
+                 [#:mx mx flonum? m]
+                 [#:my my flonum? m]
                  [#:theta theta flonum? 0.0])
          sprite-data?]{
 
 Returns a sprite instance.}
+
+@defproc[(sprite-data? [x any/c]) boolean?]{Identifies sprite data.}
+@defproc[(sprite-data-dx [s sprite-data?]) flonum?]{Returns X offset.}
+@defproc[(sprite-data-dy [s sprite-data?]) flonum?]{Returns Y offset.}
+@defproc[(sprite-data-mx [s sprite-data?]) flonum?]{Returns X scale.}
+@defproc[(sprite-data-my [s sprite-data?]) flonum?]{Returns Y scale.}
+@defproc[(sprite-data-spr [s sprite-data?]) exact-nonnegative-integer?]{Returns sprite index.}
 
 @defproc[(layer [cx flonum?]
                 [cy flonum?]

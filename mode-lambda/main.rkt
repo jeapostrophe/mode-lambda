@@ -47,8 +47,9 @@
                 #:b [b 0]
                 #:a [a 1.0]
                 #:pal-idx [pal-idx 0]
-                #:mx [mx 1.0]
-                #:my [my 1.0]
+                #:m [m 1.0]
+                #:mx [mx m]
+                #:my [my m]
                 #:theta [theta 0.0])
   (make-sprite-data cx cy mx my theta a spr-idx pal-idx layer r g b))
 
@@ -100,9 +101,15 @@
          layer/c
          #:r byte? #:g byte? #:b byte? #:a flonum?
          #:pal-idx ushort?
-         #:mx flonum? #:my flonum?
+         #:m flonum? #:mx flonum? #:my flonum?
          #:theta flonum?)
         sprite-data?)]
+  [sprite-data? (-> any/c boolean?)]
+  [sprite-data-dx (-> sprite-data? flonum?)]
+  [sprite-data-dy (-> sprite-data? flonum?)]
+  [sprite-data-mx (-> sprite-data? flonum?)]
+  [sprite-data-my (-> sprite-data? flonum?)]
+  [sprite-data-spr (-> sprite-data? ushort?)]
   [layer
    (->* (flonum? flonum?)
         (#:hw
