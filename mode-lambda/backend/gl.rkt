@@ -101,9 +101,12 @@
       (compile-shader GL_VERTEX_SHADER layer-program layer-vert)
       (compile-shader GL_FRAGMENT_SHADER layer-program layer-fragment)
 
-      (unless (gl-es?)
-        (for ([i (in-range LAYERS)])
-          (glBindFragDataLocation layer-program i (format "out_Color~a" i))))
+      (cond
+        [(gl-es?)
+         (eprintf "GL: Skipping glBindFragDataLocation on OpenGL ES\n")]
+        [else
+         (for ([i (in-range LAYERS)])
+           (glBindFragDataLocation layer-program i (format "out_Color~a" i)))])
 
       (glLinkProgram&check layer-program)
       (with-program (layer-program)
@@ -319,11 +322,11 @@
       (define ScreenSize (pair->fpair screen-width screen-height))
       (set! the-scale-info
             (scale-info LogicalSize x-scale y-scale ScaledSize TextureSize ScreenSize))
-      (printf "~v\n" (vector (vector width height)
-                             (vector x-scale y-scale)
-                             (vector sca-width sca-height)
-                             (vector tex-width tex-height)
-                             (vector screen-width screen-height))))
+      (eprintf "~v\n" (vector (vector width height)
+                              (vector x-scale y-scale)
+                              (vector sca-width sca-height)
+                              (vector tex-width tex-height)
+                              (vector screen-width screen-height))))
     (update-layer-config! layer-config)
     (define LayerTargets
       (render-layers! update-scale? the-scale-info static-st dynamic-st))

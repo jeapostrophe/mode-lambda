@@ -24,9 +24,17 @@
   (+ q (recur r 1 5)))
 
 (define (compute-nice-scale par w W h H)
-  (fx->fl
-   (fxmin (fxquotient w (fl->fx (flceiling (fl* par (fx->fl W)))))
-          (fxquotient h H))))
+  (define chunky-scale
+    (fx->fl
+     (fxmin (fxquotient w (fl->fx (flceiling (fl* par (fx->fl W)))))
+            (fxquotient h H))))
+  (if (fl= 0.0 chunky-scale)
+      (flmin (fl/ (fx->fl w) (fx->fl W))
+             (fl/ (fx->fl h) (fx->fl H)))
+      chunky-scale))
+
+(module+ test
+  (compute-nice-scale 1.0 800 2560 578 1688))
 
 (module+ test
   (define CRT-W 640)
