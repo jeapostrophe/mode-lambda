@@ -57,7 +57,9 @@
 (define (make-draw csd width.fx height.fx screen-mode)
   (define width (fx->fl width.fx))
   (define height (fx->fl height.fx))
-  (eprintf "You are using OpenGL ~a\n" (gl-version))
+  (eprintf "You are using OpenGL ~v with gl-backend-version of ~v\n"
+           (gl-version)
+           (gl-backend-version))
 
   (define shot! (gl-screenshot!))
 
@@ -260,7 +262,6 @@
       (compile-shader GL_VERTEX_SHADER screen-program screen-vert)
 
       (glLinkProgram&check screen-program)
-
       (with-program (screen-program)
         (glUniform1i (glGetUniformLocation screen-program "CombinedTex")
                      (gl-texture-index GL_TEXTURE0)))

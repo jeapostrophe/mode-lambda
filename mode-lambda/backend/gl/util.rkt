@@ -130,9 +130,7 @@
         [_
          (void)]))
     (eprintf "Shader source follows:\n~a\n"
-             shader-source)
-    (eprintf "Exiting...\n")
-    (exit 1)))
+             shader-source)))
 
 (define (compile-shader GL_VERTEX_SHADER ProgramId VertexShader)
   (define VertexShaderId (glCreateShader GL_VERTEX_SHADER))
@@ -146,7 +144,12 @@
                   (s32vector))
   (glCompileShader VertexShaderId)
   (unless (glGetShaderiv VertexShaderId GL_COMPILE_STATUS)
-    (print-shader-log glGetShaderInfoLog ProgramId VertexShaderId VertexShader))
+    (print-shader-log glGetShaderInfoLog ProgramId VertexShaderId VertexShader)
+    (error 'compile-shader "failed to compile ~a shader ~v"
+           (if (= GL_FRAGMENT_SHADER GL_VERTEX_SHADER)
+             "fragment"
+             "vertex")
+           ProgramId))
   (glAttachShader ProgramId VertexShaderId))
 
 ;; COPIED FROM opengl/main
@@ -226,7 +229,12 @@
 (define (glLinkProgram&check ProgramId)
   (glLinkProgram ProgramId)
   (unless (glGetProgramiv ProgramId GL_LINK_STATUS)
-    (print-shader-log glGetProgramInfoLog ProgramId ProgramId "[inside linking]")))
+    (print-shader-log glGetProgramInfoLog ProgramId ProgramId "[inside linking]")
+    (error 'glLinkProgram&check "failed to link program ~v" ProgramId))
+  (glValidateProgram ProgramId)
+  (unless (glGetProgramiv ProgramId GL_VALIDATE_STATUS)
+    (print-shader-log glGetProgramInfoLog ProgramId ProgramId "[during validation]")
+    (error 'glLinkProgram&check "failed to validate program ~v" ProgramId)))
 
 (define (make-target-texture width height)
   (define myTexture (glGen glGenTextures))
