@@ -143,7 +143,7 @@
                                   VertexShader))
                   (s32vector))
   (glCompileShader VertexShaderId)
-  (unless (glGetShaderiv VertexShaderId GL_COMPILE_STATUS)
+  (unless (= GL_TRUE (glGetShaderiv VertexShaderId GL_COMPILE_STATUS))
     (print-shader-log glGetShaderInfoLog ProgramId VertexShaderId VertexShader)
     (error 'compile-shader "failed to compile ~a shader ~v"
            (if (= GL_FRAGMENT_SHADER GL_VERTEX_SHADER)
@@ -228,11 +228,11 @@
 
 (define (glLinkProgram&check ProgramId)
   (glLinkProgram ProgramId)
-  (unless (glGetProgramiv ProgramId GL_LINK_STATUS)
+  (unless (= GL_TRUE (glGetProgramiv ProgramId GL_LINK_STATUS))
     (print-shader-log glGetProgramInfoLog ProgramId ProgramId "[inside linking]")
     (error 'glLinkProgram&check "failed to link program ~v" ProgramId))
   (glValidateProgram ProgramId)
-  (unless (glGetProgramiv ProgramId GL_VALIDATE_STATUS)
+  (unless (= GL_TRUE (glGetProgramiv ProgramId GL_VALIDATE_STATUS))
     (print-shader-log glGetProgramInfoLog ProgramId ProgramId "[during validation]")
     (error 'glLinkProgram&check "failed to validate program ~v" ProgramId)))
 
