@@ -41,14 +41,16 @@ void main() {
   float ay = height - iTexCoord.y * height;
 
   vec4 fin_Color = vec4(0.0, 0.0, 0.0, 1.0);
-  for (int layer = 0 ; layer < @LAYERS ; layer++) {
+@in[compiletimelayer (in-range LAYERS)]{
+  {
+    int layer = @compiletimelayer;
     @glsl-include["layer.glsl"]
     float ay_horiz = horizon - ay;
     float pz = compute_pz(mode7coeff, ay_horiz);
     float ey = compute_e(ay, hheight, fov, pz, Lcy, Lhh);
     float ex = compute_e(ax, hwidth, fov, pz, Lcx, Lhw);
     vec4 lay_Color =
-      texture(LayerTargets[layer],
+      texture(LayerTargets[@compiletimelayer],
               vec2((2.0 * (XScale * ex) + 1.0) / (2.0 * TextureSize.x),
                    (2.0 * (YScale * abs(ey - height) + 1.0)) / (2.0 * TextureSize.y)));
     if ((! (pz <= 0.0))
@@ -59,6 +61,7 @@ void main() {
         + lay_Color.rgb * lay_Color.a;
     }
   }
+}
   
   oFragColor = fin_Color;
 }
