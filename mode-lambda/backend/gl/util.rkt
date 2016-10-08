@@ -226,7 +226,7 @@
 (define (glVertexAttribIPointer* index size type normalized stride pointer)
   (glVertexAttribIPointer index size type stride pointer))
 
-(define (glLinkProgram&check ProgramId)
+(define (glLinkProgram&check ProgramId ProgramName)
   (glLinkProgram ProgramId)
   (unless (= GL_TRUE (glGetProgramiv ProgramId GL_LINK_STATUS))
     (print-shader-log glGetProgramInfoLog ProgramId ProgramId "[inside linking]")
@@ -234,7 +234,7 @@
   (glValidateProgram ProgramId)
   (unless (= GL_TRUE (glGetProgramiv ProgramId GL_VALIDATE_STATUS))
     (print-shader-log glGetProgramInfoLog ProgramId ProgramId "[during validation]")
-    (error 'glLinkProgram&check "failed to validate program ~v" ProgramId)))
+    (error 'glLinkProgram&check "failed to validate program ~v" ProgramName)))
 
 (define (make-target-texture width height)
   (define myTexture (glGen glGenTextures))

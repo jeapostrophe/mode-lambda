@@ -2,6 +2,7 @@
 (require ffi/cvector
          ffi/unsafe/cvector
          (only-in ffi/vector
+                  u32vector
                   list->s32vector)
          mode-lambda/backend/gl/util
          mode-lambda/backend/lib
@@ -110,16 +111,19 @@
          (for ([i (in-range LAYERS)])
            (glBindFragDataLocation layer-program i (format "out_Color~a" i)))])
 
-      (glLinkProgram&check layer-program)
-      (with-program (layer-program)
-        (glUniform1i (glGetUniformLocation layer-program "SpriteAtlasTex")
-                     (gl-texture-index GL_TEXTURE0))
-        (glUniform1i (glGetUniformLocation layer-program "PaletteAtlasTex")
-                     (gl-texture-index GL_TEXTURE1))
-        (glUniform1i (glGetUniformLocation layer-program "SpriteIndexTex")
-                     (gl-texture-index GL_TEXTURE2))
-        (glUniform1i (glGetUniformLocation layer-program "LayerConfigTex")
-                     (gl-texture-index GL_TEXTURE3)))
+      (define tmp-vao (glGen glGenVertexArrays))
+      (with-vertexarray (tmp-vao)
+        (glLinkProgram&check layer-program 'layer)
+        (with-program (layer-program)
+          (glUniform1i (glGetUniformLocation layer-program "SpriteAtlasTex")
+                       (gl-texture-index GL_TEXTURE0))
+          (glUniform1i (glGetUniformLocation layer-program "PaletteAtlasTex")
+                       (gl-texture-index GL_TEXTURE1))
+          (glUniform1i (glGetUniformLocation layer-program "SpriteIndexTex")
+                       (gl-texture-index GL_TEXTURE2))
+          (glUniform1i (glGetUniformLocation layer-program "LayerConfigTex")
+                       (gl-texture-index GL_TEXTURE3))))
+      (glDeleteVertexArrays 1 (u32vector tmp-vao))
 
       (define layer-dfbos
         (for/list ([i (in-range 2)])
@@ -199,22 +203,23 @@
 
   (define combine-layers!
     (let ()
+      (define combine-vao (glGen glGenVertexArrays))
+      
       (define combine-program (glCreateProgram))
       (define-shader-source combine-vert "gl/combine.vertex.glsl")
       (define-shader-source combine-fragment "gl/combine.fragment.glsl")
       (compile-shader GL_VERTEX_SHADER combine-program combine-vert)
       (compile-shader GL_FRAGMENT_SHADER combine-program combine-fragment)
-      (glLinkProgram&check combine-program)
-      (with-program (combine-program)
-        (glUniform1i (glGetUniformLocation combine-program "LayerConfigTex")
-                     (gl-texture-index GL_TEXTURE0))
-        (glUniform1iv (glGetUniformLocation combine-program "LayerTargets")
-                      LAYERS
-                      (list->s32vector
-                       (for/list ([i (in-range LAYERS)])
-                         (fx+ 1 i)))))
-
-      (define combine-vao (glGen glGenVertexArrays))
+      (with-vertexarray (combine-vao)
+        (glLinkProgram&check combine-program 'combine)
+        (with-program (combine-program)
+          (glUniform1i (glGetUniformLocation combine-program "LayerConfigTex")
+                       (gl-texture-index GL_TEXTURE0))
+          (glUniform1iv (glGetUniformLocation combine-program "LayerTargets")
+                        LAYERS
+                        (list->s32vector
+                         (for/list ([i (in-range LAYERS)])
+                           (fx+ 1 i))))))
 
       (define combine-dfbos
         (for/list ([i (in-range 2)])
@@ -246,6 +251,8 @@
 
   (define draw-screen!
     (let ()
+      (define screen-vao (glGen glGenVertexArrays))
+      
       (define screen-program (glCreateProgram))
 
       (define-shader-source crt-fragment "gl/crt.fragment.glsl")
@@ -261,12 +268,11 @@
       (compile-shader GL_FRAGMENT_SHADER screen-program screen-fragment)
       (compile-shader GL_VERTEX_SHADER screen-program screen-vert)
 
-      (glLinkProgram&check screen-program)
-      (with-program (screen-program)
-        (glUniform1i (glGetUniformLocation screen-program "CombinedTex")
-                     (gl-texture-index GL_TEXTURE0)))
-
-      (define screen-vao (glGen glGenVertexArrays))
+      (with-vertexarray (screen-vao)
+        (glLinkProgram&check screen-program 'screen)
+        (with-program (screen-program)
+          (glUniform1i (glGetUniformLocation screen-program "CombinedTex")
+                       (gl-texture-index GL_TEXTURE0))))
 
       (λ (update-scale? the-scale-info combine-tex)
         (nest
