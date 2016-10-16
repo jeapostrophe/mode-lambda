@@ -3,7 +3,7 @@
          mode-lambda/static
          mode-lambda)
 
-(struct *ml-font (char->char-id))
+(struct *ml-font (char->char-id) #:prefab)
 
 (define (font? x)
   (*ml-font? x))
