@@ -1,5 +1,7 @@
 #lang racket/base
 (require racket/match
+         racket/fixnum
+         racket/flonum
          mode-lambda)
 
 (struct *ml-font (char->char-id) #:prefab)
@@ -36,17 +38,17 @@
           (error 'make-text-renderer "Cannot find sprite ~v" ci))
         idx))
     (define-values (width height)
-      (for/fold ([w 0] [h 0]) ([i (in-list idxs)])
-        (values (+   w (* mx (sprite-width csd i)))
-                (max h (* my (sprite-height csd i))))))
-    (define sx (- tx (/ width 2.0)))
-    (define  y (+ ty (/ height 2.0)))
+      (for/fold ([w 0.0] [h 0.0]) ([i (in-list idxs)])
+        (values (fl+   w (fl* mx (fx->fl (sprite-width csd i))))
+                (flmax h (fl* my (fx->fl (sprite-height csd i)))))))
+    (define sx (fl- tx (fl/ width 2.0)))
+    (define  y (fl+ ty (fl/ height 2.0)))
     (define-values (lx st)
       (for/fold ([sx sx] [st #f])
                 ([i (in-list idxs)])
-        (define w (* mx (sprite-width csd i)))
-        (define x (+ sx (/ w 2.0)))
-        (values (+ sx w)
+        (define w (fl* mx (fx->fl (sprite-width csd i))))
+        (define x (fl+ sx (fl/ w 2.0)))
+        (values (fl+ sx w)
                 (cons (sprite x y i
                               #:layer layer
                               #:mx mx #:my my

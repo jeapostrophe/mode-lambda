@@ -9,8 +9,8 @@
   (for/fold ([l '()]) ([i (in-range 256)])
     (define c (integer->char i))
     (if (or (char=? #\space c) (char-graphic? c))
-        (cons c l)
-        l)))
+      (cons c l)
+      l)))
 (define (load-font! sd
                     #:size [size 12]
                     #:face [face #f]
@@ -24,7 +24,7 @@
                     #:alphabet [alphabet *ALL-ASCII*])
   (local-require racket/class
                  racket/gui/base)
-  
+
   (define f%
     (make-font #:size size #:face face #:family family
                #:style style #:weight weight #:underlined? underlined?
@@ -38,28 +38,30 @@
                          ,smoothing ,size-in-pixels?
                          ,hinting))))
 
-  (define size-dc (send (make-screen-bitmap 1 1) make-dc))
-  (send size-dc set-font f%)
-  (define-values (width.0 height.0 xtra-below xtra-above)
-    (send size-dc get-text-extent " "))
-  (define width (inexact->exact (ceiling width.0)))
-  (define height (inexact->exact (ceiling height.0)))
-  
   (define char->char-id
     (for/hasheq ([c (in-list alphabet)])
       (define ci (char->integer c))
       (define char-id (string->symbol (format "font:~a:~v" f-id ci)))
       (define make-char-bm
         (λ ()
+          (define s (string c))
+          
+          (define size-dc (send (make-screen-bitmap 1 1) make-dc))
+          (send size-dc set-font f%)
+          (define-values (width.0 height.0 xtra-below xtra-above)
+            (send size-dc get-text-extent s))
+          (define width (inexact->exact (ceiling width.0)))
+          (define height (inexact->exact (ceiling height.0)))
+
           (define char-bm (make-platform-bitmap width height
                                                 #:backing-scale 8))
           (define char-dc (send char-bm make-dc))
 
           (send char-dc set-font f%)
-          (send char-dc draw-text (string c) 0 0)
-          
+          (send char-dc draw-text s 0 0)
+
           char-bm))
-      
+
       (add-sprite!/bm sd char-id make-char-bm)
       (values c char-id)))
   (*ml-font char->char-id))
