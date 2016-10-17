@@ -391,18 +391,17 @@ each vector of colors are on the vertix of a regular
 
 @section{mode-lambda text: text layout}
 @defmodule[mode-lambda/text]
-@require[@for-label[mode-lambda/text]]
 
 This module captures some convenience functions for adding font glyphs
 to the sprite database and laying out horizontal text.
 
+@subsection{Static}
+@defmodule[mode-lambda/text/static]
+@require[@for-label[mode-lambda/text/static]]
+
 @defthing[*ALL-ASCII* (listof char?)]{
                                       
 A list of all graphical ASCII characters.}
-
-@defproc[(font? [x any/c]) boolean?]{
-
-Identifies objects returned from @racket[load-font!].}
 
 @defproc[(load-font! [db sprite-db?]
                      [#:size size (real-in 0.0 1024.0) 12]
@@ -426,6 +425,14 @@ Uses most of its arguments to call @racket[make-font] from
 @racketmodname[racket/draw] to construct a font object, which it uses
 to add all of the characters in @racket[alphabet] to @racket[db] and
 returns a font object for use with @racket[font-glyph-idx].}
+
+@subsection{Runtime}
+@defmodule[mode-lambda/text/runtime]
+@require[@for-label[mode-lambda/text/runtime]]
+
+@defproc[(font? [x any/c]) boolean?]{
+
+Identifies objects returned from @racket[load-font!].}
 
 @defproc[(font-char-idx [the-font font?]
                         [cdb compiled-sprite-db?]
