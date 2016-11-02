@@ -290,6 +290,7 @@ Returns a sprite instance.}
 @defproc[(sprite-data-mx [s sprite-data?]) flonum?]{Returns X scale.}
 @defproc[(sprite-data-my [s sprite-data?]) flonum?]{Returns Y scale.}
 @defproc[(sprite-data-spr [s sprite-data?]) exact-nonnegative-integer?]{Returns sprite index.}
+@defproc[(sprite-data-layer [s sprite-data?]) byte?]{Returns sprite layer.}
 
 @defproc[(layer [cx flonum?]
                 [cy flonum?]

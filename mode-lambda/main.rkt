@@ -110,6 +110,7 @@
   [sprite-data-mx (-> sprite-data? flonum?)]
   [sprite-data-my (-> sprite-data? flonum?)]
   [sprite-data-spr (-> sprite-data? ushort?)]
+  [sprite-data-layer (-> sprite-data? byte?)]
   [layer
    (->* (flonum? flonum?)
         (#:hw
