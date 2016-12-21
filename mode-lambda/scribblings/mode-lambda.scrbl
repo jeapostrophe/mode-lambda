@@ -1,6 +1,6 @@
 #lang scribble/manual
 @require[(only-in mode-lambda/core
-                  LAYERS PALETTE-DEPTH)
+                  PALETTE-DEPTH)
          @for-label[racket/base
                     racket/contract/base]]
 
@@ -26,9 +26,9 @@ drawing surface. @ML follows an ahead-of-time, staged rendering regime
 whereby all color data must be "compiled", using
 @racket[compile-sprite-db], before any drawing can occur.
 
-@ML draws sprites on to one of @racket[#,LAYERS] layers. The larger
-layers are on-top, with transparent pixels seeping through. @ML makes
-no guarantees about the layering and transparency behavior of sprites
+@ML draws sprites on to one of the layers. The larger layers are
+on-top, with transparent pixels seeping through. @ML makes no
+guarantees about the layering and transparency behavior of sprites
 within a single layer. Each layer may have an independent center
 point, width, scaling coefficients, rotation, wrapping behavior, and
 Mode-7 coefficients.
@@ -213,20 +213,10 @@ Compiles the database @racket[db].}
 Use this module to construct scenes for one of the backends. Connect
 it to @racketmodname[mode-lambda/static] with @racket[load-csd].
 
-@defthing[LAYERS exact-nonnegative-integer?]{
-
-The number of layers supported by
-@racketmodname[mode-lambda]. Currently @racket[#,LAYERS].}
-
 @defthing[PALETTE-DEPTH exact-nonnegative-integer?]{
 
 The number of colors in one palette supported by
     @racketmodname[mode-lambda]. Currently @racket[#,PALETTE-DEPTH].}
-
-@defthing[default-layer-config layer-vector/c]{
-
-The default configuration of layers. You almost certainly don't want
-to use it.}
 
 @defproc[(compiled-sprite-db? [x any/c])
          boolean?]{

@@ -68,12 +68,8 @@
 
 (provide
  (contract-out
-  [LAYERS
-   exact-nonnegative-integer?]
   [PALETTE-DEPTH
    exact-nonnegative-integer?]
-  [default-layer-config
-    layer-vector/c]
   [compiled-sprite-db?
    (-> any/c
        boolean?)]

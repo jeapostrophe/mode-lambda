@@ -15,8 +15,9 @@ very slow, and a little complicated, but easier to test than
 @defthing[stage-draw/dc
           (->i ([cdb compiled-sprite-db?]
                 [render-width exact-nonnegative-integer?]
-                [render-height exact-nonnegative-integer?])
-               (->i ([layer-config layer-vector/c]
+                [render-height exact-nonnegative-integer?]
+                [layers exact-nonnegative-integer?])
+               (->i ([layer-config (vectorof layer-data?)]
                      [static-st any/c]
                      [dynamic-st any/c])
                     (->i ([draw-width exact-nonnegative-integer?]

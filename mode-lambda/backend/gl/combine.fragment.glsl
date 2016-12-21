@@ -1,6 +1,6 @@
 @glsl-include["lib.glsl"]
 
-uniform sampler2D LayerTargets[@LAYERS];
+uniform sampler2D LayerTargets[@how-many-layers];
 uniform sampler2D LayerConfigTex;
 uniform float XScale;
 uniform float YScale;
@@ -41,7 +41,7 @@ void main() {
   float ay = height - iTexCoord.y * height;
 
   vec4 fin_Color = vec4(0.0, 0.0, 0.0, 1.0);
-@in[compiletimelayer (in-range LAYERS)]{
+@in[compiletimelayer (in-range @how-many-layers)]{
   {
     int layer = @compiletimelayer;
     @glsl-include["layer.glsl"]

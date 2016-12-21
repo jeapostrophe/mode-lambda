@@ -115,7 +115,7 @@
   (define csd-p (build-path here "csd"))
   (save-csd! original-csd csd-p #:debug? #t)
   (define csd (load-csd csd-p))
-  (define render (stage-draw/dc csd W H))
+  (define render (stage-draw/dc csd W H 8))
   (vector ns csd render (make-text-renderer the-font csd)))
 
 (define (go renderi mode spin?)

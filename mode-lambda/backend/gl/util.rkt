@@ -11,9 +11,9 @@
 
 ;; XXX maybe 410
 (define gl-backend-version (make-parameter '3.3))
-(define valid-gl-backends '(3.3 es3.2))
+(define valid-gl-backends '(3.3 es3.1))
 (define (gl-es?)
-  (eq? 'es3.2 (gl-backend-version)))
+  (eq? 'es3.1 (gl-backend-version)))
 
 (define-syntax-rule (glsl-include p) (include-template p))
 
@@ -139,7 +139,7 @@
                    (string-append (format "#version ~a\n"
                                           (match (gl-backend-version)
                                             ['3.3 "330 core"]
-                                            ['es3.2 "320 es"]))
+                                            ['es3.1 "310 es"]))
                                   VertexShader))
                   (s32vector))
   (glCompileShader VertexShaderId)

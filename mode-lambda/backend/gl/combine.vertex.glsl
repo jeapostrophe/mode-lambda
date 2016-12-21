@@ -1,7 +1,7 @@
 @glsl-include["lib.glsl"]
 @glsl-include["quad.glsl"]
 
-uniform sampler2D LayerTargets[@LAYERS];
+uniform sampler2D LayerTargets[@how-many-layers];
 uniform sampler2D LayerConfigTex;
 uniform vec2 LogicalSize;
 

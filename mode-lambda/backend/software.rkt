@@ -125,7 +125,7 @@
       (when (fl<=3 0.0 λ3 1.0)
         (draw-triangle! t x y λ1 λ2 λ3)))))
 
-(define (stage-render csd width height)
+(define (stage-render csd width height layers)
   (define width.0 (fx->fl width))
   (define hwidth.0 (fl* 0.5 width.0))
   (define height.0 (fx->fl height))
@@ -135,7 +135,7 @@
                        pal-size pal-bs pal->idx)
    csd)
   (define root-bs-v
-    (build-vector LAYERS (λ (i) (make-bytes (* 4 width height)))))
+    (build-vector layers (λ (i) (make-bytes (* 4 width height)))))
   (define combined-bs
     (make-bytes (* 4 width height)))
   (define tri-hash (make-2d-hash width height))
@@ -441,8 +441,8 @@
   (make-parameter #f))
 
 (define gui-mode 'draw)
-(define (stage-draw/dc csd width height)
-  (define render (stage-render csd width height))
+(define (stage-draw/dc csd width height how-many-layers)
+  (define render (stage-render csd width height how-many-layers))
   (λ (layer-config static-st dynamic-st)
     (define sprite-tree (cons static-st dynamic-st))
     (define bs (render layer-config sprite-tree))

@@ -3,7 +3,8 @@
          ffi/unsafe/cvector
          (only-in ffi/vector
                   u32vector
-                  list->s32vector)
+                  list->s32vector
+                  s32vector-ref)
          mode-lambda/backend/gl/util
          mode-lambda/backend/lib
          mode-lambda/core
@@ -25,9 +26,9 @@
 (define QUAD_VERTS 4)
 
 (define LAYER-VALUES 12)
-(define (layer-config->bytes layer-config)
+(define (layer-config->bytes how-many-layers layer-config)
   (define lc-bytes-per-value (ctype-sizeof _float))
-  (define lc-bs (make-bytes (* LAYER-VALUES LAYERS lc-bytes-per-value)))
+  (define lc-bs (make-bytes (* LAYER-VALUES how-many-layers lc-bytes-per-value)))
   (for ([i (in-naturals)]
         [lc (in-vector layer-config)])
     (match-define
@@ -55,12 +56,17 @@
 (define VERTEX_SPEC
   (add-between VERTEX_SPEC_L ","))
 
-(define (make-draw csd width.fx height.fx screen-mode)
+(define (make-draw csd width.fx height.fx how-many-layers screen-mode)
   (define width (fx->fl width.fx))
   (define height (fx->fl height.fx))
   (eprintf "You are using OpenGL ~v with gl-backend-version of ~v\n"
            (gl-version)
            (gl-backend-version))
+
+  (define max-draw-buffers (s32vector-ref (glGetIntegerv GL_MAX_DRAW_BUFFERS) 0))
+  (unless (<= how-many-layers max-draw-buffers)
+    (error 'mode-lambda "Too many layers for device: ~v vs ~v."
+           how-many-layers max-draw-buffers))
 
   (define shot! (gl-screenshot!))
 
@@ -77,8 +83,9 @@
         (unless (equal? layer-config last-layer-config)
           (set! last-layer-config layer-config)
           (with-texture (GL_TEXTURE3 LayerConfigId)
-            (load-texture/float-bytes LAYER-VALUES LAYERS
-                                      (layer-config->bytes layer-config)))))))
+            (load-texture/float-bytes LAYER-VALUES how-many-layers
+                                      (layer-config->bytes how-many-layers
+                                                           layer-config)))))))
 
   (define render-layers!
     (let ()
@@ -108,7 +115,7 @@
         [(gl-es?)
          (eprintf "GL: Skipping glBindFragDataLocation on OpenGL ES\n")]
         [else
-         (for ([i (in-range LAYERS)])
+         (for ([i (in-range how-many-layers)])
            (glBindFragDataLocation layer-program i (format "out_Color~a" i)))])
 
       (define tmp-vao (glGen glGenVertexArrays))
@@ -127,7 +134,7 @@
 
       (define layer-dfbos
         (for/list ([i (in-range 2)])
-          (make-delayed-fbo LAYERS)))
+          (make-delayed-fbo how-many-layers)))
 
       (define (make-sprite-draw!)
         (define layer-vao (glGen glGenVertexArrays))
@@ -187,9 +194,9 @@
           [with-feature (GL_BLEND)]
           [with-program (layer-program)])
          (set-uniform-scale-info! layer-program the-scale-info)
-         (glDrawBuffers LAYERS
+         (glDrawBuffers how-many-layers
                         (list->s32vector
-                         (for/list ([i (in-range LAYERS)])
+                         (for/list ([i (in-range how-many-layers)])
                            (GL_COLOR_ATTACHMENTi i))))
          (glClearColor 0.0 0.0 0.0 0.0)
          (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
@@ -216,9 +223,9 @@
           (glUniform1i (glGetUniformLocation combine-program "LayerConfigTex")
                        (gl-texture-index GL_TEXTURE0))
           (glUniform1iv (glGetUniformLocation combine-program "LayerTargets")
-                        LAYERS
+                        how-many-layers
                         (list->s32vector
-                         (for/list ([i (in-range LAYERS)])
+                         (for/list ([i (in-range how-many-layers)])
                            (fx+ 1 i))))))
 
       (define combine-dfbos
@@ -357,7 +364,7 @@
 (define-make-delayed-render
   stage-draw/dc
   make-draw
-  (csd width height)
+  (csd width height how-many-layers)
   ((gl-filter-mode))
   (layer-config static-st dynamic-st))
 

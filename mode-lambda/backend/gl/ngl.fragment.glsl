@@ -11,15 +11,20 @@ in vec2 TexCoord;
 in float Palette;
 in float Layer;
 
-@in[i (in-range LAYERS)]{
+@in[i (in-range how-many-layers)]{
   layout (location = @i) out vec4 out_Color@i;
 }
 
 void main(void)
 {
-  vec4 PixelColor;
   vec4 SpriteColor = texture(SpriteAtlasTex, TexCoord);
 
+  SpriteColor = texelFetch(SpriteAtlasTex,
+                           ivec2( round(TexCoord.x), round(TexCoord.y) ),
+                           0);
+
+  vec4 PixelColor;
+  
   if ( Palette == 0.0 ) {
     PixelColor = SpriteColor;
   } else {
@@ -29,14 +34,14 @@ void main(void)
   }
 
   vec4 fin_Color;
-  
+
   fin_Color.a = PixelColor.a * Color.a;
   fin_Color.rgb = PixelColor.rgb + Color.rgb;
 
   vec4 blank_Color = vec4(0.0,0.0,0.0,0.0);
   
   int iLayer = int(floor(Layer));
-  @in[i (in-range LAYERS)]{
+  @in[i (in-range how-many-layers)]{
     out_Color@i = (iLayer == @i) ? fin_Color : blank_Color;
   }
 }

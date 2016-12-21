@@ -15,8 +15,9 @@ pretty fast, but kind of complicated.
 @defthing[stage-draw/dc
           (->i ([cdb compiled-sprite-db?]
                 [render-width exact-nonnegative-integer?]
-                [render-height exact-nonnegative-integer?])
-               (->i ([layer-config layer-vector/c]
+                [render-height exact-nonnegative-integer?]
+                [layers exact-nonnegative-integer?])
+               (->i ([layer-config (vectorof layer-data?)]
                      [static-st any/c]
                      [dynamic-st any/c])
                     (->i ([draw-width exact-nonnegative-integer?]
@@ -25,13 +26,17 @@ pretty fast, but kind of complicated.
                          any)))]{
 
 Prepares a function that accepts rendering states and returns a
-function that draws that rendering state.}
+function that draws that rendering state. @racket[layers] must be less
+than or equal to @litchar{GL_MAX_DRAW_BUFFERS}, which tends to be
+either 4 on embedded devices, 8 on older devices, and 16 on new
+devices. (A future version of this backend will use a different
+implementation technique and limit it to be a @racket[byte?].)}
 
 @defthing[gui-mode symbol?]{
 
 A symbol to be sent to @racket[make-gui] of @racketmodname[lux/chaos/gui].}
 
-@defthing[gl-backend-version (parameter/c (one-of '3.3 'es3.2))]{
+@defthing[gl-backend-version (parameter/c (one-of '3.3 'es3.1))]{
 
 Sets the desired version of OpenGL to use.}
 

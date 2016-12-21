@@ -84,7 +84,7 @@ void main(void)
   TexCoord =
     vec2(tx + ((horiz + 1.0)/+2.0) * w,
          ty + (( vert + 1.0)/+2.0) * h)
-    / float(atlasSize.x);
+    ; // / float(atlasSize.x); // for use with texture (rather than texelFetch)
   Palette = float(pal);
   Layer = float(layer);
 }

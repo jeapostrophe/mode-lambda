@@ -14,9 +14,7 @@
 (struct compiled-sprite-db
   (atlas-size atlas-bs spr->idx idx->w*h*tx*ty pal-size pal-bs pal->idx))
 
-(define LAYERS 8)
-(define layer/c
-  (and/c byte? (between/c 0 (sub1 LAYERS))))
+(define layer/c byte?)
 
 (define-cstruct _layer-data
   ([cx _float]
@@ -36,8 +34,6 @@
 
 (define default-layer
   (make-layer-data 0.0 0.0 0.0 0.0 1.0 1.0 0.0 0.0 0.0 1.0 #f #f))
-(define default-layer-config
-  (make-vector LAYERS #f))
 
 ;; Mode7 Docs:
 ;; - http://www.coranac.com/tonc/text/mode7.htm
@@ -85,7 +81,7 @@
   (printf "sprite-data size: ~v bytes\n" (ctype-sizeof _sprite-data)))
 
 (define layer-vector/c
-  (apply vector/c (make-list LAYERS (or/c false/c layer-data?))))
+  (vectorof (or/c false/c layer-data?)))
 
 (define-syntax-rule (backend/c (addl-input ...) output)
   (-> layer-vector/c tree/c tree/c addl-input ... output))
@@ -97,6 +93,7 @@
 
 (define (stage-backend/c output/c)
   (-> compiled-sprite-db?
+      exact-nonnegative-integer?
       exact-nonnegative-integer?
       exact-nonnegative-integer?
       output/c))
