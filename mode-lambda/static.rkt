@@ -72,8 +72,11 @@
   (define ss (map (λ (l) (l)) (unbox ls-b)))
 
   (define-values (atlas-size places)
-    (pack (λ (s) (vector-ref s 2))
-          (λ (s) (vector-ref s 3))
+    ;; We add one here to tell the optimization algorithm to give each
+    ;; sprite a 1-pixel border. This is to prevent color data bleeding
+    ;; across sprites in the atlas texture.
+    (pack (λ (s) (add1 (vector-ref s 2)))
+          (λ (s) (add1 (vector-ref s 3)))
           ss))
   (define how-many-places (add1 (length places)))
   (unless (ushort? how-many-places)

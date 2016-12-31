@@ -79,12 +79,9 @@ void main(void)
               1.0, -1.0)
     * glScale(1.0, -1.0, 1.0);
 
-  ivec2 atlasSize = textureSize(SpriteAtlasTex, 0);
-  
   TexCoord =
     vec2(tx + ((horiz + 1.0)/+2.0) * w,
-         ty + (( vert + 1.0)/+2.0) * h)
-    ; // / float(atlasSize.x); // for use with texture (rather than texelFetch)
+         ty + (( vert + 1.0)/+2.0) * h);
   Palette = float(pal);
   Layer = float(layer);
 }

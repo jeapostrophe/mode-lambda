@@ -17,14 +17,17 @@ in float Layer;
 
 void main(void)
 {
-  vec4 SpriteColor
-    //  = texture(SpriteAtlasTex,
-    //            TexCoord / float(textureSize(SpriteAtlasTex, 0).x))
-    ;
+  vec4 SpriteColor;
 
-  SpriteColor = texelFetch(SpriteAtlasTex,
-                           ivec2( round(TexCoord.x - 0.5), round(TexCoord.y - 0.5) ),
-                           0);
+  SpriteColor =
+    // This is what it should be defined as
+    //  texture(SpriteAtlasTex,
+    //          TexCoord / float(textureSize(SpriteAtlasTex, 0).x))
+    // But it doesn't work on some ES devices I have, so we do this instead:
+    texelFetch(SpriteAtlasTex,
+               ivec2( trunc(TexCoord.x), trunc(TexCoord.y) ),
+               0)
+  ;
 
   vec4 PixelColor;
   

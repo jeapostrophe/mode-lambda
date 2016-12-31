@@ -25,14 +25,14 @@
 ;;; BITMAPS
 ;;;
 
-(define gray-bm
-  (pict->bitmap (colorize (filled-rectangle W H) "gray")))
-(define fish-bm
-  (pict->bitmap (standard-fish  100 50)))
-(define lantern-bm
-  (pict->bitmap (jack-o-lantern 100)))
-(define flash-bm
-  (pict->bitmap (colorize (linewidth 5 (outline-flash 100 105)) "yellow")))
+(define gray-p
+  (colorize (filled-rectangle W H) "gray"))
+(define fish-p
+  (standard-fish  100 50))
+(define lantern-p
+  (jack-o-lantern 100))
+(define flash-p
+  (colorize (linewidth 5 (outline-flash 100 105)) "yellow"))
 
 ;;;
 ;;; SPRITES
@@ -40,10 +40,10 @@
 
 (define db (make-sprite-db))
 
-(add-sprite!/bm db 'gray    (λ() gray-bm))
-(add-sprite!/bm db 'fish    (λ() fish-bm))
-(add-sprite!/bm db 'lantern (λ() lantern-bm))
-(add-sprite!/bm db 'flash   (λ() flash-bm))
+(add-sprite!/value db 'gray    gray-p)
+(add-sprite!/value db 'fish    fish-p)
+(add-sprite!/value db 'lantern lantern-p)
+(add-sprite!/value db 'flash   flash-p)
 
 (define cdb (compile-sprite-db db))
 
@@ -74,7 +74,7 @@
 (define gray-sprite    (sprite W/2  H/2  gray-idx    #:layer 0)) ; bug layer
 (define fish-sprite    (sprite 200. 200. fish-idx    #:layer 1)) ; background
 (define lantern-sprite (sprite 250. 200. lantern-idx #:layer 2)) ; middle
-(define flash-sprite   (sprite 250. 200. flash-idx   #:layer 3)) ; foreground
+(define flash-sprite   (sprite 160. 200. flash-idx   #:layer 3)) ; foreground
 
 ;;;
 ;;; RUNTIME
@@ -82,7 +82,7 @@
 
 (define rendering-states->draw (stage-draw/dc cdb W H (vector-length lc)))
 
-(define static (list gray-sprite))
+(define static (list gray-sprite fish-sprite lantern-sprite))
 
 (define (paint-canvas c dc)
   (define dynamic (list flash-sprite))
