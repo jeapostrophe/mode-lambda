@@ -17,10 +17,13 @@ in float Layer;
 
 void main(void)
 {
-  vec4 SpriteColor = texture(SpriteAtlasTex, TexCoord);
+  vec4 SpriteColor
+    //  = texture(SpriteAtlasTex,
+    //            TexCoord / float(textureSize(SpriteAtlasTex, 0).x))
+    ;
 
   SpriteColor = texelFetch(SpriteAtlasTex,
-                           ivec2( round(TexCoord.x), round(TexCoord.y) ),
+                           ivec2( round(TexCoord.x - 0.5), round(TexCoord.y - 0.5) ),
                            0);
 
   vec4 PixelColor;
