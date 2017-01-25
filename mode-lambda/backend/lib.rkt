@@ -61,9 +61,9 @@
 (provide
  (contract-out
   [compute-nice-scale
-   (-> real?
-       exact-nonnegative-integer? exact-nonnegative-integer?
-       exact-nonnegative-integer? exact-nonnegative-integer?
-       real?)]
+   (-> flonum?
+       fixnum? fixnum?
+       fixnum? fixnum?
+       flonum?)]
   [draw/dc/c
    contract?]))
