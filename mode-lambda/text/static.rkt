@@ -53,8 +53,8 @@
           (define width (inexact->exact (ceiling width.0)))
           (define height (inexact->exact (ceiling height.0)))
 
-          (define char-bm (make-platform-bitmap width height
-                                                #:backing-scale 8))
+          (define char-bm (make-bitmap width height
+                                       #:backing-scale 8))
           (define char-dc (send char-bm make-dc))
 
           (send char-dc set-font f%)
