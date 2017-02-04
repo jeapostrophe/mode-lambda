@@ -44,7 +44,7 @@ void main(void)
   fin_Color.a = PixelColor.a * Color.a;
   fin_Color.rgb = PixelColor.rgb + Color.rgb;
 
-  vec4 blank_Color = vec4(0.0,0.0,0.0,0.0);
+  vec4 blank_Color = vec4(0.0,0.0,0.0,0.0000001);
   
   int iLayer = int(floor(Layer));
   @in[i (in-range how-many-layers)]{
