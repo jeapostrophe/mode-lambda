@@ -1,5 +1,6 @@
 #lang racket/base
 (require racket/file
+         racket/runtime-path
          lux
          lux/chaos/gui
          mode-lambda
@@ -8,21 +9,23 @@
          (prefix-in soft: mode-lambda/backend/software)
          (prefix-in gl: mode-lambda/backend/gl))
 
+(define-runtime-path here ".")
+
 (define (go! gl?)
   (define stage-draw/dc
     (if gl?
       gl:stage-draw/dc
       soft:stage-draw/dc))
 
-  (define cdir "gl-shot")
+  (define cdir (build-path here "gl-shot"))
   (make-directory* cdir)
   (gl:gl-screenshot!
    (screenshot-in-dir! cdir))
 
   (define sprite-db              (make-sprite-db))
-  (add-sprite!/file sprite-db    'game-over "game-over.png")
+  (add-sprite!/file sprite-db    'game-over (build-path here "game-over.png"))
   (define compiled-db            (compile-sprite-db sprite-db))
-  (save-csd! compiled-db "tmp" #:debug? #t)
+  (save-csd! compiled-db (build-path here "tmp") #:debug? #t)
   (define game-over-index        (sprite-idx compiled-db 'game-over))
 
   (define test-layer             (layer 320.0 240.0))
