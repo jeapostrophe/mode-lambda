@@ -12,6 +12,11 @@
 (define-runtime-path here ".")
 
 (define (go! gl?)
+  (define W 640)
+  (define H 480)
+  (define hw.0 (/ W 2.0))
+  (define hh.0 (/ H 2.0))
+  
   (define stage-draw/dc
     (if gl?
       gl:stage-draw/dc
@@ -28,17 +33,17 @@
   (save-csd! compiled-db (build-path here "tmp") #:debug? #t)
   (define game-over-index        (sprite-idx compiled-db 'game-over))
 
-  (define test-layer             (layer 320.0 240.0))
+  (define test-layer             (layer hw.0 hh.0))
   (define layer-config           (vector test-layer))
 
   (define rendering-states->draw
-    (stage-draw/dc compiled-db 640 480 (vector-length layer-config)))
+    (stage-draw/dc compiled-db W H (vector-length layer-config)))
 
   (struct demo ()
     #:methods gen:word
 
     [(define (word-output w)
-       (define game-over-sprite  (sprite 320.0 240.0 game-over-index #:layer 0))
+       (define game-over-sprite  (sprite hw.0 hh.0 game-over-index #:layer 0))
        (define dynamic-sprites   (list game-over-sprite))
 
        (rendering-states->draw layer-config '() dynamic-sprites))
@@ -51,7 +56,7 @@
      (define (word-tick w) w)])
 
   (call-with-chaos
-   (make-gui #:mode (if gl? 'gl-core 'draw) #:width 640 #:height 480)
+   (make-gui #:mode (if gl? 'gl-core 'draw) #:width W #:height H)
    (λ () (fiat-lux (demo)))))
 
 (module+ main
