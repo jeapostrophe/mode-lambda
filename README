@@ -4,6 +4,9 @@ Try running...
 
 racket -l mode-lambda/examples/one
 
+NOTE:
+XXX layer-camera branch is an attempt to clean up parameters
+
 MAYBE:
 - parents for localized rotation? (skeletal animation)
 - rotation about a different origin
