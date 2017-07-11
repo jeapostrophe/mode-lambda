@@ -3,6 +3,7 @@
          racket/runtime-path
          lux
          lux/chaos/gui
+         lux/chaos/gui/key
          mode-lambda
          mode-lambda/static
          mode-lambda/shot
@@ -50,7 +51,11 @@
 
      (define (word-event w e)
        (cond
-         [(eq? e 'close) #f]
+         [(or (eq? e 'close)
+              (and (key-event? e)
+                   (or (eq? 'escape (key-event-code e))
+                       (eq? #\q (key-event-code e)))))
+          #f]         
          [else w]))
 
      (define (word-tick w) w)])
