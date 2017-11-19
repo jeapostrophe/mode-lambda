@@ -16,7 +16,7 @@ pretty fast, but kind of complicated.
           (->i ([cdb compiled-sprite-db?]
                 [render-width exact-nonnegative-integer?]
                 [render-height exact-nonnegative-integer?]
-                [layers exact-nonnegative-integer?])
+                [layers byte?])
                (->i ([layer-config (vectorof layer-data?)]
                      [static-st any/c]
                      [dynamic-st any/c])
@@ -27,10 +27,8 @@ pretty fast, but kind of complicated.
 
 Prepares a function that accepts rendering states and returns a
 function that draws that rendering state. @racket[layers] must be less
-than or equal to @litchar{GL_MAX_DRAW_BUFFERS}, which tends to be
-either 4 on embedded devices, 8 on older devices, and 16 on new
-devices. (A future version of this backend will use a different
-implementation technique and limit it to be a @racket[byte?].)}
+than or equal to @litchar{GL_MAX_ARRAY_TEXTURE_LAYERS}, which is at
+least @racket[256].}
 
 @defthing[gui-mode symbol?]{
 

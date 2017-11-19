@@ -63,11 +63,6 @@
            (gl-version)
            (gl-backend-version))
 
-  (define max-draw-buffers (s32vector-ref (glGetIntegerv GL_MAX_DRAW_BUFFERS) 0))
-  (unless (<= how-many-layers max-draw-buffers)
-    (error 'mode-lambda "Too many layers for device: ~v vs ~v."
-           how-many-layers max-draw-buffers))
-
   (define shot! (gl-screenshot!))
 
   (match-define
@@ -109,14 +104,7 @@
       (define-shader-source layer-fragment "gl/ngl.fragment.glsl")
 
       (compile-shader GL_VERTEX_SHADER layer-program layer-vert)
-      (compile-shader GL_FRAGMENT_SHADER layer-program layer-fragment)
-
-      (cond
-        [(gl-es?)
-         (eprintf "GL: Skipping glBindFragDataLocation on OpenGL ES\n")]
-        [else
-         (for ([i (in-range how-many-layers)])
-           (glBindFragDataLocation layer-program i (format "out_Color~a" i)))])
+      (compile-shader GL_FRAGMENT_SHADER layer-program layer-fragment)      
 
       (define tmp-vao (glGen glGenVertexArrays))
       (with-vertexarray (tmp-vao)
@@ -132,9 +120,10 @@
                        (gl-texture-index GL_TEXTURE3))))
       (glDeleteVertexArrays 1 (u32vector tmp-vao))
 
-      (define layer-dfbos
+      (define layer-dfboss
         (for/list ([i (in-range 2)])
-          (make-delayed-fbo how-many-layers)))
+          (for/list ([l (in-range how-many-layers)])
+            (make-delayed-fbo 1))))
 
       (define (make-sprite-draw!)
         (define layer-vao (glGen glGenVertexArrays))
@@ -177,36 +166,37 @@
 
       (λ (update-scale? the-scale-info static-st dynamic-st)
         (when update-scale?
-          (for ([layer-dfbo (in-list layer-dfbos)])
+          (for* ([layer-dfbos (in-list layer-dfboss)]
+                 [layer-dfbo (in-list layer-dfbos)])            
             (initialize-dfbo! layer-dfbo the-scale-info)))
 
-        (define layer-dfbo
-          (list-ref layer-dfbos
+        (define layer-dfbos
+          (list-ref layer-dfboss
                     (if front? 0 1)))
         (set! front? (not front?))
 
-        (nest
-         ([with-framebuffer ((delayed-fbo-fbo layer-dfbo))]
-          [with-texture (GL_TEXTURE0 SpriteAtlasId)]
-          [with-texture (GL_TEXTURE1 PaletteAtlasId)]
-          [with-texture (GL_TEXTURE2 SpriteIndexId)]
-          [with-texture (GL_TEXTURE3 LayerConfigId)]
-          [with-feature (GL_BLEND)]
-          [with-program (layer-program)])
-         (set-uniform-scale-info! layer-program the-scale-info)
-         (glDrawBuffers how-many-layers
-                        (list->s32vector
-                         (for/list ([i (in-range how-many-layers)])
-                           (GL_COLOR_ATTACHMENTi i))))
-         (glClearColor 0.0 0.0 0.0 0.0)
-         (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
-         (glClear GL_COLOR_BUFFER_BIT)
-         (set-viewport/fpair! (scale-info-texture the-scale-info))
+        (for ([active-layeri (in-range how-many-layers)]
+              [layer-dfbo (in-list layer-dfbos)])
+          (nest
+              ([with-framebuffer ((delayed-fbo-fbo layer-dfbo))]
+               [with-texture (GL_TEXTURE0 SpriteAtlasId)]
+               [with-texture (GL_TEXTURE1 PaletteAtlasId)]
+               [with-texture (GL_TEXTURE2 SpriteIndexId)]
+               [with-texture (GL_TEXTURE3 LayerConfigId)]
+               [with-feature (GL_BLEND)]
+               [with-program (layer-program)])          
+            (set-uniform-scale-info! layer-program the-scale-info)
+            (glUniform1f (glGetUniformLocation layer-program "ActiveLayer")
+                         (real->double-flonum active-layeri))              
+            (glClearColor 0.0 0.0 0.0 0.0)
+            (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
+            (glClear GL_COLOR_BUFFER_BIT)
+            (set-viewport/fpair! (scale-info-texture the-scale-info))
 
-         (draw-static! static-st)
-         (draw-dynamic! dynamic-st))
-
-        (delayed-fbo-texs layer-dfbo))))
+            (draw-static! static-st)
+            (draw-dynamic! dynamic-st)))
+        
+        (map delayed-fbo-tex layer-dfbos))))
 
   (define combine-layers!
     (let ()
@@ -254,7 +244,7 @@
          (set-viewport/fpair! (scale-info-texture the-scale-info))
          (glDrawArrays GL_TRIANGLE_STRIP 0 QUAD_VERTS))
 
-        (first (delayed-fbo-texs combine-dfbo)))))
+        (delayed-fbo-tex combine-dfbo))))
 
   (define draw-screen!
     (let ()

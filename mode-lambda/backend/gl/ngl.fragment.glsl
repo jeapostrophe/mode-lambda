@@ -1,5 +1,6 @@
 @glsl-include["lib.glsl"]
 
+uniform float ActiveLayer;
 uniform sampler2D SpriteAtlasTex; 
 uniform sampler2D PaletteAtlasTex;
 
@@ -11,18 +12,17 @@ in vec2 TexCoord;
 in float Palette;
 in float Layer;
 
-@in[i (in-range how-many-layers)]{
-  layout (location = @i) out vec4 out_Color@i;
-}
+out vec4 out_Color;
 
 void main(void)
 {
   vec4 SpriteColor;
 
+  vec2 texSize = textureSize(SpriteAtlasTex, 0);
   SpriteColor =
     // This is what it should be defined as
     //  texture(SpriteAtlasTex,
-    //          TexCoord / float(textureSize(SpriteAtlasTex, 0).x))
+    //          TexCoord / float(texSize.x))
     // But it doesn't work on some ES devices I have, so we do this instead:
     texelFetch(SpriteAtlasTex,
                ivec2( trunc(TexCoord.x), trunc(TexCoord.y) ),
@@ -47,7 +47,6 @@ void main(void)
   vec4 blank_Color = vec4(0.0,0.0,0.0,0.0000001);
   
   int iLayer = int(floor(Layer));
-  @in[i (in-range how-many-layers)]{
-    out_Color@i = (iLayer == @i) ? fin_Color : blank_Color;
-  }
+  int iActiveLayer = int(floor(ActiveLayer));
+  out_Color = (iLayer == iActiveLayer) ? fin_Color : blank_Color;
 }

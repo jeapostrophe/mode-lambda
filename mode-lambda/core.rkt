@@ -95,7 +95,7 @@
   (-> compiled-sprite-db?
       exact-nonnegative-integer?
       exact-nonnegative-integer?
-      exact-nonnegative-integer?
+      byte?
       output/c))
 
 (provide

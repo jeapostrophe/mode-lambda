@@ -16,7 +16,7 @@ very slow, and a little complicated, but easier to test than
           (->i ([cdb compiled-sprite-db?]
                 [render-width exact-nonnegative-integer?]
                 [render-height exact-nonnegative-integer?]
-                [layers exact-nonnegative-integer?])
+                [layers byte?])
                (->i ([layer-config (vectorof layer-data?)]
                      [static-st any/c]
                      [dynamic-st any/c])

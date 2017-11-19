@@ -296,6 +296,10 @@
       (make-target-texture tex-width tex-height)))
   (set-delayed-fbo-texs! dfbo new-texs)
   (set-delayed-fbo-fbo! dfbo (make-fbo new-texs)))
+(define (delayed-fbo-tex dfbo)
+  (match (delayed-fbo-texs dfbo)
+    [(list t) t]
+    [_ (error 'delayed-fbo-tex "More than one texture")]))
 
 (define-syntax-rule (define-make-delayed-render
                       delayed-render
