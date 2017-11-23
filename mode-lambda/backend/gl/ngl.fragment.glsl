@@ -43,6 +43,7 @@ void main(void)
 
   fin_Color.a = PixelColor.a * Color.a;
   fin_Color.rgb = PixelColor.rgb + Color.rgb;
+  fin_Color.rgb = min(fin_Color.rgb, fin_Color.a);
 
   vec4 blank_Color = vec4(0.0,0.0,0.0,0.0000001);
   
