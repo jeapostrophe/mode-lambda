@@ -19,15 +19,19 @@ void main(void)
   vec4 SpriteColor;
 
   vec2 texSize = textureSize(SpriteAtlasTex, 0);
-  SpriteColor =
+  if (true) {
+    SpriteColor =
     // This is what it should be defined as
-    //  texture(SpriteAtlasTex,
-    //          TexCoord / float(texSize.x))
+    texture(SpriteAtlasTex,
+            vec2(TexCoord.x / texSize.x,
+                 TexCoord.y / texSize.y));
+  } else {
+    SpriteColor =
     // But it doesn't work on some ES devices I have, so we do this instead:
     texelFetch(SpriteAtlasTex,
                ivec2( trunc(TexCoord.x), trunc(TexCoord.y) ),
-               0)
-  ;
+               0);
+  }
 
   vec4 PixelColor;
   
