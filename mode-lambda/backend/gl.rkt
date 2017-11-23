@@ -87,7 +87,10 @@
       ;; xxx allow these to be updated
       (define SpriteAtlasId (make-2dtexture))
       (with-texture (GL_TEXTURE0 SpriteAtlasId)
-        (load-texture/bytes atlas-size atlas-size atlas-bs))
+        (load-texture/bytes atlas-size atlas-size atlas-bs)
+        (glGenerateMipmap GL_TEXTURE_2D)
+        (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MAG_FILTER GL_LINEAR)
+        (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MIN_FILTER GL_LINEAR_MIPMAP_LINEAR))
       (define PaletteAtlasId (make-2dtexture))
       (with-texture (GL_TEXTURE0 PaletteAtlasId)
         (load-texture/bytes PALETTE-DEPTH pal-size pal-bs))
