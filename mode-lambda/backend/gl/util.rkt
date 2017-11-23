@@ -20,7 +20,7 @@
 (define (make-2dtexture)
   (define Id (glGen glGenTextures))
   (with-texture (GL_TEXTURE0 Id)
-    (2D-defaults))
+    (2D-defaults GL_TEXTURE_2D))
   Id)
 
 (define (load-texture/bytes w h bs)
@@ -41,18 +41,14 @@
                 GL_RGBA GL_FLOAT
                 bs))
 
-(define (2D-defaults)
-  (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MIN_FILTER GL_NEAREST)
-  (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MAG_FILTER GL_NEAREST)
-  (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_S GL_CLAMP_TO_EDGE)
-  (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_T GL_CLAMP_TO_EDGE))
+(define (2D-defaults kind)
+  (glTexParameteri kind GL_TEXTURE_MIN_FILTER GL_NEAREST)
+  (glTexParameteri kind GL_TEXTURE_MAG_FILTER GL_NEAREST)
+  (glTexParameteri kind GL_TEXTURE_WRAP_S GL_CLAMP_TO_EDGE)
+  (glTexParameteri kind GL_TEXTURE_WRAP_T GL_CLAMP_TO_EDGE))
 
 (define (gl-texture-index i)
-  (match i
-    [(== GL_TEXTURE0) 0]
-    [(== GL_TEXTURE1) 1]
-    [(== GL_TEXTURE2) 2]
-    [(== GL_TEXTURE3) 3]))
+  (- i GL_TEXTURE0))
 
 (define GL_COLOR_ATTACHMENTx
   (vector GL_COLOR_ATTACHMENT0 GL_COLOR_ATTACHMENT1 GL_COLOR_ATTACHMENT2
@@ -61,13 +57,10 @@
 (define (GL_COLOR_ATTACHMENTi i)
   (vector-ref GL_COLOR_ATTACHMENTx i))
 
-(define GL_TEXTUREx
-  (vector GL_TEXTURE0 GL_TEXTURE1 GL_TEXTURE2
-          GL_TEXTURE3 GL_TEXTURE4 GL_TEXTURE5
-          GL_TEXTURE6 GL_TEXTURE7 GL_TEXTURE8
-          GL_TEXTURE9 GL_TEXTURE10 GL_TEXTURE11))
 (define (GL_TEXTUREi i)
-  (vector-ref GL_TEXTUREx i))
+  (unless (< i 32)
+    (error 'GL_TEXTUREi "No valid constant for i=~a" i))
+  (+ GL_TEXTURE0 i))
 
 (define-syntax-rule (wrapper (before ...) (middle ...) (after ...))
   (let () before ... middle ... after ...))
@@ -86,6 +79,12 @@
            body
            [(glActiveTexture GL_TEXTUREx)
             (glBindTexture GL_TEXTURE_2D 0)]))
+(define-syntax-rule (with-texture-array (GL_TEXTUREx TextureId) . body)
+  (wrapper [(glActiveTexture GL_TEXTUREx)
+            (glBindTexture GL_TEXTURE_2D_ARRAY TextureId)]
+           body
+           [(glActiveTexture GL_TEXTUREx)
+            (glBindTexture GL_TEXTURE_2D_ARRAY 0)]))
 (define-with-state with-framebuffer (glBindFramebuffer GL_FRAMEBUFFER))
 (define-with-state with-renderbuffer (glBindRenderbuffer GL_RENDERBUFFER))
 (define-with-state with-arraybuffer (glBindBuffer GL_ARRAY_BUFFER))
@@ -104,9 +103,9 @@
   (with-textures* start-idx ids (λ () . body)))
 (define (with-textures* start-idx ids t)
   (if (empty? ids)
-      (t)
-      (with-texture ((GL_TEXTUREi start-idx) (first ids))
-        (with-textures* (+ 1 start-idx) (rest ids) t))))
+    (t)
+    (with-texture ((GL_TEXTUREi start-idx) (first ids))
+      (with-textures* (+ 1 start-idx) (rest ids) t))))
 
 (define (glGen glGenThing)
   (u32vector-ref (glGenThing 1) 0))
@@ -226,35 +225,36 @@
 (define (glVertexAttribIPointer* index size type normalized stride pointer)
   (glVertexAttribIPointer index size type stride pointer))
 
-(define (glLinkProgram&check ProgramId ProgramName)
+(define (glLinkProgram& ProgramId ProgramName)
   (glLinkProgram ProgramId)
   (unless (= GL_TRUE (glGetProgramiv ProgramId GL_LINK_STATUS))
     (print-shader-log glGetProgramInfoLog ProgramId ProgramId "[inside linking]")
-    (error 'glLinkProgram&check "failed to link program ~v" ProgramId))
+    (error 'glLinkProgram& "failed to link program ~v" ProgramId)))
+(define (glValidateProgram& ProgramId ProgramName)
   (glValidateProgram ProgramId)
   (unless (= GL_TRUE (glGetProgramiv ProgramId GL_VALIDATE_STATUS))
     (print-shader-log glGetProgramInfoLog ProgramId ProgramId "[during validation]")
-    (error 'glLinkProgram&check "failed to validate program ~v" ProgramName)))
+    (error 'glValidateProgram& "failed to validate program ~v" ProgramName)))
 
 (define (make-target-texture width height)
   (define myTexture (glGen glGenTextures))
   (with-texture (GL_TEXTURE0 myTexture)
-    (2D-defaults)
+    (2D-defaults GL_TEXTURE_2D)
     (glTexImage2D
      GL_TEXTURE_2D 0 GL_RGBA8 width height 0
      GL_RGBA GL_UNSIGNED_BYTE
      0))
   myTexture)
 
-(define (make-fbo targets)
-  (define the-fbo (glGen glGenFramebuffers))
-  (with-framebuffer (the-fbo)
-    (for ([i (in-naturals)]
-          [tex (in-list targets)])
-      (glFramebufferTexture2D GL_DRAW_FRAMEBUFFER
-                              (GL_COLOR_ATTACHMENTi i)
-                              GL_TEXTURE_2D tex 0)))
-  the-fbo)
+(define (make-target-texture-array width height layer-count)
+  (define myTexture (glGen glGenTextures))
+  (with-texture-array (GL_TEXTURE0 myTexture)
+    (2D-defaults GL_TEXTURE_2D_ARRAY)
+    (glTexImage3D
+     GL_TEXTURE_2D_ARRAY 0 GL_RGBA8 width height layer-count 0
+     GL_RGBA GL_UNSIGNED_BYTE
+     0))
+  myTexture)
 
 (define (num->nearest-pow2 x)
   (expt 2 (integer-length (inexact->exact (ceiling x)))))
@@ -278,28 +278,39 @@
   (define height (inexact->exact (f32vector-ref the-fp 1)))
   (glViewport 0 0 width height))
 
-(struct delayed-fbo (tex-count [texs #:mutable] [fbo #:mutable]))
-(define (make-delayed-fbo tex-count)
-  (delayed-fbo tex-count #f #f))
+(struct delayed-fbo (layer-count [tex #:mutable] [gl-fbo #:mutable]))
+(define (make-delayed-fbo layer-count)
+  (delayed-fbo layer-count #f #f))
 (define (initialize-dfbo! dfbo the-si)
+  (match-define (delayed-fbo layer-count tex fbo) dfbo)
+
   (define the-fp (scale-info-texture the-si))
   (define tex-width (inexact->exact (f32vector-ref the-fp 0)))
   (define tex-height (inexact->exact (f32vector-ref the-fp 1)))
 
-  (match-define (delayed-fbo tex-count texs fbo) dfbo)
   (when fbo
     (glDeleteFramebuffers 1 (u32vector fbo)))
-  (when texs
-    (glDeleteTextures (length texs) (list->u32vector texs)))
-  (define new-texs
-    (for/list ([i (in-range tex-count)])
-      (make-target-texture tex-width tex-height)))
-  (set-delayed-fbo-texs! dfbo new-texs)
-  (set-delayed-fbo-fbo! dfbo (make-fbo new-texs)))
-(define (delayed-fbo-tex dfbo)
-  (match (delayed-fbo-texs dfbo)
-    [(list t) t]
-    [_ (error 'delayed-fbo-tex "More than one texture")]))
+  (when tex
+    (glDeleteTextures 1 (u32vector tex)))
+  (define new-tex
+    (if (= 1 layer-count)
+      (make-target-texture tex-width tex-height)
+      (make-target-texture-array tex-width tex-height layer-count)))
+
+  (set-delayed-fbo-tex! dfbo new-tex)
+  (set-delayed-fbo-gl-fbo! dfbo (glGen glGenFramebuffers)))
+
+(define (delayed-fbo-fbo dfbo active-layer)
+  (match-define (delayed-fbo layer-count tex fbo) dfbo)
+  (with-framebuffer (fbo)
+    (if (= 1 layer-count)
+      (glFramebufferTexture2D GL_DRAW_FRAMEBUFFER
+                              GL_COLOR_ATTACHMENT0
+                              GL_TEXTURE_2D tex 0)
+      (glFramebufferTextureLayer GL_DRAW_FRAMEBUFFER
+                                 GL_COLOR_ATTACHMENT0
+                                 tex 0 active-layer)))
+  fbo)
 
 (define-syntax-rule (define-make-delayed-render
                       delayed-render

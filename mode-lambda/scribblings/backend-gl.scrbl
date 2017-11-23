@@ -28,7 +28,7 @@ pretty fast, but kind of complicated.
 Prepares a function that accepts rendering states and returns a
 function that draws that rendering state. @racket[layers] must be less
 than or equal to @litchar{GL_MAX_ARRAY_TEXTURE_LAYERS}, which is at
-least @racket[256].}
+least @racket[256], but typically @racket[2048].}
 
 @defthing[gui-mode symbol?]{
 

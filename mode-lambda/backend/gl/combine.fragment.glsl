@@ -1,7 +1,7 @@
 @glsl-include["lib.glsl"]
 
-uniform sampler2D LayerTargets[@how-many-layers];
 uniform sampler2D LayerConfigTex;
+uniform sampler2DArray LayerTargets;
 uniform float XScale;
 uniform float YScale;
 uniform vec2 LogicalSize;
@@ -50,9 +50,10 @@ void main() {
     float ey = compute_e(ay, hheight, fov, pz, Lcy, Lhh);
     float ex = compute_e(ax, hwidth, fov, pz, Lcx, Lhw);
     vec4 lay_Color =
-      texture(LayerTargets[@compiletimelayer],
-              vec2((2.0 * (XScale * ex) + 1.0) / (2.0 * TextureSize.x),
-                   (2.0 * (YScale * abs(ey - height) + 1.0)) / (2.0 * TextureSize.y)));
+      texture(LayerTargets,
+              vec3((2.0 * (XScale * ex) + 1.0) / (2.0 * TextureSize.x),
+                   (2.0 * (YScale * abs(ey - height) + 1.0)) / (2.0 * TextureSize.y),
+                   @compiletimelayer));
     if ((! (pz <= 0.0))
         && (0.0 <= ey && ey <= height)
         && (0.0 <= ex && ex <= width)) {

@@ -1,7 +1,6 @@
 @glsl-include["lib.glsl"]
 @glsl-include["quad.glsl"]
 
-uniform sampler2D SpriteAtlasTex; 
 uniform sampler2D SpriteIndexTex;
 
 @cstruct-info->glsl-in[_sprite-data:info]

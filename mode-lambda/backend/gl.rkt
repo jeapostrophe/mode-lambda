@@ -104,11 +104,11 @@
       (define-shader-source layer-fragment "gl/ngl.fragment.glsl")
 
       (compile-shader GL_VERTEX_SHADER layer-program layer-vert)
-      (compile-shader GL_FRAGMENT_SHADER layer-program layer-fragment)      
+      (compile-shader GL_FRAGMENT_SHADER layer-program layer-fragment)
 
       (define tmp-vao (glGen glGenVertexArrays))
       (with-vertexarray (tmp-vao)
-        (glLinkProgram&check layer-program 'layer)
+        (glLinkProgram& layer-program 'layer)
         (with-program (layer-program)
           (glUniform1i (glGetUniformLocation layer-program "SpriteAtlasTex")
                        (gl-texture-index GL_TEXTURE0))
@@ -117,21 +117,21 @@
           (glUniform1i (glGetUniformLocation layer-program "SpriteIndexTex")
                        (gl-texture-index GL_TEXTURE2))
           (glUniform1i (glGetUniformLocation layer-program "LayerConfigTex")
-                       (gl-texture-index GL_TEXTURE3))))
+                       (gl-texture-index GL_TEXTURE3))
+          (glValidateProgram& layer-program 'layer)))
       (glDeleteVertexArrays 1 (u32vector tmp-vao))
 
-      (define layer-dfboss
+      (define layer-dfbos
         (for/list ([i (in-range 2)])
-          (for/list ([l (in-range how-many-layers)])
-            (make-delayed-fbo 1))))
+          (make-delayed-fbo how-many-layers)))
 
       (define (make-sprite-draw!)
         (define layer-vao (glGen glGenVertexArrays))
         (define layer-vbo (glGen glGenBuffers))
         (nest
-         ([with-vertexarray (layer-vao)]
-          [with-arraybuffer (layer-vbo)])
-         (define-attribs/cstruct-info INSTANCES_PER_SPR _sprite-data:info))
+            ([with-vertexarray (layer-vao)]
+             [with-arraybuffer (layer-vbo)])
+          (define-attribs/cstruct-info INSTANCES_PER_SPR _sprite-data:info))
 
         (define actual-update!
           (make-update-vbo-buffer-with-objects! _sprite-data layer-vbo))
@@ -154,11 +154,11 @@
         (λ (objects)
           (define obj-count (update! objects))
           (nest
-           ([with-vertexarray (layer-vao)]
-            [with-vertex-attributes ((length _sprite-data:info))])
-           (glDrawArraysInstanced GL_TRIANGLE_STRIP 0
-                                  QUAD_VERTS
-                                  (fx* INSTANCES_PER_SPR obj-count)))))
+              ([with-vertexarray (layer-vao)]
+               [with-vertex-attributes ((length _sprite-data:info))])
+            (glDrawArraysInstanced GL_TRIANGLE_STRIP 0
+                                   QUAD_VERTS
+                                   (fx* INSTANCES_PER_SPR obj-count)))))
 
       (define draw-static! (make-sprite-draw!))
       (define draw-dynamic! (make-sprite-draw!))
@@ -166,28 +166,26 @@
 
       (λ (update-scale? the-scale-info static-st dynamic-st)
         (when update-scale?
-          (for* ([layer-dfbos (in-list layer-dfboss)]
-                 [layer-dfbo (in-list layer-dfbos)])            
+          (for ([layer-dfbo (in-list layer-dfbos)])
             (initialize-dfbo! layer-dfbo the-scale-info)))
 
-        (define layer-dfbos
-          (list-ref layer-dfboss
+        (define layer-dfbo
+          (list-ref layer-dfbos
                     (if front? 0 1)))
         (set! front? (not front?))
 
-        (for ([active-layeri (in-range how-many-layers)]
-              [layer-dfbo (in-list layer-dfbos)])
+        (for ([active-layeri (in-range how-many-layers)])
           (nest
-              ([with-framebuffer ((delayed-fbo-fbo layer-dfbo))]
+              ([with-framebuffer ((delayed-fbo-fbo layer-dfbo active-layeri))]
                [with-texture (GL_TEXTURE0 SpriteAtlasId)]
                [with-texture (GL_TEXTURE1 PaletteAtlasId)]
                [with-texture (GL_TEXTURE2 SpriteIndexId)]
                [with-texture (GL_TEXTURE3 LayerConfigId)]
                [with-feature (GL_BLEND)]
-               [with-program (layer-program)])          
+               [with-program (layer-program)])
             (set-uniform-scale-info! layer-program the-scale-info)
             (glUniform1f (glGetUniformLocation layer-program "ActiveLayer")
-                         (real->double-flonum active-layeri))              
+                         (real->double-flonum active-layeri))
             (glClearColor 0.0 0.0 0.0 0.0)
             (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
             (glClear GL_COLOR_BUFFER_BIT)
@@ -195,35 +193,33 @@
 
             (draw-static! static-st)
             (draw-dynamic! dynamic-st)))
-        
-        (map delayed-fbo-tex layer-dfbos))))
+
+        (delayed-fbo-tex layer-dfbo))))
 
   (define combine-layers!
     (let ()
       (define combine-vao (glGen glGenVertexArrays))
-      
+
       (define combine-program (glCreateProgram))
       (define-shader-source combine-vert "gl/combine.vertex.glsl")
       (define-shader-source combine-fragment "gl/combine.fragment.glsl")
       (compile-shader GL_VERTEX_SHADER combine-program combine-vert)
       (compile-shader GL_FRAGMENT_SHADER combine-program combine-fragment)
       (with-vertexarray (combine-vao)
-        (glLinkProgram&check combine-program 'combine)
+        (glLinkProgram& combine-program 'combine)
         (with-program (combine-program)
           (glUniform1i (glGetUniformLocation combine-program "LayerConfigTex")
                        (gl-texture-index GL_TEXTURE0))
-          (glUniform1iv (glGetUniformLocation combine-program "LayerTargets")
-                        how-many-layers
-                        (list->s32vector
-                         (for/list ([i (in-range how-many-layers)])
-                           (fx+ 1 i))))))
+          (glUniform1i (glGetUniformLocation combine-program "LayerTargets")
+                       (gl-texture-index GL_TEXTURE1))
+          (glValidateProgram& combine-program 'combine)))
 
       (define combine-dfbos
         (for/list ([i (in-range 2)])
           (make-delayed-fbo 1)))
       (define front? #f)
 
-      (λ (update-scale? the-scale-info LayerTargets)
+      (λ (update-scale? the-scale-info LayerTargetsTex)
         (when update-scale?
           (for ([combine-dfbo (in-list combine-dfbos)])
             (initialize-dfbo! combine-dfbo the-scale-info)))
@@ -233,23 +229,23 @@
         (set! front? (not front?))
 
         (nest
-         ([with-framebuffer ((delayed-fbo-fbo combine-dfbo))]
-          [with-vertexarray (combine-vao)]
-          [with-texture (GL_TEXTURE0 LayerConfigId)]
-          [with-textures (1 LayerTargets)]
-          [with-program (combine-program)])
-         (set-uniform-scale-info! combine-program the-scale-info)
-         (glClearColor 0.0 0.0 0.0 0.0)
-         (glClear GL_COLOR_BUFFER_BIT)
-         (set-viewport/fpair! (scale-info-texture the-scale-info))
-         (glDrawArrays GL_TRIANGLE_STRIP 0 QUAD_VERTS))
+            ([with-framebuffer ((delayed-fbo-fbo combine-dfbo 0))]
+             [with-vertexarray (combine-vao)]
+             [with-texture (GL_TEXTURE0 LayerConfigId)]
+             [with-texture-array (GL_TEXTURE1 LayerTargetsTex)]
+             [with-program (combine-program)])
+          (set-uniform-scale-info! combine-program the-scale-info)
+          (glClearColor 0.0 0.0 0.0 0.0)
+          (glClear GL_COLOR_BUFFER_BIT)
+          (set-viewport/fpair! (scale-info-texture the-scale-info))
+          (glDrawArrays GL_TRIANGLE_STRIP 0 QUAD_VERTS))
 
         (delayed-fbo-tex combine-dfbo))))
 
   (define draw-screen!
     (let ()
       (define screen-vao (glGen glGenVertexArrays))
-      
+
       (define screen-program (glCreateProgram))
 
       (define-shader-source crt-fragment "gl/crt.fragment.glsl")
@@ -266,21 +262,22 @@
       (compile-shader GL_VERTEX_SHADER screen-program screen-vert)
 
       (with-vertexarray (screen-vao)
-        (glLinkProgram&check screen-program 'screen)
+        (glLinkProgram& screen-program 'screen)
         (with-program (screen-program)
           (glUniform1i (glGetUniformLocation screen-program "CombinedTex")
-                       (gl-texture-index GL_TEXTURE0))))
+                       (gl-texture-index GL_TEXTURE0))
+          (glValidateProgram& screen-program 'screen)))
 
       (λ (update-scale? the-scale-info combine-tex)
         (nest
-         ([with-program (screen-program)]
-          [with-texture (GL_TEXTURE0 combine-tex)]
-          [with-vertexarray (screen-vao)])
-         (set-uniform-scale-info! screen-program the-scale-info)
-         (glClearColor 0.0 0.0 0.0 0.0)
-         (glClear GL_COLOR_BUFFER_BIT)
-         (set-viewport/fpair! (scale-info-screen the-scale-info))
-         (glDrawArrays GL_TRIANGLE_STRIP 0 QUAD_VERTS)))))
+            ([with-program (screen-program)]
+             [with-texture (GL_TEXTURE0 combine-tex)]
+             [with-vertexarray (screen-vao)])
+          (set-uniform-scale-info! screen-program the-scale-info)
+          (glClearColor 0.0 0.0 0.0 0.0)
+          (glClear GL_COLOR_BUFFER_BIT)
+          (set-viewport/fpair! (scale-info-screen the-scale-info))
+          (glDrawArrays GL_TRIANGLE_STRIP 0 QUAD_VERTS)))))
 
   (define LogicalSize (pair->fpair width height))
 
@@ -304,8 +301,8 @@
     (define CRT-PIXEL-ASPECT-RATIO? #f)
     (define pixel-aspect-ratio
       (if CRT-PIXEL-ASPECT-RATIO?
-          (fl/ 8.0 7.0)
-          1.0))
+        (fl/ 8.0 7.0)
+        1.0))
     (define scale
       (compute-nice-scale pixel-aspect-ratio
                           screen-width.fx width.fx
@@ -332,10 +329,10 @@
                               (vector tex-width tex-height)
                               (vector screen-width screen-height))))
     (update-layer-config! layer-config)
-    (define LayerTargets
+    (define LayerTargetsTex
       (render-layers! update-scale? the-scale-info static-st dynamic-st))
     (define combine-tex
-      (combine-layers! update-scale? the-scale-info LayerTargets))
+      (combine-layers! update-scale? the-scale-info LayerTargetsTex))
     (when shot!
       (local-require ffi/vector
                      racket/file)
@@ -344,7 +341,8 @@
       (define h (fl->fx (f32vector-ref the-fp 1)))
       (define bs (make-bytes (fx* 4 (fx* w h))))
       (for ([i (in-naturals)]
-            [t (in-list (cons combine-tex LayerTargets))])
+            ;; XXX Figure out how to screenshot from texture array
+            [t (in-list (cons combine-tex #;LayerTargets))])
         (with-texture (GL_TEXTURE0 t)
           (glGetTexImage GL_TEXTURE_2D 0 GL_RGBA GL_UNSIGNED_BYTE bs))
         (rgba->argb! bs)

@@ -1,9 +1,12 @@
 @glsl-include["lib.glsl"]
 @glsl-include["quad.glsl"]
 
-uniform sampler2D LayerTargets[@how-many-layers];
 uniform sampler2D LayerConfigTex;
+uniform sampler2DArray LayerTargets;
+uniform float XScale;
+uniform float YScale;
 uniform vec2 LogicalSize;
+uniform vec2 TextureSize;
 
 out vec2 iTexCoord;
 
