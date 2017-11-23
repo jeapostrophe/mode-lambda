@@ -59,7 +59,7 @@ void main() {
         && (0.0 <= ex && ex <= width)) {
       fin_Color.rgb =
           fin_Color.rgb * (1.0 - lay_Color.a)
-        + lay_Color.rgb * lay_Color.a;
+        + lay_Color.rgb;
     }
   }
 }

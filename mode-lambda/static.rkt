@@ -1,6 +1,8 @@
 #lang racket/base
 (require racket/match
          racket/contract/base
+         racket/fixnum
+         racket/flonum
          mode-lambda/color
          "core.rkt")
 
@@ -140,6 +142,22 @@
                       to-atlas))])
     (hash-set! spr->idx spr pi)
     (vector-set! idx->w*h*tx*ty pi (vector w h tx ty)))
+
+
+  ; convert to premultiplied alpha
+  (for [(i (in-range (/ (bytes-length atlas-bs) 4)))]
+    (define idx (* 4 i))
+    (define a (bytes-ref atlas-bs idx))
+
+    ; For debugging, force the alpha to be at least 1 so that
+    ; when we write-png-bytes!, set-argb-pixels will pay attention
+    ; to the rgb values (it ignores them if alpha is 0
+    ;(bytes-set! atlas-bs idx (max 1 a))
+
+    (for [(k (in-range 1 4))]
+      (define col (bytes-ref atlas-bs (+ idx k)))
+      (bytes-set! atlas-bs (+ idx k)
+                  (fl->fx (flround (fl/ (fx->fl (* a col)) 255.0))))))
 
   (compiled-sprite-db atlas-size atlas-bs spr->idx idx->w*h*tx*ty
                       pal-size pal-bs pal->idx))

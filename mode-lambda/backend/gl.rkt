@@ -187,7 +187,7 @@
             (glUniform1f (glGetUniformLocation layer-program "ActiveLayer")
                          (real->double-flonum active-layeri))
             (glClearColor 0.0 0.0 0.0 0.0)
-            (glBlendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA)
+            (glBlendFunc GL_ONE GL_ONE_MINUS_SRC_ALPHA)
             (glClear GL_COLOR_BUFFER_BIT)
             (set-viewport/fpair! (scale-info-texture the-scale-info))
 
