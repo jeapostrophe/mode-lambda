@@ -56,7 +56,7 @@
 (define VERTEX_SPEC
   (add-between VERTEX_SPEC_L ","))
 
-(define (make-draw csd width.fx height.fx how-many-layers screen-mode)
+(define (make-draw csd width.fx height.fx how-many-layers screen-mode smoothing?)
   (define width (fx->fl width.fx))
   (define height (fx->fl height.fx))
   (eprintf "You are using OpenGL ~v with gl-backend-version of ~v\n"
@@ -88,9 +88,10 @@
       (define SpriteAtlasId (make-2dtexture))
       (with-texture (GL_TEXTURE0 SpriteAtlasId)
         (load-texture/bytes atlas-size atlas-size atlas-bs)
-        (glGenerateMipmap GL_TEXTURE_2D)
-        (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MAG_FILTER GL_LINEAR)
-        (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MIN_FILTER GL_LINEAR_MIPMAP_LINEAR))
+        (when smoothing?
+          (glGenerateMipmap GL_TEXTURE_2D)
+          (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MAG_FILTER GL_LINEAR)
+          (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MIN_FILTER GL_LINEAR_MIPMAP_LINEAR)))
       (define PaletteAtlasId (make-2dtexture))
       (with-texture (GL_TEXTURE0 PaletteAtlasId)
         (load-texture/bytes PALETTE-DEPTH pal-size pal-bs))
@@ -356,10 +357,11 @@
   stage-draw/dc
   make-draw
   (csd width height how-many-layers)
-  ((gl-filter-mode))
+  ((gl-filter-mode) (gl-smoothing?))
   (layer-config static-st dynamic-st))
 
 (define gl-filter-mode (make-parameter 'std))
+(define gl-smoothing? (make-parameter #f))
 (define gl-screenshot! (make-parameter #f))
 
 (define gui-mode 'gl-core)
@@ -367,6 +369,7 @@
  (contract-out
   [gl-backend-version (parameter/c (apply or/c valid-gl-backends))]
   [gl-filter-mode (parameter/c symbol?)]
+  [gl-smoothing? (parameter/c (or/c #f #t))]
   [gl-screenshot! (parameter/c (-> exact-nonnegative-integer?
                                    exact-nonnegative-integer?
                                    exact-nonnegative-integer?
