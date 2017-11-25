@@ -145,8 +145,7 @@
 
 
   ; convert to premultiplied alpha
-  (for [(i (in-range (/ (bytes-length atlas-bs) 4)))]
-    (define idx (* 4 i))
+  (for [(idx (in-range 0 (bytes-length atlas-bs) 4))]
     (define a (bytes-ref atlas-bs idx))
 
     ; For debugging, force the alpha to be at least 1 so that

@@ -19,7 +19,8 @@ void main(void)
   vec4 SpriteColor;
 
   vec2 texSize = textureSize(SpriteAtlasTex, 0);
-  if (true) {
+
+  if (@(if (gl-es?) "false" "true")) {
     SpriteColor =
     // This is what it should be defined as
     texture(SpriteAtlasTex,
@@ -28,6 +29,7 @@ void main(void)
   } else {
     SpriteColor =
     // But it doesn't work on some ES devices I have, so we do this instead:
+    // Note: this disables smoothing if active
     texelFetch(SpriteAtlasTex,
                ivec2( trunc(TexCoord.x), trunc(TexCoord.y) ),
                0);
@@ -46,7 +48,12 @@ void main(void)
   vec4 fin_Color;
 
   fin_Color.a = PixelColor.a * Color.a;
-  fin_Color.rgb = PixelColor.rgb + Color.rgb;
+
+  // Convert Color.rgb to premultiplied alpha using Pixel's alpha
+  fin_Color.rgb = PixelColor.rgb + Color.rgb * PixelColor.a;
+
+  // Adding could have pushed rgb over alpha, cap it to maintain
+  // premultiplied alpha
   fin_Color.rgb = min(fin_Color.rgb, fin_Color.a);
 
   vec4 blank_Color = vec4(0.0,0.0,0.0,0.0000001);

@@ -45,6 +45,12 @@ surface on to the drawing surface. The default mode @racket['std],
 uses sharp pixel-duplicating filtering. The @racket['crt] mode
 simulates a CRT.}
 
+@defthing[gl-smoothing? (parameter/c (or/c #f #t))]{
+
+This parameter controls whether to blend sprite pixels across screen
+pixels. The default is @racket[#f], showing sharp sprite pixels. Set
+to @racket[#t] to smooth sprites across screen pixels.}
+
 @defthing[gl-screenshot! (parameter/c (-> exact-nonnegative-integer?
                                           exact-nonnegative-integer?
                                           exact-nonnegative-integer?

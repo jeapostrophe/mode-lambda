@@ -57,9 +57,9 @@ void main() {
     if ((! (pz <= 0.0))
         && (0.0 <= ey && ey <= height)
         && (0.0 <= ex && ex <= width)) {
-      fin_Color.rgb =
-          fin_Color.rgb * (1.0 - lay_Color.a)
-        + lay_Color.rgb;
+      fin_Color =
+          fin_Color * (1.0 - lay_Color.a)
+        + lay_Color;
     }
   }
 }
