@@ -148,10 +148,10 @@
   (for [(idx (in-range 0 (bytes-length atlas-bs) 4))]
     (define a (bytes-ref atlas-bs idx))
 
-    ; For debugging, force the alpha to be at least 1 so that
-    ; when we write-png-bytes!, set-argb-pixels will pay attention
-    ; to the rgb values (it ignores them if alpha is 0
-    ;(bytes-set! atlas-bs idx (max 1 a))
+    ;; For debugging, force the alpha to be at least 1 so that when we
+    ;; write-png-bytes!, set-argb-pixels will pay attention to the rgb
+    ;; values (it ignores them if alpha is 0
+    #;(bytes-set! atlas-bs idx (max 1 a))
 
     (for [(k (in-range 1 4))]
       (define col (bytes-ref atlas-bs (+ idx k)))

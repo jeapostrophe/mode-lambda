@@ -212,7 +212,7 @@
              (sprite (fl+ 4.0 (fx->fl (fx* 8 x)))
                      (fl+ 4.0 (fx->fl (fx* 8 y)))
                      (vector-ref block-styles 1)
-                     #:a 0.50
+                     #:a 0.15
                      #:layer 7
                      #:pal-idx (palette-idx csd 'med0)))))
 
