@@ -60,14 +60,14 @@ void main(void)
     if (wrapxp == 1.0) {
       almostPosn.x = compute_wrap(almostPosn.x, xcoeff, Lw);
     } else {
-      almostPosn.w = 0.0;
+      almostPosn.w = -128.0;
     }
   }
   if (ycoeff != 0) {
     if (wrapyp == 1.0) {
       almostPosn.y = compute_wrap(almostPosn.y, ycoeff, Lh);
     } else {
-      almostPosn.w = 0.0;
+      almostPosn.w = -128.0;
     }
   }
 
