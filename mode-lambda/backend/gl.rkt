@@ -346,7 +346,7 @@
       (define bs (make-bytes (fx* 4 (fx* w h))))
       (for ([i (in-naturals)]
             ;; XXX Figure out how to screenshot from texture array
-            [t (in-list (cons combine-tex #;LayerTargets))])
+            [t (in-list (list combine-tex #;LayerTargets))])
         (with-texture (GL_TEXTURE0 t)
           (glGetTexImage GL_TEXTURE_2D 0 GL_RGBA GL_UNSIGNED_BYTE bs))
         (rgba->argb! bs)
