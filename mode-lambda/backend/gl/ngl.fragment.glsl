@@ -56,7 +56,7 @@ void main(void)
   // premultiplied alpha
   fin_Color.rgb = min(fin_Color.rgb, fin_Color.a);
 
-  vec4 blank_Color = vec4(0.0,0.0,0.0,0.0000001);
+  vec4 blank_Color = vec4(0.0,0.0,0.0,0.0);
   
   int iLayer = int(floor(Layer));
   int iActiveLayer = int(floor(ActiveLayer));
