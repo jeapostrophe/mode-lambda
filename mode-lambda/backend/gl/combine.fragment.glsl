@@ -51,8 +51,8 @@ void main() {
     float ex = compute_e(ax, hwidth, fov, pz, Lcx, Lhw);
     vec4 lay_Color =
       texture(LayerTargets,
-              vec3((2.0 * (XScale * ex) + 1.0) / (2.0 * TextureSize.x),
-                   (2.0 * (YScale * abs(ey - height) + 1.0)) / (2.0 * TextureSize.y),
+              vec3((2.0 * (XScale * ex) + 0.0) / (2.0 * TextureSize.x),
+                   (2.0 * (YScale * abs(ey - height) + 0.0)) / (2.0 * TextureSize.y),
                    @compiletimelayer));
     if ((! (pz <= 0.0))
         && (0.0 <= ey && ey <= height)
