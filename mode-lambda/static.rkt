@@ -57,7 +57,7 @@
       (subbytes bs start (+ start 4))))
   (add-palette! sd n pal))
 
-(define (compile-sprite-db sd)
+(define (compile-sprite-db sd #:padding [padding 1])
   (local-require "korf-bin.rkt")
   (match-define (sprite-db ls-b palettes) sd)
 
@@ -74,11 +74,11 @@
   (define ss (map (λ (l) (l)) (unbox ls-b)))
 
   (define-values (atlas-size places)
-    ;; We add one here to tell the optimization algorithm to give each
-    ;; sprite a 1-pixel border. This is to prevent color data bleeding
+    ;; We tell the optimization algorithm to give each sprite a
+    ;; padding pixel border. This is to prevent color data bleeding
     ;; across sprites in the atlas texture.
-    (pack (λ (s) (add1 (vector-ref s 2)))
-          (λ (s) (add1 (vector-ref s 3)))
+    (pack (λ (s) (+ padding (vector-ref s 2)))
+          (λ (s) (+ padding (vector-ref s 3)))
           ss))
   (define how-many-places (add1 (length places)))
   (unless (ushort? how-many-places)
@@ -246,8 +246,9 @@
    (-> sprite-db? symbol? path-string?
        void?)]
   [compile-sprite-db
-   (-> sprite-db?
-       compiled-sprite-db?)]
+   (->* (sprite-db?)
+        (#:padding exact-positive-integer?)
+        compiled-sprite-db?)]
   [save-csd!
    (->* (compiled-sprite-db? path-string?)
         (#:debug? boolean?)

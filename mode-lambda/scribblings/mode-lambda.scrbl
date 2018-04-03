@@ -201,10 +201,13 @@ Saves the compiled database @racket[db] into the directory
 is @racket[#t], then the sprite atlas and palette is saved in the
 directory as PNG files.}
 
-@defproc[(compile-sprite-db [db sprite-db?])
+@defproc[(compile-sprite-db [db sprite-db?]
+                            [#:padding padding exact-positive-integer? 1])
          compiled-sprite-db?]{
 
-Compiles the database @racket[db].}
+Compiles the database @racket[db]. A border of @racket[padding]
+pixels is added to each sprite to prevent color data bleeding
+across sprites in the atlas texture.}
 
 @section{mode-lambda edition: amazing graphics}
 @defmodule[mode-lambda]
