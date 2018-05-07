@@ -47,14 +47,20 @@ void main(void)
 
   vec4 fin_Color;
 
+  // Color.rgb is the #:r, #:b, #:g passed to the (sprite) call
+  // PixelColor is from the sprite, is premultiplied alpha
+
   fin_Color.a = PixelColor.a * Color.a;
 
-  // Convert Color.rgb to premultiplied alpha using Pixel's alpha
+  // add Color.rgb to sprite color, but only where the sprite is opaque
   fin_Color.rgb = PixelColor.rgb + Color.rgb * PixelColor.a;
 
   // Adding could have pushed rgb over alpha, cap it to maintain
   // premultiplied alpha
-  fin_Color.rgb = min(fin_Color.rgb, fin_Color.a);
+  fin_Color.rgb = min(fin_Color.rgb, PixelColor.a);
+
+  // scale final color by #:a passed to (sprite)
+  fin_Color.rgb *= Color.a;
 
   vec4 blank_Color = vec4(0.0,0.0,0.0,0.0);
   
