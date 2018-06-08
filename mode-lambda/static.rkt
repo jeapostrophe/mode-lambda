@@ -73,12 +73,18 @@
 
   (define ss (map (λ (l) (l)) (unbox ls-b)))
 
+  (define alignment (expt 2 padding))
+  (define (align n)
+    (* (+ (quotient (- n 1) alignment) 1) alignment))
+
   (define-values (atlas-size places)
     ;; We tell the optimization algorithm to give each sprite a
     ;; padding pixel border. This is to prevent color data bleeding
     ;; across sprites in the atlas texture.
-    (pack (λ (s) (+ padding (vector-ref s 2)))
-          (λ (s) (+ padding (vector-ref s 3)))
+    ;; Align sprites so that multiple sprites used for animation
+    ;; are resized the same way (when smoothing).
+    (pack (λ (s) (align (+ padding (vector-ref s 2))))
+          (λ (s) (align (+ padding (vector-ref s 3))))
           ss))
   (define how-many-places (add1 (length places)))
   (unless (ushort? how-many-places)
