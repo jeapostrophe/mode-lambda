@@ -84,7 +84,8 @@
   (vectorof (or/c false/c layer-data?)))
 
 (define-syntax-rule (backend/c (addl-input ...) output)
-  (-> layer-vector/c tree/c tree/c addl-input ... output))
+  (->* (layer-vector/c tree/c tree/c addl-input ...)
+       (#:r byte? #:g byte? #:b byte?) output))
 
 (define draw!/c
   (backend/c () void?))

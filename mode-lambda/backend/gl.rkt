@@ -223,7 +223,7 @@
           (make-delayed-fbo 1)))
       (define front? #f)
 
-      (λ (update-scale? the-scale-info LayerTargetsTex)
+      (λ (update-scale? the-scale-info LayerTargetsTex r g b)
         (when update-scale?
           (for ([combine-dfbo (in-list combine-dfbos)])
             (initialize-dfbo! combine-dfbo the-scale-info)))
@@ -239,6 +239,10 @@
              [with-texture-array (GL_TEXTURE1 LayerTargetsTex)]
              [with-program (combine-program)])
           (set-uniform-scale-info! combine-program the-scale-info)
+          (glUniform3f (glGetUniformLocation combine-program "BackgroundColor")
+                       (fl/ (fx->fl r) 255.0)
+                       (fl/ (fx->fl g) 255.0)
+                       (fl/ (fx->fl b) 255.0))
           (glClearColor 0.0 0.0 0.0 0.0)
           (glClear GL_COLOR_BUFFER_BIT)
           (set-viewport/fpair! (scale-info-texture the-scale-info))
@@ -286,7 +290,7 @@
   (define LogicalSize (pair->fpair width height))
 
   (define the-scale-info #f)
-  (λ (screen-width.fx screen-height.fx layer-config static-st dynamic-st)
+  (λ (screen-width.fx screen-height.fx layer-config static-st dynamic-st r g b)
     (define screen-width (fx->fl screen-width.fx))
     (define screen-height (fx->fl screen-height.fx))
     ;; If this were 8/7, then we'd have the same PAR as the NES on a
@@ -336,7 +340,7 @@
     (define LayerTargetsTex
       (render-layers! update-scale? the-scale-info static-st dynamic-st))
     (define combine-tex
-      (combine-layers! update-scale? the-scale-info LayerTargetsTex))
+      (combine-layers! update-scale? the-scale-info LayerTargetsTex r g b))
     (when shot!
       (local-require ffi/vector
                      racket/file)

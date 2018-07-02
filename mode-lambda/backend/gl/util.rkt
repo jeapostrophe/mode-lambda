@@ -321,7 +321,7 @@
   (define (delayed-render static-arg ...)
     (define draw #f)
     (define last-glctx #f)
-    (λ (dyn-arg ...)
+    (λ (dyn-arg ... #:r (r 0) #:g (g 0) #:b (b 0))
       (λ (w h dc)
         (local-require racket/class)
         (define glctx (send dc get-gl-context))
@@ -335,7 +335,7 @@
                 (unless draw
                   (set! last-glctx glctx)
                   (set! draw (make-real-render static-arg ... init-arg ...)))
-                (draw w h dyn-arg ...)
+                (draw w h dyn-arg ... r g b)
                 (send glctx swap-buffers)))))))
 
 (define-syntax-rule (print-ms-time label e)

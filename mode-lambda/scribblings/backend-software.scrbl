@@ -20,6 +20,9 @@ very slow, and a little complicated, but easier to test than
                (->i ([layer-config (vectorof layer-data?)]
                      [static-st any/c]
                      [dynamic-st any/c])
+                    (#:r [r byte?]
+                     #:g [g byte?]
+                     #:b [b byte?])
                     (->i ([draw-width exact-nonnegative-integer?]
                           [draw-height exact-nonnegative-integer?]
                           [dc any/c])
