@@ -150,7 +150,7 @@
   (define X (3vec-zero))
   (define Y (3vec-zero))
   (define Z (3vec-zero))
-  (lambda (layer-config sprite-tree)
+  (lambda (layer-config sprite-tree r g b)
     ;; The layer multiplications can be used for all vertices and we
     ;; could just upload the correct matrices, one per layer (M2) in
     ;; this code.
@@ -331,7 +331,11 @@
     ;; Clear the screen
     (for ([root-bs (in-vector root-bs-v)])
       (bytes-fill! root-bs 0))
-    (bytes-fill! combined-bs 0)
+    
+    (define BackgroundColor (bytes 0 r g b))
+    (for ((i (in-range 0 (bytes-length combined-bs) 4)))
+      (bytes-copy! combined-bs i BackgroundColor))
+    
     ;; Fill the screen
     (define (fill! layer x y na nr ng nb)
       (define root-bs (vector-ref root-bs-v layer))
@@ -443,9 +447,9 @@
 (define gui-mode 'draw)
 (define (stage-draw/dc csd width height how-many-layers)
   (define render (stage-render csd width height how-many-layers))
-  (λ (layer-config static-st dynamic-st)
+  (λ (layer-config static-st dynamic-st #:r (r 0) #:g (g 0) #:b (b 0))
     (define sprite-tree (cons static-st dynamic-st))
-    (define bs (render layer-config sprite-tree))
+    (define bs (render layer-config sprite-tree r g b))
     (define bm (argb-bytes->bitmap width height bs))
     (when (software-bitmap-path)
       (save-bitmap! bm (software-bitmap-path)))

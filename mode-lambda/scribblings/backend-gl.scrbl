@@ -20,15 +20,19 @@ pretty fast, but kind of complicated.
                (->i ([layer-config (vectorof layer-data?)]
                      [static-st any/c]
                      [dynamic-st any/c])
+                    (#:r [r byte?]
+                     #:g [g byte?]
+                     #:b [b byte?])
                     (->i ([draw-width exact-nonnegative-integer?]
                           [draw-height exact-nonnegative-integer?]
                           [dc any/c])
                          any)))]{
 
 Prepares a function that accepts rendering states and returns a
-function that draws that rendering state. @racket[layers] must be less
-than or equal to @litchar{GL_MAX_ARRAY_TEXTURE_LAYERS}, which is at
-least @racket[256], but typically @racket[2048].}
+function that draws that rendering state, with optionally specified
+background color. @racket[layers] must be less than or equal to
+@litchar{GL_MAX_ARRAY_TEXTURE_LAYERS}, which is at least @racket[256],
+but typically @racket[2048].}
 
 @defthing[gui-mode symbol?]{
 

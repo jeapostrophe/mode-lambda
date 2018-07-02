@@ -6,6 +6,7 @@ uniform float XScale;
 uniform float YScale;
 uniform vec2 LogicalSize;
 uniform vec2 TextureSize;
+uniform vec3 BackgroundColor;
 
 in vec2 iTexCoord;
 
@@ -40,7 +41,7 @@ void main() {
   float ax = iTexCoord.x * width;
   float ay = height - iTexCoord.y * height;
 
-  vec4 fin_Color = vec4(0.0, 0.0, 0.0, 1.0);
+  vec4 fin_Color = vec4(BackgroundColor, 1.0);
 @in[compiletimelayer (in-range @how-many-layers)]{
   {
     int layer = @compiletimelayer;
