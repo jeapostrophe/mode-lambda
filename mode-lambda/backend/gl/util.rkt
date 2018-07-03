@@ -321,7 +321,7 @@
   (define (delayed-render static-arg ...)
     (define draw #f)
     (define last-glctx #f)
-    (λ (dyn-arg ... #:r (r 0) #:g (g 0) #:b (b 0))
+    (λ (dyn-arg ... #:r [r 0] #:g [g 0] #:b [b 0])
       (λ (w h dc)
         (local-require racket/class)
         (define glctx (send dc get-gl-context))
