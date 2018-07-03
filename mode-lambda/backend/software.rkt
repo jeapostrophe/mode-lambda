@@ -447,7 +447,7 @@
 (define gui-mode 'draw)
 (define (stage-draw/dc csd width height how-many-layers)
   (define render (stage-render csd width height how-many-layers))
-  (λ (layer-config static-st dynamic-st #:r (r 0) #:g (g 0) #:b (b 0))
+  (λ (layer-config static-st dynamic-st #:r [r 0] #:g [g 0] #:b [b 0])
     (define sprite-tree (cons static-st dynamic-st))
     (define bs (render layer-config sprite-tree r g b))
     (define bm (argb-bytes->bitmap width height bs))
