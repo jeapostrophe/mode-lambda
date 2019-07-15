@@ -106,6 +106,7 @@
 
   (define the-font
     (load-font! sd
+                #:scaling 1.0
                 #:size 14.0
                 #:face "Triplicate T4c"
                 #:smoothing 'smoothed

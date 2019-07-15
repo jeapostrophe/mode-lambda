@@ -1,16 +1,8 @@
 #lang racket/base
-(require racket/match
-         racket/class
+(require pict
+         pict/flash
          mode-lambda
-         mode-lambda/static
-         mode-lambda/text/static
-         mode-lambda/text/runtime
-         mode-lambda/color
-         mode-lambda/backend/gl
-         racket/draw
-         racket/gui/base
-         pict
-         pict/flash)
+         mode-lambda/static)
 
 ;;;
 ;;; SIZES
@@ -58,16 +50,6 @@
 (define flash-idx   (sprite-idx cdb 'flash))
 
 ;;;
-;;; LAYERS
-;;;
-
-(define bugl (layer W/2 H/2))    ; gray:       layer 0 ; too see bugs in GL
-(define bgl  (layer W/2 H/2))    ; background: layer 1
-(define ml   (layer W/2 H/2))    ; middle:     layer 2
-(define fgl  (layer W/2 H/2))    ; foreground: layer 3
-(define lc   (vector bugl bgl ml fgl)) ; layer config
-
-;;;
 ;;; SPRITES
 ;;;
 
@@ -80,27 +62,10 @@
 ;;; RUNTIME
 ;;;
 
-(define rendering-states->draw (stage-draw/dc cdb W H (vector-length lc)))
-
 (define static (list gray-sprite fish-sprite lantern-sprite))
-
-(define (paint-canvas c dc)
-  (define dynamic (list flash-sprite))
-  (define draw (rendering-states->draw lc static dynamic))
-  (match/values (send c get-scaled-client-size)
-    [(w h) (draw w h dc)]))
+(define dynamic (list flash-sprite))
 
 (module+ main
-  (define glc (new gl-config%))
-  (send glc set-legacy? #f)
-  (define f (new frame% [label "Hello"] [width W] [height H]))
-  (define c
-    (new canvas%
-         [parent f]
-         [min-width W]
-         [min-height H]
-         [gl-config glc]
-         [style '(no-autoclear gl)]
-         [paint-callback paint-canvas]))
-
-  (send f show #t))
+  (require "quick.rkt")
+  (quick-run cdb static dynamic
+             #:width W #:height H))

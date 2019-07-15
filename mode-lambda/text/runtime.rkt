@@ -4,15 +4,14 @@
          racket/flonum
          mode-lambda)
 
-(struct *ml-font (char->char-id) #:prefab)
+(struct *ml-font (scaling char->char-id) #:prefab)
 (module+ private
   (provide *ml-font))
 
-(define (font? x)
-  (*ml-font? x))
+(define font? *ml-font?)
 
 (define (font-char-idx f csd c)
-  (match-define (*ml-font char->char-id) f)
+  (match-define (*ml-font _ char->char-id) f)
   (define ci (hash-ref char->char-id c #f))
   (or (and ci (sprite-idx csd ci))
       0))
@@ -20,15 +19,18 @@
 ;; MAYBE this could be a lot more complicated, with colors and stuff
 ;; like that.
 (define (make-text-renderer f csd)
-  (match-define (*ml-font char->char-id) f)
+  (match-define (*ml-font scaling char->char-id) f)
   (λ (text tx ty
            #:layer [layer 0]
-           #:mx [mx 1.0]
-           #:my [my 1.0]
+           #:mx [mx^ 1.0]
+           #:my [my^ 1.0]
            #:r [r 0]
            #:g [g 0]
            #:b [b 0]
            #:a [a 1.0])
+    (define 1/scaling (fl/ 1.0 scaling))
+    (define mx (fl* 1/scaling mx^))
+    (define my (fl* 1/scaling my^))
     (define idxs
       (for/list ([c (in-string text)])
         (define ci (hash-ref char->char-id c))

@@ -12,6 +12,7 @@
       (cons c l)
       l)))
 (define (load-font! sd
+                    #:scaling [scaling 8.0]
                     #:size [size 12]
                     #:face [face #f]
                     #:family [family 'default]
@@ -26,7 +27,7 @@
                  racket/gui/base)
 
   (define f%
-    (make-font #:size size #:face face #:family family
+    (make-font #:size (* scaling size) #:face face #:family family
                #:style style #:weight weight #:underlined? underlined?
                #:smoothing smoothing #:size-in-pixels? size-in-pixels?
                #:hinting hinting))
@@ -41,7 +42,8 @@
   (define char->char-id
     (for/hasheq ([c (in-list alphabet)])
       (define ci (char->integer c))
-      (define char-id (string->symbol (format "font:~a:~v" f-id ci)))
+      (define char-id
+        (string->symbol (format "font:~a:~v" f-id ci)))
       (define make-char-bm
         (λ ()
           (define s (string c))
@@ -53,7 +55,7 @@
           (define width (inexact->exact (ceiling width.0)))
           (define height (inexact->exact (ceiling height.0)))
 
-          (define char-bm (make-bitmap width height))
+          (define char-bm (make-screen-bitmap width height))
           (define char-dc (send char-bm make-dc))
 
           (send char-dc set-font f%)
@@ -63,7 +65,7 @@
 
       (add-sprite!/bm sd char-id make-char-bm)
       (values c char-id)))
-  (*ml-font char->char-id))
+  (*ml-font scaling char->char-id))
 
 (provide *ALL-ASCII*
          load-font!)
