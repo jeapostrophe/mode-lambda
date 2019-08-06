@@ -5,6 +5,8 @@
 
 (define W 800) (define H 600)
 
+;; look at alacrity --- https://github.com/jwilm/alacritty/blob/b0efa9d105b53211d8df094238c7eb8324e93566/font/src/lib.rs#L17
+
 ;; xxx test sequences of l
 ;; xxx test weird dippy doo fonts like papyrus
 
