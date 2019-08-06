@@ -18,7 +18,8 @@
   (define glc (new gl-config%))
   (send glc set-hires-mode #t)
   (send glc set-legacy? #f)
-  (define f (new frame% [label "Quick"] [width WIDTH] [height HEIGHT]))
+  (define f
+    (new frame% [label "Quick"] [width WIDTH] [height HEIGHT]))
   (define c
     (new canvas%
          [parent f]

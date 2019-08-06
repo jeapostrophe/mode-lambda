@@ -39,6 +39,10 @@
                          ,smoothing ,size-in-pixels?
                          ,hinting))))
 
+  (define (make-great-bitmap width height)
+    (make-object bitmap% width height #f #t
+                 (get-display-backing-scale)))
+
   (define char->char-id
     (for/hasheq ([c (in-list alphabet)])
       (define ci (char->integer c))
@@ -48,14 +52,14 @@
         (λ ()
           (define s (string c))
           
-          (define size-dc (send (make-screen-bitmap 1 1) make-dc))
+          (define size-dc (send (make-bitmap 1 1) make-dc))
           (send size-dc set-font f%)
           (define-values (width.0 height.0 xtra-below xtra-above)
             (send size-dc get-text-extent s))
           (define width (inexact->exact (ceiling width.0)))
           (define height (inexact->exact (ceiling height.0)))
 
-          (define char-bm (make-screen-bitmap width height))
+          (define char-bm (make-great-bitmap width height))
           (define char-dc (send char-bm make-dc))
 
           (send char-dc set-font f%)
