@@ -1,5 +1,7 @@
 #lang racket/base
 (require racket/match
+         racket/class
+         racket/gui/base
          mode-lambda
          mode-lambda/static
          mode-lambda/text/runtime
@@ -12,7 +14,7 @@
       (cons c l)
       l)))
 (define (load-font! sd
-                    #:scaling [scaling 8.0]
+                    #:scaling [scaling (get-display-backing-scale)]
                     #:size [size 12]
                     #:face [face #f]
                     #:family [family 'default]
@@ -23,8 +25,6 @@
                     #:size-in-pixels? [size-in-pixels? #f]
                     #:hinting [hinting 'aligned]
                     #:alphabet [alphabet *ALL-ASCII*])
-  (local-require racket/class
-                 racket/gui/base)
 
   (define f%
     (make-font #:size (* scaling size) #:face face #:family family

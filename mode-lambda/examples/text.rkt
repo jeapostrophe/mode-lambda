@@ -12,7 +12,7 @@
 
 (define db (make-sprite-db))
 (define f:trip (load-font! db #:face "Triplicate T4c"))
-(define f:roman (load-font! db #:face "Times New Roman"))
+(define f:roman (load-font! db #:face #;"Consolas" "Times New Roman"))
 
 (define cdb (compile-sprite-db db))
 (define t:trip (make-text-renderer f:trip cdb))
